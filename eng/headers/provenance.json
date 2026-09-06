@@ -1,0 +1,12 @@
+{
+  "distribution": "Temurin",
+  "version": "26.0.2+101",
+  "archive": "https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.2.1%2B1/OpenJDK26U-jdk_aarch64_linux_hotspot_26.0.2.1_1.tar.gz",
+  "sha256": "9f6ad9856a7dd880061adaf88db3c4da0642113d59b7960a892f0e551c0c948c",
+  "headers": {
+    "classfile_constants.h": "4694953d19f535d514d27ed70877c5e8baa9873c331ea79fbaa78ef7807d666b",
+    "jni.h": "1e03bd83d1662ac00647f7a06c11d32333767ee537803ec1d153e89888414520",
+    "jvmti.h": "9f37641971e1a87055b262f7fc3c2adde94de2079511642f264e51b9faaf068b",
+    "linux/jni_md.h": "8232a5a68d36060aaa426fbfdb4537983ecfdfc5fe07a43230005ddd1a4b986a"
+  }
+}

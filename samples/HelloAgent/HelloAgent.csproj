@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <JvmBridgeAgent>true</JvmBridgeAgent>
+    <PublishAot>true</PublishAot>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">0.1.0</JvmBridgeVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup><PackageReference Include="JvmBridge" Version="$(JvmBridgeVersion)" /></ItemGroup>
+</Project>

@@ -1,0 +1,112 @@
+name: Native JVM Tests
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ''
+      version:
+        type: string
+        required: true
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.matrix.outputs.targets }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: matrix
+        run: |
+          echo "targets=$(jq -c '{include: [.targets[] | select(.agent or .build)]}' eng/compatibility.json)" >> "$GITHUB_OUTPUT"
+  agent:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.targets) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      PACKAGE_VERSION: ${{ inputs.version }}
+      TARGET_RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: packages
+          path: artifacts/packages
+      - name: Prepare Linux native toolchain
+        if: runner.os == 'Linux' && !matrix.container
+        run: sudo apt-get update -qq && sudo apt-get install -y clang build-essential zlib1g-dev
+      - name: Prepare Windows native toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installation = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -property installationPath
+          $architecture = if ($env:TARGET_RID -eq 'win-x86') { 'x64_x86' } elseif ($env:TARGET_RID -eq 'win-arm64') { 'arm64' } else { 'x64' }
+          cmd /c "`"$installation\VC\Auxiliary\Build\vcvarsall.bat`" $architecture && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+          }
+      - name: Enable ARM32 emulation
+        if: matrix.emulated
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm
+      - name: Publish and execute the complete target matrix
+        if: '!matrix.container'
+        shell: bash
+        run: |
+          compiler=cc
+          if [[ "$RUNNER_OS" == Windows ]]; then compiler=cl; fi
+          if [[ "$TARGET_RID" == linux-arm ]]; then compiler=arm-linux-gnueabihf-gcc; fi
+          python eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" --compiler "$compiler"
+      - name: Publish and execute in the target container
+        if: matrix.container
+        env:
+          SDK_IMAGE: ${{ matrix.container }}
+          EMULATED: ${{ matrix.emulated || false }}
+          BUILD_ONLY: ${{ matrix.build || false }}
+        run: |
+          platform=()
+          if [[ "$EMULATED" == true ]]; then platform=(--platform linux/arm/v7); fi
+          docker run --rm "${platform[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY \
+            "$SDK_IMAGE" \
+            sh -ec 'if command -v apk >/dev/null; then apk add --no-cache python3 curl clang build-base zlib-dev linux-headers; else apt-get update -qq && apt-get install -y python3 curl clang build-essential zlib1g-dev; fi; extra=""; if [ "$BUILD_ONLY" = true ]; then extra="--build-only"; fi; python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" $extra'
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: results-${{ matrix.rid }}
+          path: artifacts/results/
+          if-no-files-found: error
+      - name: Upload native examples
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: examples-${{ matrix.rid }}
+          path: |
+            artifacts/agent/
+            artifacts/host/
+          if-no-files-found: error
+  coverage:
+    if: always()
+    needs: agent
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: results-*
+          path: artifacts/results
+          merge-multiple: true
+      - name: Require every expected JVM cell
+        run: python3 eng/report.py --verify

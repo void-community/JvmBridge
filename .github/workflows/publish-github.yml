@@ -1,0 +1,45 @@
+name: GitHub Release Workflow
+on:
+  workflow_call:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+jobs:
+  release:
+    if: vars.AUTOMATION_PR_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+          config-file: .github/RELEASE_PLEASE/config.json
+          manifest-file: .github/RELEASE_PLEASE/manifest.json
+      - name: Validate bot-created release PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.release.outputs.pr }}
+        run: |
+          if [[ -n "$PR" ]]; then
+            branch=$(jq -r '.headBranchName' <<< "$PR")
+            gh workflow run runnable-pr.yml --ref "$branch"
+          fi
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: steps.release.outputs.release_created == 'true'
+        with:
+          pattern: examples-*
+          path: artifacts/releases
+      - name: Upload tested native examples
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          for directory in artifacts/releases/*; do
+            archive="${directory}.tar.gz"
+            tar -czf "$archive" -C "$directory" .
+            gh release upload "$RELEASE_TAG" "$archive"
+          done

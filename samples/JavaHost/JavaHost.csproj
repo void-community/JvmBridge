@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">0.1.0</JvmBridgeVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="../../tests/Fixtures/AbiInspector.g.cs" Link="AbiInspector.g.cs" /><PackageReference Include="JvmBridge" Version="$(JvmBridgeVersion)" /></ItemGroup>
+</Project>

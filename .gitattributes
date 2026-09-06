@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.dll binary
+*.so binary
+*.dylib binary
+# Preserve upstream header bytes and whitespace for checksum verification.
+eng/headers/** -text -whitespace

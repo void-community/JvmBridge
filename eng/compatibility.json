@@ -1,0 +1,184 @@
+{
+  "javaMajors": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26
+  ],
+  "implementations": [
+    "hotspot",
+    "openj9"
+  ],
+  "targets": [
+    {
+      "rid": "linux-x64",
+      "runner": "ubuntu-24.04",
+      "os": "linux",
+      "arch": "x64",
+      "agent": true
+    },
+    {
+      "rid": "linux-arm64",
+      "runner": "ubuntu-24.04-arm",
+      "os": "linux",
+      "arch": "aarch64",
+      "agent": true
+    },
+    {
+      "rid": "linux-arm",
+      "runner": "ubuntu-24.04-arm",
+      "os": "linux",
+      "arch": "arm",
+      "agent": true,
+      "emulated": true,
+      "container": "mcr.microsoft.com/dotnet/sdk:10.0.400-noble@sha256:e1ffd2a92ae84c1291bc1b6887501f8af98e6331e7af6d4c8d37168c5e87a64c"
+    },
+    {
+      "rid": "linux-musl-x64",
+      "runner": "ubuntu-24.04",
+      "os": "linux",
+      "arch": "x64",
+      "agent": true,
+      "musl": true,
+      "container": "mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23@sha256:b36516b249f0cccf9e5017082f51d4bda2d61469f205a7167fbf3b8498ecdd59"
+    },
+    {
+      "rid": "linux-musl-arm64",
+      "runner": "ubuntu-24.04-arm",
+      "os": "linux",
+      "arch": "aarch64",
+      "agent": true,
+      "musl": true,
+      "container": "mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23@sha256:b36516b249f0cccf9e5017082f51d4bda2d61469f205a7167fbf3b8498ecdd59"
+    },
+    {
+      "rid": "linux-musl-arm",
+      "runner": "ubuntu-24.04-arm",
+      "os": "linux",
+      "arch": "arm",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Native library build and ABI checks run under ARM32 emulation; no matching Java SE musl ARM32 archive is currently configured.",
+      "build": true,
+      "emulated": true,
+      "musl": true,
+      "container": "mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23@sha256:b36516b249f0cccf9e5017082f51d4bda2d61469f205a7167fbf3b8498ecdd59"
+    },
+    {
+      "rid": "win-x64",
+      "runner": "windows-2025",
+      "os": "windows",
+      "arch": "x64",
+      "agent": true
+    },
+    {
+      "rid": "win-arm64",
+      "runner": "windows-11-arm",
+      "os": "windows",
+      "arch": "aarch64",
+      "agent": true
+    },
+    {
+      "rid": "win-x86",
+      "runner": "windows-2025",
+      "os": "windows",
+      "arch": "x86",
+      "agent": true
+    },
+    {
+      "rid": "osx-x64",
+      "runner": "macos-15-intel",
+      "os": "mac",
+      "arch": "x64",
+      "agent": true
+    },
+    {
+      "rid": "osx-arm64",
+      "runner": "macos-15",
+      "os": "mac",
+      "arch": "aarch64",
+      "agent": true
+    },
+    {
+      "rid": "linux-bionic-x64",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Android ART needs an Android application/emulator and ART-specific JVMTI validation; Java SE archives do not establish support."
+    },
+    {
+      "rid": "linux-bionic-arm64",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Android ART needs an Android application/emulator and ART-specific JVMTI validation; Java SE archives do not establish support."
+    },
+    {
+      "rid": "linux-bionic-arm",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Experimental NativeAOT Android ARM32 toolchain; ART-specific validation is required."
+    },
+    {
+      "rid": "ios-arm64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "iossimulator-arm64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "iossimulator-x64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "tvos-arm64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "tvossimulator-arm64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "tvossimulator-x64",
+      "agent": false,
+      "status": "unavailable",
+      "reason": "No supported Java SE JVM and -agentpath loader in this target's standard environment."
+    },
+    {
+      "rid": "maccatalyst-arm64",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Requires a Catalyst application and compatible embedded JVM; desktop macOS tests do not validate Catalyst."
+    },
+    {
+      "rid": "maccatalyst-x64",
+      "agent": false,
+      "status": "experimental",
+      "reason": "Requires a Catalyst application and compatible embedded JVM; desktop macOS tests do not validate Catalyst."
+    }
+  ]
+}

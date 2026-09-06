@@ -1,0 +1,59 @@
+name: JDK Maintenance
+on:
+  schedule:
+    - cron: '43 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+concurrency:
+  group: jdk-maintenance
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet tool restore
+      - name: Update pinned releases, bindings, and support inventory
+        run: python3 eng/update.py
+      - name: Verify regeneration and unit tests
+        run: python3 eng/check.py
+      - name: Save generated update for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jdk-update
+          path: |
+            eng/
+            src/JvmBridge/Native/Generated/
+            tests/Fixtures/AbiInspector.g.cs
+            docs/compatibility.md
+      - name: Create update PR and trigger real JVM validation
+        if: vars.AUTOMATION_PR_ENABLED == 'true'
+        shell: bash
+        run: |
+          git diff --quiet && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          branch=automation/jdk-updates
+          git checkout -B "$branch"
+          git add eng src/JvmBridge/Native/Generated tests/Fixtures/AbiInspector.g.cs docs/compatibility.md
+          git commit -m 'deps(jdk): ⬆️ refreshed generated JVM bindings and pinned runtimes' -m 'Observable behavior: updated the JVM compatibility inventory and generated declarations; runtime behavior is verified by the complete native-agent matrix.'
+          git push --force-with-lease origin "$branch"
+          if ! gh pr list --head "$branch" --json number --jq '.[0].number' | grep -q '[0-9]'; then
+            gh pr create --head "$branch" --title 'deps(jdk): ⬆️ refreshed generated JVM bindings and pinned runtimes' --body-file .github/jdk-update-body.md
+          fi
+          gh workflow run runnable-pr.yml --ref "$branch"
+          # New platforms and public API changes need human review. Routine archive
+          # updates can merge after the protected required check succeeds.
+          if git diff HEAD^ HEAD --quiet -- src/JvmBridge/Native/Generated/Bindings.g.cs eng/compatibility.json; then
+            gh pr merge "$branch" --auto --rebase
+          fi

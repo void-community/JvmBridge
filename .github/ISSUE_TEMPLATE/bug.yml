@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible binding, runtime, agent, or generation defect.
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Package/commit, .NET SDK, JVM vendor and full version, OS, and JVM process architecture.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Standalone Java/C# code and exact build/launch commands.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include relevant native crash logs and CI results after removing sensitive data.

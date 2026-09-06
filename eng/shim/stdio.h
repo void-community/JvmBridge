@@ -1,0 +1,1 @@
+/* JNI includes stdio.h but does not expose any stdio types. */

@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup Condition="'$(JvmBridgeAgent)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <Target Name="ValidateJvmBridgeAgent" BeforeTargets="CoreCompile" Condition="'$(JvmBridgeAgent)' == 'true'">
+    <Error Condition="'$(OutputType)' != 'Library'" Text="JvmBridge agents must be class libraries (OutputType=Library)." />
+    <Error Condition="'$(PublishAot)' != 'true' Or '$(NativeLib)' != 'Shared'" Text="JvmBridge agents require PublishAot=true and NativeLib=Shared." />
+  </Target>
+</Project>

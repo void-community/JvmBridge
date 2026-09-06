@@ -1,0 +1,32 @@
+name: Commit Workflow
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: commit-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    uses: ./.github/workflows/reusable-version.yml
+  build:
+    needs: version
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+  test:
+    needs: [version, build]
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+  release:
+    needs: [build, test]
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    uses: ./.github/workflows/publish-github.yml
+    secrets: inherit

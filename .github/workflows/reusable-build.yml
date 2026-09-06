@@ -1,0 +1,34 @@
+name: Build Workflow
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ''
+      version:
+        type: string
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Restore binding generator
+        run: dotnet tool restore
+      - name: Verify generation, manifests, build, and unit tests
+        run: python3 eng/check.py
+      - name: Pack the consumer artifact
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$PACKAGE_VERSION"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: packages
+          path: artifacts/packages
+          if-no-files-found: error

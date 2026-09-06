@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JvmBridge/JvmBridge.csproj" />
+    <Project Path="src/JvmBridge.Generator/JvmBridge.Generator.csproj" />
+  </Folder>
+  <Folder Name="/tests/"><Project Path="tests/JvmBridge.Tests/JvmBridge.Tests.csproj" /></Folder>
+</Solution>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageId>JvmBridge</PackageId>
+    <Description>Generated JNI and JVMTI bindings, JVM runtime helpers, and NativeAOT agents for .NET.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../JvmBridge.Generator/JvmBridge.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="../JvmBridge.Generator/bin/$(Configuration)/netstandard2.0/JvmBridge.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="buildTransitive/*" Pack="true" PackagePath="buildTransitive" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

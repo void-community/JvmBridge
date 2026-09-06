@@ -1,0 +1,10 @@
+name: Feature request
+description: Propose a generic JVM interop capability or a new verified target.
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the application-independent capability, motivation, and how it could be verified.
+    validations:
+      required: true

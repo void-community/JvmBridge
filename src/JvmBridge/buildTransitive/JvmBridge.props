@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup Condition="'$(JvmBridgeAgent)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup><CompilerVisibleProperty Include="JvmBridgeAgent" /></ItemGroup>
+</Project>

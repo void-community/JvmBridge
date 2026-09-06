@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "lockFileMaintenance": {"enabled": true, "automerge": true},
+  "packageRules": [
+    {"matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true},
+    {"matchUpdateTypes": ["major"], "automerge": false}
+  ]
+}
