@@ -4,6 +4,11 @@
     <NativeLib>Shared</NativeLib>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <!-- HotSpot's CPU feature probes are incompatible with CET shadow stacks in
+       a Windows AMD64 host. This opt-in affects the host binary, not OS policy. -->
+  <PropertyGroup Condition="'$(JvmBridgeHost)' == 'true' and '$(RuntimeIdentifier)' == 'win-x64'">
+    <CETCompat Condition="'$(CETCompat)' == ''">false</CETCompat>
+  </PropertyGroup>
   <!-- OpenJ9 needs low address space for compressed-reference metadata. Keep a
        1 MiB null guard instead of reserving the entire low 4 GiB in Mach-O hosts. -->
   <ItemGroup Condition="'$(JvmBridgeHost)' == 'true' and '$(RuntimeIdentifier)' == 'osx-x64'">
