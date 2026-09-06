@@ -15,4 +15,4 @@ jobs:
         shell: bash
         run: |
           base=$(jq -r '.["."]' .github/RELEASE_PLEASE/manifest.json)
-          echo "version=${base}-ci.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "version=${base}-ci.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"

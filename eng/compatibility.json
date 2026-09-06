@@ -77,7 +77,7 @@
       "build": true,
       "emulated": false,
       "musl": true,
-      "crossContainer": "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm-alpine@sha256:12199b18100ea28bd369ddc2d757c2a5d96d643753a4ef168d74d9fa1023708f"
+      "crossContainer": "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm-alpine@sha256:a295314210c0f21f8e7f37fb4510a3d14b8f54991a702cde92b532298c4c6826"
     },
     {
       "rid": "win-x64",

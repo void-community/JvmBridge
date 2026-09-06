@@ -4,6 +4,10 @@ public final class BridgeFixture {
     private static String message() { return "ORIGINAL"; }
 
     public static void main(String[] arguments) throws Exception {
+        if (arguments.length > 0 && arguments[0].equals("baseline")) {
+            System.out.println("JAVA_BASELINE_OK");
+            return;
+        }
         boolean attach = arguments.length > 0 && arguments[0].equals("attach");
         if (attach) {
             System.out.println("READY");

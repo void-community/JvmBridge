@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Publish the NuGet consumer and exercise real JVMs, retaining failure evidence."""
 import argparse
+from collections import Counter
+import re
 import hashlib
 import io
 import json
@@ -159,17 +161,22 @@ def exercise(home,entry,rid,compiler='cc'):
     hosted=run([host,jvm,str(baseline['destroy'])],directory/'host.log',environment=environment)
     if 'HOST_OK' not in hosted.stdout or f"DESTROY_RESULT={baseline['destroy']}" not in hosted.stdout:
         raise RuntimeError('Embedded JVM behavior differs from the native invocation baseline')
+    plain=run([java,'-Xcheck:jni','-cp',fixture,'BridgeFixture','baseline'],directory/'java-baseline.log',environment=environment)
+    if 'JAVA_BASELINE_OK' not in plain.stdout: raise RuntimeError('Uninstrumented Java baseline failed')
     result=run([java,'-Xcheck:jni','-agentpath:'+str(agent),'-cp',fixture,'BridgeFixture'],directory/'startup.log',environment=environment)
     for marker in ['AGENT_OK','SIGNAL_EXCEPTIONS_OK','VM_INIT','REGISTER_NATIVES','TRANSFORM','VM_DEATH','UNLOAD']:
         if marker not in result.stdout: raise RuntimeError('Missing '+marker+' in '+identifier)
-    if 'JNI WARNING' in result.stdout or 'WARNING in native method' in result.stdout or 'NATIVE_ERROR' in result.stdout:
-        raise RuntimeError('JNI validation reported an error: '+identifier)
+    def warnings(output):
+        return Counter(line.strip() for line in output.splitlines() if 'JNI WARNING' in line or 'WARNING in native method' in line or re.search(r'JVMJNCK[0-9]+[WE]',line))
+    introduced=warnings(result.stdout)-warnings(plain.stdout)
+    if introduced or 'NATIVE_ERROR' in result.stdout:
+        raise RuntimeError('Agent introduced JNI diagnostics: '+str(dict(introduced)))
     failed=run([java,'-agentpath:'+str(agent)+'=fail-start','-version'],directory/'failed-start.log',environment=environment,expected=None)
     if failed.returncode==0 or 'Intentional initialization failure' not in failed.stdout: raise RuntimeError('Agent initialization failure was not propagated')
     callback=run([java,'-agentpath:'+str(agent)+'=fail-callback','-cp',fixture,'BridgeFixture'],directory/'failed-callback.log',environment=environment)
     if 'Intentional callback failure' not in callback.stdout or 'AGENT_OK' not in callback.stdout: raise RuntimeError('Callback exception was not contained')
     attach_test(java,agent,fixture,home,directory,entry['java'],environment,entry['implementation'])
-    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed','nativeDestroyResult':baseline['destroy']}
+    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed','nativeDestroyResult':baseline['destroy'],'baselineJniWarnings':dict(warnings(plain.stdout)),'retransformation':'passed' if 'RETRANSFORM_OK' in result.stdout else 'unavailable'}
 
 def build(rid,version):
     # Keep source URLs out of MSBuild's path-list normalization on Windows.
