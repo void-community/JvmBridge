@@ -106,8 +106,8 @@ def compile_fixtures(home,output,major):
 def compile_probe(home,directory,compiler):
     source=directory/'abi.c'; source.write_text(abi.probe_source(home/'include'))
     binary=directory/('abi.exe' if os.name=='nt' else 'abi')
-    platform='win32' if os.name=='nt' else 'darwin' if sys.platform=='darwin' else 'linux'
-    include=[str(home/'include'),str(home/'include'/platform)]
+    header_platform='win32' if os.name=='nt' else 'darwin' if sys.platform=='darwin' else 'linux'
+    include=[str(home/'include'),str(home/'include'/header_platform)]
     if os.name=='nt':
         command=[compiler,'/nologo','/TC',str(source),'/Fe:'+str(binary),*['/I'+path for path in include]]
     else: command=[compiler,str(source),'-o',str(binary),*['-I'+path for path in include],*(['-ldl'] if sys.platform!='darwin' else [])]
