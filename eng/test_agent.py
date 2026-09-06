@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import signal
 import shutil
 import subprocess
 import sys
@@ -22,18 +23,37 @@ import xml.etree.ElementTree as ET
 import abi
 ROOT=Path(__file__).resolve().parent.parent
 
+def process_options():
+    return {'creationflags':subprocess.CREATE_NEW_PROCESS_GROUP} if os.name=='nt' else {'start_new_session':True}
+
+def terminate_tree(process):
+    if os.name=='nt':
+        if process.poll() is None:
+            subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15)
+    else:
+        try: os.killpg(process.pid,signal.SIGKILL)
+        except ProcessLookupError: pass
+    if process.poll() is None:
+        process.kill()
+        process.wait(timeout=10)
+
 def run(command, log, timeout=180, environment=None, expected=0, working_directory=None):
     log.parent.mkdir(parents=True,exist_ok=True)
+    process=subprocess.Popen([str(value) for value in command],cwd=working_directory or ROOT,env=environment,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,**process_options())
     try:
-        result=subprocess.run([str(value) for value in command],cwd=working_directory or ROOT,env=environment,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout)
+        output,_=process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as failure:
-        output=failure.stdout or b''
-        log.write_text(output.decode(errors='replace') if isinstance(output,bytes) else output)
-        raise RuntimeError(f'Timed out: {log}') from failure
-    log.write_text(result.stdout)
-    if expected is not None and result.returncode!=expected:
-        raise RuntimeError(f'Exit {result.returncode}: {log}\n{result.stdout[-3000:]}')
-    return result
+        terminate_tree(process)
+        try: output,_=process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            output=failure.stdout or b''
+        if isinstance(output,bytes): output=output.decode(errors='replace')
+        log.write_text(output)
+        raise RuntimeError(f'Timed out after {timeout}s: {log}') from failure
+    log.write_text(output)
+    if expected is not None and process.returncode!=expected:
+        raise RuntimeError(f'Exit {process.returncode}: {log}\n{output[-3000:]}')
+    return subprocess.CompletedProcess(command,process.returncode,output)
 
 def digest(path):
     value=hashlib.sha256()
@@ -109,7 +129,7 @@ def attach_test(java,agent,fixture,home,directory,major,environment,implementati
     command=[str(java)]
     if major>=21 and implementation=='hotspot': command+=['-XX:+EnableDynamicAgentLoading']
     command+=['-cp',str(fixture),'BridgeFixture','attach']
-    process=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,cwd=ROOT)
+    process=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,cwd=ROOT,**process_options())
     events=queue.Queue(); output=[]; errors=[]
     def capture(stream,values,notify=False):
         for line in stream:
@@ -130,10 +150,13 @@ def attach_test(java,agent,fixture,home,directory,major,environment,implementati
         if code!=0 or 'AGENT_OK' not in ''.join(output) or 'ATTACH' not in ''.join(errors):
             raise RuntimeError('Late attachment failed')
     finally:
-        if process.poll() is None: process.kill();process.wait()
+        terminate_tree(process)
         for reader in readers: reader.join(timeout=5)
         (directory/'attach-target.log').write_text(''.join(output+errors))
-        for stream in (process.stdin,process.stdout,process.stderr): stream.close()
+        process.stdin.close()
+        # Never block closing a pipe that an escaped child still holds open.
+        for reader,stream in zip(readers,(process.stdout,process.stderr)):
+            if not reader.is_alive(): stream.close()
 
 def exercise(home,entry,rid,compiler='cc'):
     identifier=f'{entry["implementation"]}-{entry["java"]}-{entry["distribution"]}'

@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: commit-${{ github.ref }}
+  group: commit-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   version:

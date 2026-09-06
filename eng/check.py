@@ -19,6 +19,7 @@ def check():
     for entry in entries:
         if entry['status']=='available' and (not entry.get('sha256') or not entry['url'].startswith('https://')): raise RuntimeError('Unpinned JDK archive')
         if entry['status']=='unavailable' and not entry.get('reason'): raise RuntimeError('Missing unavailability reason')
+    subprocess.run([sys.executable,'-m','unittest','discover','-s','eng','-p','test_eng.py'],cwd=ROOT,check=True)
     subprocess.run(['dotnet','restore','--locked-mode'],cwd=ROOT,check=True)
     subprocess.run(['dotnet','build','-c','Release','--no-restore'],cwd=ROOT,check=True)
     subprocess.run(['dotnet','test','tests/JvmBridge.Tests','-c','Release','--no-build','--no-restore'],cwd=ROOT,check=True)
