@@ -33,7 +33,7 @@ public sealed unsafe class AgentContext
     {
         _ = RawHandle;
         if (EventsEnabled)
-            throw new InvalidOperationException("Request capabilities during agent initialization, before events are enabled.");
+            throw new InvalidOperationException("Request capabilities from Configure, before events are enabled.");
         jvmtiCapabilities available = default;
         Check((*_environment)->GetPotentialCapabilities(_environment, &available), nameof(TryEnableRetransformation));
         if (available.can_retransform_classes == 0)
@@ -45,12 +45,12 @@ public sealed unsafe class AgentContext
         return true;
     }
 
-    /// <summary>Requests exactly the supplied capabilities; invoke during OnLoad/OnAttach before events are enabled.</summary>
+    /// <summary>Requests exactly the supplied capabilities; invoke during Configure before events are enabled.</summary>
     public void RequestCapabilities(jvmtiCapabilities requested)
     {
         _ = RawHandle;
         if (EventsEnabled)
-            throw new InvalidOperationException("Request capabilities during agent initialization, before events are enabled.");
+            throw new InvalidOperationException("Request capabilities from Configure, before events are enabled.");
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(RequestCapabilities));
         CanRetransform |= requested.can_retransform_classes != 0;
     }

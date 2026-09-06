@@ -54,8 +54,23 @@ internal partial class AbiJsonContext : System.Text.Json.Serialization.JsonSeria
 def probe_source(headers):
     jni=(headers/'jni.h').read_text()
     tooling=(headers/'jvmti.h').read_text()
-    lines=['#include <stdio.h>','#include <stddef.h>','#include <string.h>','#include <jni.h>','#include <jvmti.h>','int main(void) {','printf("{\\\"pointer\\\":%llu", (unsigned long long)sizeof(void*));']
+    lines=['#include <stdio.h>','#include <stddef.h>','#include <string.h>','#include <jni.h>','#include <jvmti.h>','int main(int argc, char **argv) {','if (argc == 2) return invocation(argv[1]);','printf("{\\\"pointer\\\":%llu", (unsigned long long)sizeof(void*));']
     tooling_name='JVMTINativeInterface_' if 'struct JVMTINativeInterface_' in tooling else 'jvmtiInterface_1_'
+    invocation = [
+        '#ifdef _WIN32', '#include <windows.h>',
+        '#define LOAD(path) LoadLibraryA(path)', '#define SYMBOL(handle,name) GetProcAddress(handle,name)',
+        '#else', '#include <dlfcn.h>', '#define LOAD(path) dlopen(path,RTLD_NOW|RTLD_GLOBAL)', '#define SYMBOL(handle,name) dlsym(handle,name)', '#endif',
+        'static int invocation(const char* path) {',
+        'void* library = (void*)LOAD(path); if (!library) return 2;',
+        'jint (JNICALL *create)(JavaVM**,void**,void*) = (jint (JNICALL *)(JavaVM**,void**,void*))SYMBOL(library,"JNI_CreateJavaVM");',
+        'if (!create) return 3;',
+        'JavaVM* vm = NULL; JNIEnv* env = NULL; JavaVMInitArgs args = {0};',
+        'JavaVMOption option = {"-Xcheck:jni",NULL}; args.version=JNI_VERSION_1_8; args.nOptions=1; args.options=&option;',
+        'jint created=create(&vm,(void**)&env,&args); if (created != 0) return 4;',
+        'jint destroyed=(*vm)->DestroyJavaVM(vm);',
+        'printf("{\\\"create\\\":%d,\\\"destroy\\\":%d}\\n",created,destroyed); return 0;', '}'
+    ]
+    lines[5:5] = invocation
     for name in records():
         native_name=tooling_name if name=='jvmtiInterface_1_' else name
         if native_name not in jni and native_name not in tooling: continue

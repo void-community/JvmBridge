@@ -11,7 +11,7 @@ Each available Java/implementation/target combination is required by CI. Version
 | linux-arm | 8, 11, 13, 16, 17, 18, 19 | — | Full agent + host + ABI tests required |
 | linux-musl-x64 | 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 | — | Full agent + host + ABI tests required |
 | linux-musl-arm64 | 8, 11, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 | — | Full agent + host + ABI tests required |
-| linux-musl-arm | — | — | Native build required; experimental: Native library build and ABI checks run under ARM32 emulation; no matching Java SE musl ARM32 archive is currently configured. |
+| linux-musl-arm | — | — | Native build required; experimental: Native library cross-build and export checks run on AMD64; no matching Java SE musl ARM32 archive is currently configured. |
 | win-x64 | 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 | 8, 11, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 | Full agent + host + ABI tests required |
 | win-arm64 | 16, 17, 18, 19, 21, 23, 25 | — | Full agent + host + ABI tests required |
 | win-x86 | 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 | — | Full agent + host + ABI tests required |

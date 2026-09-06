@@ -49,7 +49,7 @@ public sealed class MyAgent : JavaAgent
 }
 ```
 
-No attribute or manually exported entry point is required. The generator finds the single concrete `JavaAgent` subclass and emits `Agent_OnLoad`, `Agent_OnAttach`, and `Agent_OnUnload` into your assembly. Abstract agent base classes are allowed; ambiguous or invalid agents produce compiler errors.
+No attribute or manually exported entry point is required. The generator finds the single concrete `JavaAgent` subclass and emits `Agent_OnLoad`, `Agent_OnAttach`, and `Agent_OnUnload` into your assembly. Override `Configure` to request capabilities before events are installed. `OnAttach` runs after callbacks are active, so it can immediately retransform existing classes. Abstract agent base classes are allowed; ambiguous or invalid agents produce compiler errors.
 
 Publish for the **JVM process's** operating system and architecture:
 
@@ -89,7 +89,7 @@ See the [**generated compatibility inventory**](docs/compatibility.md). It shows
 - [**HelloAgent**](samples/HelloAgent): registers native methods, preserves Unicode across threads/global references, transforms a fixture class, and supports late attachment.
 - [**JavaHost**](samples/JavaHost): creates a JVM from an explicit native-library path, invokes Java, handles exceptions, and demonstrates ownership.
 
-Agent callbacks borrow their JNI environment. Local references must be disposed before the callback returns. Promote a reference to a global reference before retaining it or passing it to another attached thread. Attachments only detach threads they attached. Dispose JVM-owned resources before destroying a hosted JVM. Generated entry points retain the native module until process termination, including when a JVM releases its own agent-library handle.
+Agent callbacks borrow their JNI environment. Local references must be disposed before the callback returns. Promote a reference to a global reference before retaining it or passing it to another attached thread. Attachments only detach threads they attached. Dispose JVM-owned resources before destroying a hosted JVM. JNI failures preserve their result in `JniException.ErrorCode`; some OpenJ9 builds return `JNI_ERR` from `DestroyJavaVM` even in a plain C host. The test reports record this native baseline explicitly rather than claiming successful embedded shutdown. Generated entry points retain the native module until process termination, including when a JVM releases its own agent-library handle. `OnUnload` performs exactly-once logical cleanup at VM death, with the native unload export as a fallback.
 
 ## Build and test
 

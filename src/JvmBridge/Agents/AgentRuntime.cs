@@ -20,10 +20,7 @@ public static unsafe class AgentRuntime
             context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached);
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
-            if (attached)
-                context.Agent.OnAttach(context);
-            else
-                context.Agent.OnLoad(context);
+            context.Agent.Configure(context);
             var environment = (jvmtiInterface_1_**)context.RawHandle;
             jvmtiEventCallbacks callbacks = default;
             callbacks.VMInit = &VmInit;
@@ -36,6 +33,10 @@ public static unsafe class AgentRuntime
             foreach (jvmtiEvent notification in new[] { jvmtiEvent.JVMTI_EVENT_VM_INIT, jvmtiEvent.JVMTI_EVENT_VM_DEATH, jvmtiEvent.JVMTI_EVENT_CLASS_PREPARE, jvmtiEvent.JVMTI_EVENT_CLASS_FILE_LOAD_HOOK })
                 AgentContext.Check(((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, jvmtiEventMode.JVMTI_ENABLE, notification, null), "SetEventNotificationMode");
             context.EventsEnabled = true;
+            if (attached)
+                context.Agent.OnAttach(context);
+            else
+                context.Agent.OnLoad(context);
             return Methods.JNI_OK;
         }
         catch (Exception exception)
@@ -107,7 +108,8 @@ public static unsafe class AgentRuntime
                 if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
                     return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
-                context.Agent.OnVmDeath(context, environment);
+                try { context.Agent.OnVmDeath(context, environment); }
+                finally { Stop(context.VirtualMachine.Handle); }
             }
         }
         catch (Exception exception) { Report(exception); }

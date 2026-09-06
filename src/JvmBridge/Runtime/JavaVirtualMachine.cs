@@ -70,7 +70,7 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     internal static void Check(int result, string operation)
     {
         if (result != Methods.JNI_OK)
-            throw new InvalidOperationException($"{operation} failed with JNI error {result}.");
+            throw new JniException(result, operation);
     }
 
     public void Dispose()

@@ -2,6 +2,7 @@
 """Publish the NuGet consumer and exercise real JVMs, retaining failure evidence."""
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,14 +15,15 @@ import tempfile
 import threading
 import time
 import zipfile
+import xml.etree.ElementTree as ET
 
 import abi
 ROOT=Path(__file__).resolve().parent.parent
 
-def run(command, log, timeout=180, environment=None, expected=0):
+def run(command, log, timeout=180, environment=None, expected=0, working_directory=None):
     log.parent.mkdir(parents=True,exist_ok=True)
     try:
-        result=subprocess.run([str(value) for value in command],cwd=ROOT,env=environment,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout)
+        result=subprocess.run([str(value) for value in command],cwd=working_directory or ROOT,env=environment,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout)
     except subprocess.TimeoutExpired as failure:
         output=failure.stdout or b''
         log.write_text(output.decode(errors='replace') if isinstance(output,bytes) else output)
@@ -42,19 +44,22 @@ def unpack(entry,directory):
     run(['curl','--fail','--location','--silent','--show-error','--retry','3',entry['url'],'--output',archive],directory/'download.log',timeout=600)
     if digest(archive).lower()!=entry['sha256'].lower(): raise RuntimeError('JDK SHA256 mismatch: '+entry['url'])
     target=directory/'jdk';target.mkdir()
-    if archive.suffix=='.zip':
-        with zipfile.ZipFile(archive) as contents:
+    zipped=archive.suffix=='.zip'
+    compressed=io.BytesIO(archive.read_bytes())
+    archive.unlink()
+    if zipped:
+        with zipfile.ZipFile(compressed) as contents:
             for member in contents.namelist():
                 if not (target/member).resolve().is_relative_to(target.resolve()): raise RuntimeError('Unsafe archive path')
             contents.extractall(target)
     else:
-        with tarfile.open(archive) as contents:
+        with tarfile.open(fileobj=compressed) as contents:
             def selected(member,destination):
                 if '/jmods/' in member.name or member.name.endswith('/src.zip'):
                     return None
                 return tarfile.data_filter(member,destination)
             contents.extractall(target,filter=selected)
-    archive.unlink()
+    compressed.close()
     name='java.exe' if os.name=='nt' else 'java'
     candidates=[path.parent.parent for path in target.rglob(name) if path.parent.name=='bin' and (path.parent.parent/'include/jni.h').exists()]
     if not candidates: raise RuntimeError('No JDK home in archive')
@@ -69,11 +74,11 @@ def compile_fixtures(home,output,major):
     compiler=home/'bin'/('javac.exe' if os.name=='nt' else 'javac')
     output.mkdir(parents=True,exist_ok=True)
     args=['-source','8','-target','8','-Xlint:-options'] if major==8 else ['--release','8']
-    run([compiler,*args,'-d',output,ROOT/'tests/Fixtures/BridgeFixture.java'],output/'javac.log')
+    run([compiler,*args,'-cp',output,'-d',output,ROOT/'tests/Fixtures/BridgeFixture.java'],output/'javac.log',working_directory=output)
     # The attach API is outside Java SE's --release 8 API signatures. Its stable
     # Java 8 entry points are compiled with source/target 8 and checked by execution.
-    attach_classpath=['-cp',str(home/'lib/tools.jar')] if major==8 else []
-    run([compiler,'-source','8','-target','8','-Xlint:-options',*attach_classpath,'-d',output,ROOT/'tests/Fixtures/AttachFixture.java'],output/'javac-attach.log')
+    attach_classpath=['-cp',str(home/'lib/tools.jar')+os.pathsep+str(output)] if major==8 else ['-cp',str(output)]
+    run([compiler,'-source','8','-target','8','-Xlint:-options',*attach_classpath,'-d',output,ROOT/'tests/Fixtures/AttachFixture.java'],output/'javac-attach.log',working_directory=output)
 
 def compile_probe(home,directory,compiler):
     source=directory/'abi.c'; source.write_text(abi.probe_source(home/'include'))
@@ -82,7 +87,7 @@ def compile_probe(home,directory,compiler):
     include=[str(home/'include'),str(home/'include'/platform)]
     if os.name=='nt':
         command=[compiler,'/nologo','/TC',str(source),'/Fe:'+str(binary),*['/I'+path for path in include]]
-    else: command=[compiler,str(source),'-o',str(binary),*['-I'+path for path in include]]
+    else: command=[compiler,str(source),'-o',str(binary),*['-I'+path for path in include],*(['-ldl'] if sys.platform!='darwin' else [])]
     run(command,directory/'abi-build.log')
     return json.loads(run([binary],directory/'abi-native.json').stdout)
 
@@ -148,7 +153,12 @@ def exercise(home,entry,rid,compiler='cc'):
     elif sys.platform!='darwin':
         search=[str(jvm.parent),str(jvm.parent.parent),str(home/'lib')]
         environment['LD_LIBRARY_PATH']=os.pathsep.join(search+[environment.get('LD_LIBRARY_PATH','')])
-    run([host,jvm],directory/'host.log',environment=environment)
+    native_probe=directory/('abi.exe' if os.name=='nt' else 'abi')
+    native_run=run([native_probe,jvm],directory/'native-invocation.log',environment=environment)
+    baseline=json.loads(next(line for line in native_run.stdout.splitlines() if line.startswith('{"create":')))
+    hosted=run([host,jvm,str(baseline['destroy'])],directory/'host.log',environment=environment)
+    if 'HOST_OK' not in hosted.stdout or f"DESTROY_RESULT={baseline['destroy']}" not in hosted.stdout:
+        raise RuntimeError('Embedded JVM behavior differs from the native invocation baseline')
     result=run([java,'-Xcheck:jni','-agentpath:'+str(agent),'-cp',fixture,'BridgeFixture'],directory/'startup.log',environment=environment)
     for marker in ['AGENT_OK','SIGNAL_EXCEPTIONS_OK','VM_INIT','REGISTER_NATIVES','TRANSFORM','VM_DEATH','UNLOAD']:
         if marker not in result.stdout: raise RuntimeError('Missing '+marker+' in '+identifier)
@@ -159,11 +169,18 @@ def exercise(home,entry,rid,compiler='cc'):
     callback=run([java,'-agentpath:'+str(agent)+'=fail-callback','-cp',fixture,'BridgeFixture'],directory/'failed-callback.log',environment=environment)
     if 'Intentional callback failure' not in callback.stdout or 'AGENT_OK' not in callback.stdout: raise RuntimeError('Callback exception was not contained')
     attach_test(java,agent,fixture,home,directory,entry['java'],environment,entry['implementation'])
-    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed'}
+    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed','nativeDestroyResult':baseline['destroy']}
 
 def build(rid,version):
-    # Separate --source arguments avoid MSBuild's platform-dependent path-list normalization.
-    properties=['-p:JvmBridgeVersion='+version,'--source',str(ROOT/'artifacts/packages'),'--source','https://api.nuget.org/v3/index.json']
+    # Keep source URLs out of MSBuild's path-list normalization on Windows.
+    configuration=ET.Element('configuration')
+    sources=ET.SubElement(configuration,'packageSources');ET.SubElement(sources,'clear')
+    ET.SubElement(sources,'add',key='local',value=str(ROOT/'artifacts/packages'))
+    ET.SubElement(sources,'add',key='nuget.org',value='https://api.nuget.org/v3/index.json')
+    config=ROOT/'artifacts/consumer.nuget.config'
+    config.parent.mkdir(parents=True,exist_ok=True)
+    ET.ElementTree(configuration).write(config,encoding='utf-8',xml_declaration=True)
+    properties=['-p:JvmBridgeVersion='+version,'-p:RestoreConfigFile='+str(config)]
     for project,folder in [('HelloAgent','agent'),('JavaHost','host')]:
         run(['dotnet','publish',ROOT/f'samples/{project}/{project}.csproj','-c','Release','-r',rid,'--self-contained','-p:PublishAot=true',*properties,'-o',ROOT/'artifacts'/folder/rid],ROOT/f'artifacts/results/{rid}/build-{folder}.log',timeout=900)
     # Check exports with an object-file reader. No library is loaded/unloaded by this check.

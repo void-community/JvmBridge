@@ -9,13 +9,14 @@ public sealed unsafe class HelloAgent : JavaAgent
     private static readonly object _logLock = new();
     private static AgentContext? _context;
 
+    public override void Configure(AgentContext context) => context.TryEnableRetransformation();
+
     public override void OnLoad(AgentContext context)
     {
         _context = context;
         if (context.Options.Contains("fail-start", StringComparison.Ordinal))
             throw new InvalidOperationException("Intentional initialization failure.");
-        bool retransform = context.TryEnableRetransformation();
-        Log($"LOAD retransform={retransform}");
+        Log($"LOAD retransform={context.CanRetransform}");
     }
 
     public override void OnAttach(AgentContext context)

@@ -60,7 +60,7 @@ jobs:
         with:
           platforms: arm
       - name: Publish and execute the complete target matrix
-        if: '!matrix.container'
+        if: '!matrix.container && !matrix.crossContainer'
         shell: bash
         run: |
           compiler=cc
@@ -83,6 +83,16 @@ jobs:
           docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY \
             "$SDK_IMAGE" \
             sh -ec 'if command -v apk >/dev/null; then apk add --no-cache python3 curl clang build-base zlib-dev linux-headers; else apt-get update -qq && apt-get install -y python3 curl clang build-essential zlib1g-dev; fi; extra=""; if [ "$BUILD_ONLY" = true ]; then extra="--build-only"; fi; python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" $extra'
+      - name: Cross-publish ARM32 musl with the .NET toolchain
+        if: matrix.crossContainer
+        env:
+          CROSS_IMAGE: ${{ matrix.crossContainer }}
+        run: |
+          docker run --rm -v "$PWD:/repo" -v "$DOTNET_ROOT:/dotnet:ro" -w /repo \
+            -e DOTNET_ROOT=/dotnet -e PATH=/dotnet:/usr/local/bin:/usr/bin:/bin \
+            -e ROOTFS_DIR=/crossrootfs/arm -e PACKAGE_VERSION -e TARGET_RID \
+            "$CROSS_IMAGE" \
+            sh -ec 'python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" --build-only'
       - name: Upload runtime evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

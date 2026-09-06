@@ -5,6 +5,8 @@ namespace JvmBridge.Agents;
 /// <summary>Lifecycle hooks for an agent. JNI access is deferred until the JVM supplies an environment.</summary>
 public abstract class JavaAgent
 {
+    /// <summary>Requests capabilities before callbacks are installed. No Java calls during startup.</summary>
+    public virtual void Configure(AgentContext context) { }
     public virtual void OnLoad(AgentContext context) { }
     public virtual void OnAttach(AgentContext context) => OnLoad(context);
     public virtual void OnVmInit(AgentContext context, JavaEnvironment environment) { }
