@@ -167,6 +167,11 @@ def exercise(home,entry,rid,compiler='cc'):
     host=ROOT/'artifacts/host'/rid/('JavaHost.exe' if rid.startswith('win-') else 'JavaHost')
     java=home/'bin'/('java.exe' if os.name=='nt' else 'java')
     environment=os.environ.copy()
+    configuration=json.loads((ROOT/'eng/compatibility.json').read_text())
+    target=next(target for target in configuration['targets'] if target['rid']==rid)
+    vm_options=[option for rule in configuration.get('vmOptionRules',[]) if rule['java']==entry['java'] and rule['implementation']==entry['implementation'] and rule['architecture']==target.get('arch') for option in rule['options']]
+    if vm_options:
+        environment['JAVA_TOOL_OPTIONS']=' '.join([environment.get('JAVA_TOOL_OPTIONS',''),*vm_options]).strip()
     # HotSpot documents libjsig for coexistence with other native runtimes.
     # Never inject HotSpot's shim into OpenJ9.
     if entry['implementation']=='hotspot' and os.name!='nt':
@@ -207,7 +212,7 @@ def exercise(home,entry,rid,compiler='cc'):
     callback=run([java,'-agentpath:'+str(agent)+'=fail-callback','-cp',fixture,'BridgeFixture'],directory/'failed-callback.log',environment=environment)
     if 'Intentional callback failure' not in callback.stdout or 'AGENT_OK' not in callback.stdout: raise RuntimeError('Callback exception was not contained')
     attach_test(java,agent,fixture,home,directory,entry['java'],environment,entry['implementation'])
-    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed','nativeDestroyResult':baseline['destroy'],'baselineJniWarnings':dict(warnings(plain.stdout)),'retransformation':'passed' if 'RETRANSFORM_OK' in result.stdout else 'unavailable'}
+    return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed','nativeDestroyResult':baseline['destroy'],'vmOptions':vm_options,'baselineJniWarnings':dict(warnings(plain.stdout)),'retransformation':'passed' if 'RETRANSFORM_OK' in result.stdout else 'unavailable'}
 
 def build(rid,version):
     # Keep source URLs out of MSBuild's path-list normalization on Windows.

@@ -29,6 +29,8 @@ def report(verify=False,check=False):
         state='Full agent + host + ABI tests required' if target['agent'] else ('Native build required; ' if target.get('build') else '')+target['status']+': '+target['reason']
         text+=f'| {target["rid"]} | {versions[0]} | {versions[1]} | {state} |\n'
     text+='\nJava majors: '+', '.join(map(str,configuration['javaMajors']))+'. One pinned GA build per available major/distribution/target; historical patch releases are not exhaustively tested. Android ART is not a Java SE version and needs its own platform suite. Browser/WASI and other non-NativeAOT targets cannot load this agent.\n'
+    for rule in configuration.get('vmOptionRules',[]):
+        text+=f"\nJava {rule['java']} {rule['implementation']} {rule['architecture']} is exercised with `{' '.join(rule['options'])}`. {rule['reason']}\n"
     path=ROOT/'docs/compatibility.md';path.parent.mkdir(exist_ok=True)
     if check:
         if not path.exists() or path.read_text()!=text: raise RuntimeError('Compatibility documentation is stale.')

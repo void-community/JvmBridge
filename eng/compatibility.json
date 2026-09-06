@@ -181,5 +181,16 @@
       "status": "experimental",
       "reason": "Requires a Catalyst application and compatible embedded JVM; desktop macOS tests do not validate Catalyst."
     }
+  ],
+  "vmOptionRules": [
+    {
+      "java": 10,
+      "implementation": "hotspot",
+      "architecture": "x64",
+      "options": [
+        "-XX:UseAVX=2"
+      ],
+      "reason": "Constrain the obsolete JVM vector instruction set on modern hosted CPUs; baseline and agent processes use identical settings."
+    }
   ]
 }
