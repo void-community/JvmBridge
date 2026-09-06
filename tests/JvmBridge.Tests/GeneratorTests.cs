@@ -14,7 +14,7 @@ public sealed class GeneratorTests
         string[] assemblies = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? throw new InvalidOperationException("Runtime assembly paths unavailable.")).Split(Path.PathSeparator);
         List<MetadataReference> references = assemblies.Select(path => MetadataReference.CreateFromFile(path)).Cast<MetadataReference>().ToList();
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
-        CSharpCompilation compilation = CSharpCompilation.Create("TestAgent", [CSharpSyntaxTree.ParseText(source)], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        CSharpCompilation compilation = CSharpCompilation.Create("TestAgent", [CSharpSyntaxTree.ParseText(source)], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new AgentGenerator().AsSourceGenerator()], optionsProvider: new OptionsProvider(enabled));
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out _);
         GeneratorDriverRunResult result = driver.GetRunResult();

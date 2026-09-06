@@ -10,11 +10,13 @@ public static unsafe class AgentRuntime
 {
     private static readonly ConcurrentDictionary<nint, AgentContext> _contexts = new();
 
-    public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached)
+    public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0)
     {
         AgentContext? context = null;
         try
         {
+            if (entryPoint != 0)
+                NativeModule.Retain(entryPoint);
             context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached);
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
@@ -80,6 +82,11 @@ public static unsafe class AgentRuntime
         {
             if (_contexts.TryGetValue((nint)tooling, out AgentContext? context))
             {
+                // A JVM may enter a tooling callback while a checked JNI call is
+                // still in progress. Acknowledge its check flag without clearing
+                // an actual pending Java exception.
+                if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                    return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
                 context.Agent.OnVmInit(context, environment);
             }
@@ -94,6 +101,11 @@ public static unsafe class AgentRuntime
         {
             if (_contexts.TryGetValue((nint)tooling, out AgentContext? context))
             {
+                // A JVM may enter a tooling callback while a checked JNI call is
+                // still in progress. Acknowledge its check flag without clearing
+                // an actual pending Java exception.
+                if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                    return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
                 context.Agent.OnVmDeath(context, environment);
             }
@@ -108,6 +120,11 @@ public static unsafe class AgentRuntime
         {
             if (_contexts.TryGetValue((nint)tooling, out AgentContext? context))
             {
+                // A JVM may enter a tooling callback while a checked JNI call is
+                // still in progress. Acknowledge its check flag without clearing
+                // an actual pending Java exception.
+                if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                    return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
                 context.Agent.OnClassPrepare(context, environment, (nint)type);
             }

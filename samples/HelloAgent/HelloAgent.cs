@@ -70,6 +70,8 @@ public sealed unsafe class HelloAgent : JavaAgent
     {
         try
         {
+            if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                return null;
             using JavaEnvironment environment = new((nint)nativeEnvironment);
             using JavaLocalReference local = environment.NewLocalReference((nint)value);
             using JavaGlobalReference global = local.ToGlobal();

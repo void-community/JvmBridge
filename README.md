@@ -89,7 +89,7 @@ See the [**generated compatibility inventory**](docs/compatibility.md). It shows
 - [**HelloAgent**](samples/HelloAgent): registers native methods, preserves Unicode across threads/global references, transforms a fixture class, and supports late attachment.
 - [**JavaHost**](samples/JavaHost): creates a JVM from an explicit native-library path, invokes Java, handles exceptions, and demonstrates ownership.
 
-Agent callbacks borrow their JNI environment. Local references must be disposed before the callback returns. Promote a reference to a global reference before retaining it or passing it to another attached thread. Attachments only detach threads they attached. Dispose JVM-owned resources before destroying a hosted JVM. NativeAOT agents must stay loaded until process termination.
+Agent callbacks borrow their JNI environment. Local references must be disposed before the callback returns. Promote a reference to a global reference before retaining it or passing it to another attached thread. Attachments only detach threads they attached. Dispose JVM-owned resources before destroying a hosted JVM. Generated entry points retain the native module until process termination, including when a JVM releases its own agent-library handle.
 
 ## Build and test
 

@@ -55,18 +55,21 @@ def probe_source(headers):
     jni=(headers/'jni.h').read_text()
     tooling=(headers/'jvmti.h').read_text()
     lines=['#include <stdio.h>','#include <stddef.h>','#include <string.h>','#include <jni.h>','#include <jvmti.h>','int main(void) {','printf("{\\\"pointer\\\":%llu", (unsigned long long)sizeof(void*));']
+    tooling_name='JVMTINativeInterface_' if 'struct JVMTINativeInterface_' in tooling else 'jvmtiInterface_1_'
     for name in records():
-        if name not in jni and name not in tooling: continue
-        ctype='struct '+name if name in ('JNINativeInterface_','JNIInvokeInterface_','JNIEnv_','JavaVM_','jvmtiInterface_1_','_jvmtiEnv') else name
+        native_name=tooling_name if name=='jvmtiInterface_1_' else name
+        if native_name not in jni and native_name not in tooling: continue
+        ctype='struct '+native_name if name in ('JNINativeInterface_','JNIInvokeInterface_','JNIEnv_','JavaVM_','jvmtiInterface_1_','_jvmtiEnv') else native_name
         lines.append(f'printf(",\\\"size.{name}\\\":%llu", (unsigned long long)sizeof({ctype}));')
     for name,header in [('JNINativeInterface_',jni),('JNIInvokeInterface_',jni),('jvmtiInterface_1_',tooling)]:
-        match=re.search(r'(?:typedef )?struct '+name+r'\s*\{(.*?)\n\}',header,re.S)
+        native_name=tooling_name if name=='jvmtiInterface_1_' else name
+        match=re.search(r'(?:typedef )?struct '+native_name+r'\s*\{(.*?)\n\s*\}',header,re.S)
         if not match: raise RuntimeError('Native table not found: '+name)
         fields=re.findall(r'\(JNICALL \*(\w+)\)|void\s*\*\s*(reserved\d+)\s*;',match[1])
         for left,right in fields:
             field=left or right
             if field.lower().startswith('reserved'): continue
-            ctype='struct '+name
+            ctype='struct '+native_name
             lines.append(f'printf(",\\\"offset.{name}.{field}\\\":%llu", (unsigned long long)offsetof({ctype},{field}));')
     # Callback tables contain typedef-typed fields, so compare names against each header.
     for name in ('jvmtiEventCallbacks','jvmtiHeapCallbacks'):

@@ -72,7 +72,8 @@ def compile_fixtures(home,output,major):
     run([compiler,*args,'-d',output,ROOT/'tests/Fixtures/BridgeFixture.java'],output/'javac.log')
     # The attach API is outside Java SE's --release 8 API signatures. Its stable
     # Java 8 entry points are compiled with source/target 8 and checked by execution.
-    run([compiler,'-source','8','-target','8','-Xlint:-options','-d',output,ROOT/'tests/Fixtures/AttachFixture.java'],output/'javac-attach.log')
+    attach_classpath=['-cp',str(home/'lib/tools.jar')] if major==8 else []
+    run([compiler,'-source','8','-target','8','-Xlint:-options',*attach_classpath,'-d',output,ROOT/'tests/Fixtures/AttachFixture.java'],output/'javac-attach.log')
 
 def compile_probe(home,directory,compiler):
     source=directory/'abi.c'; source.write_text(abi.probe_source(home/'include'))
@@ -144,6 +145,9 @@ def exercise(home,entry,rid,compiler='cc'):
     verify_abi(compile_probe(home,directory,compiler),managed)
     jvm=library(home,'jvm.dll' if os.name=='nt' else 'libjvm.dylib' if sys.platform=='darwin' else 'libjvm.so')
     if os.name=='nt': environment['PATH']=str(home/'bin')+os.pathsep+environment['PATH']
+    elif sys.platform!='darwin':
+        search=[str(jvm.parent),str(jvm.parent.parent),str(home/'lib')]
+        environment['LD_LIBRARY_PATH']=os.pathsep.join(search+[environment.get('LD_LIBRARY_PATH','')])
     run([host,jvm],directory/'host.log',environment=environment)
     result=run([java,'-Xcheck:jni','-agentpath:'+str(agent),'-cp',fixture,'BridgeFixture'],directory/'startup.log',environment=environment)
     for marker in ['AGENT_OK','SIGNAL_EXCEPTIONS_OK','VM_INIT','REGISTER_NATIVES','TRANSFORM','VM_DEATH','UNLOAD']:
@@ -158,7 +162,8 @@ def exercise(home,entry,rid,compiler='cc'):
     return {'rid':rid,**entry,'status':'passed','abi':'passed','startup':'passed','attach':'passed','host':'passed'}
 
 def build(rid,version):
-    properties=['-p:JvmBridgeVersion='+version,'-p:RestoreSources='+str(ROOT/'artifacts/packages')+'%3Bhttps://api.nuget.org/v3/index.json']
+    # Separate --source arguments avoid MSBuild's platform-dependent path-list normalization.
+    properties=['-p:JvmBridgeVersion='+version,'--source',str(ROOT/'artifacts/packages'),'--source','https://api.nuget.org/v3/index.json']
     for project,folder in [('HelloAgent','agent'),('JavaHost','host')]:
         run(['dotnet','publish',ROOT/f'samples/{project}/{project}.csproj','-c','Release','-r',rid,'--self-contained','-p:PublishAot=true',*properties,'-o',ROOT/'artifacts'/folder/rid],ROOT/f'artifacts/results/{rid}/build-{folder}.log',timeout=900)
     # Check exports with an object-file reader. No library is loaded/unloaded by this check.
@@ -188,7 +193,10 @@ def main():
     else: entries=[entry for entry in json.loads((ROOT/'eng/jdks.lock.json').read_text())['jdks'] if entry['rid']==args.rid and (args.major is None or entry['java']==args.major)]
     if not entries: raise RuntimeError('No expected matrix cells for '+args.rid)
     for entry in entries:
-        if entry['status']!='available': outcomes.append(entry);continue
+        if entry['status']!='available':
+            outcomes.append(entry)
+            path.write_text(json.dumps({'results':outcomes},indent=2)+'\n')
+            continue
         print(f'Testing {args.rid} Java {entry["java"]} {entry["distribution"]}',flush=True)
         try:
             if args.jdk_home: outcome=exercise(args.jdk_home.resolve(),entry,args.rid,args.compiler)

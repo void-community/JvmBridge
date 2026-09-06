@@ -75,8 +75,12 @@ jobs:
           BUILD_ONLY: ${{ matrix.build || false }}
         run: |
           platform=()
-          if [[ "$EMULATED" == true ]]; then platform=(--platform linux/arm/v7); fi
-          docker run --rm "${platform[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY \
+          emulation=()
+          if [[ "$EMULATED" == true ]]; then
+            platform=(--platform linux/arm/v7)
+            emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
+          fi
+          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY \
             "$SDK_IMAGE" \
             sh -ec 'if command -v apk >/dev/null; then apk add --no-cache python3 curl clang build-base zlib-dev linux-headers; else apt-get update -qq && apt-get install -y python3 curl clang build-essential zlib1g-dev; fi; extra=""; if [ "$BUILD_ONLY" = true ]; then extra="--build-only"; fi; python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" $extra'
       - name: Upload runtime evidence

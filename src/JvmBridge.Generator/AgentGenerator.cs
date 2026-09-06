@@ -60,14 +60,14 @@ public sealed class AgentGenerator : IIncrementalGenerator
                 #nullable enable
                 namespace JvmBridge.Generated
                 {
-                    internal static class NativeAgentExports
+                    internal static unsafe class NativeAgentExports
                     {
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnLoad")]
                         public static int Load(nint machine, nint options, nint reserved)
-                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, false);
+                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, false, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Load);
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnAttach")]
                         public static int Attach(nint machine, nint options, nint reserved)
-                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, true);
+                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, true, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Attach);
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnUnload")]
                         public static void Unload(nint machine) => global::JvmBridge.Agents.AgentRuntime.Stop(machine);
                     }
