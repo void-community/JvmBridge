@@ -6,7 +6,7 @@
   </PropertyGroup>
   <!-- OpenJ9 needs low address space for compressed-reference metadata. Keep a
        1 MiB null guard instead of reserving the entire low 4 GiB in Mach-O hosts. -->
-  <ItemGroup Condition="'$(JvmBridgeHost)' == 'true' and ('$(RuntimeIdentifier)' == 'osx-x64' or '$(RuntimeIdentifier)' == 'osx-arm64')">
+  <ItemGroup Condition="'$(JvmBridgeHost)' == 'true' and '$(RuntimeIdentifier)' == 'osx-x64'">
     <LinkerArg Include="-Wl,-pagezero_size,0x100000" />
   </ItemGroup>
   <Target Name="ValidateJvmBridgeAgent" BeforeTargets="CoreCompile" Condition="'$(JvmBridgeAgent)' == 'true'">

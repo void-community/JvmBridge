@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import platform
 from pathlib import Path
 import queue
 import signal
@@ -110,7 +111,7 @@ def compile_probe(home,directory,compiler):
     if os.name=='nt':
         command=[compiler,'/nologo','/TC',str(source),'/Fe:'+str(binary),*['/I'+path for path in include]]
     else: command=[compiler,str(source),'-o',str(binary),*['-I'+path for path in include],*(['-ldl'] if sys.platform!='darwin' else [])]
-    if sys.platform=='darwin': command += ['-Wl,-pagezero_size,0x100000']
+    if sys.platform=='darwin' and platform.machine()=='x86_64': command += ['-Wl,-pagezero_size,0x100000']
     run(command,directory/'abi-build.log')
     return json.loads(run([binary],directory/'abi-native.json').stdout)
 
@@ -226,7 +227,10 @@ def build(rid,version):
     extension='.dll' if rid.startswith('win-') else '.dylib' if rid.startswith('osx-') else '.so'
     agent=ROOT/'artifacts/agent'/rid/('HelloAgent'+extension)
     if os.name=='nt': command=['dumpbin','/exports',agent]
-    else: command=['nm','-g',agent] if sys.platform=='darwin' else ['nm','-D',agent]
+    else:
+        symbol_tool=shutil.which('llvm-nm') or shutil.which('nm')
+        if symbol_tool is None: raise RuntimeError('Neither llvm-nm nor nm is available for export verification')
+        command=[symbol_tool,'-g',agent] if sys.platform=='darwin' else [symbol_tool,'-D',agent]
     output=run(command,ROOT/f'artifacts/results/{rid}/exports.log').stdout
     for symbol in ('Agent_OnLoad','Agent_OnAttach','Agent_OnUnload'):
         if symbol not in output: raise RuntimeError('Missing native export '+symbol)
