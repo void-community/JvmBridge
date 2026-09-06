@@ -104,7 +104,7 @@ dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version=0.1.0-loca
 python eng/test_agent.py --rid linux-x64 --version 0.1.0-local.1
 ```
 
-The last command builds the actual package consumers and executes the entire pinned target-specific JVM matrix, downloading one JDK at a time. It includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
+The last command builds the actual package consumers and executes the entire pinned target-specific JVM matrix, downloading one JDK at a time. CI compiles portable Java 8 fixture bytecode once with a pinned JDK 17 and runs it unchanged on all target JVMs; local runs can compile fixtures with the supplied JDK. It includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
 
 For a focused run with an installed JDK:
 

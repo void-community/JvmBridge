@@ -23,6 +23,8 @@ jobs:
         run: dotnet tool restore
       - name: Verify generation, manifests, build, and unit tests
         run: python3 eng/check.py
+      - name: Compile portable Java fixtures with the pinned JDK
+        run: python3 eng/compile_fixtures.py
       - name: Pack the consumer artifact
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
@@ -31,4 +33,9 @@ jobs:
         with:
           name: packages
           path: artifacts/packages
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: fixtures
+          path: artifacts/fixtures
           if-no-files-found: error

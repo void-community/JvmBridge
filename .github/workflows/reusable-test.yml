@@ -42,6 +42,10 @@ jobs:
         with:
           name: packages
           path: artifacts/packages
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: fixtures
+          path: artifacts/fixtures
       - name: Prepare Linux native toolchain
         if: runner.os == 'Linux' && !matrix.container
         run: sudo apt-get update -qq && sudo apt-get install -y clang build-essential zlib1g-dev
@@ -68,23 +72,7 @@ jobs:
           if [[ "$RUNNER_OS" == Windows ]]; then compiler=cl; fi
           if [[ "$TARGET_RID" == linux-arm ]]; then compiler=arm-linux-gnueabihf-gcc; fi
           python eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" --compiler "$compiler"
-      - name: Publish and execute in the target container
-        if: matrix.container
-        env:
-          SDK_IMAGE: ${{ matrix.container }}
-          EMULATED: ${{ matrix.emulated || false }}
-          BUILD_ONLY: ${{ matrix.build || false }}
-        run: |
-          platform=()
-          emulation=()
-          if [[ "$EMULATED" == true ]]; then
-            platform=(--platform linux/arm/v7)
-            emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
-          fi
-          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY \
-            "$SDK_IMAGE" \
-            sh -ec 'if command -v apk >/dev/null; then apk add --no-cache python3 curl clang build-base zlib-dev linux-headers; else apt-get update -qq && apt-get install -y python3 curl clang build-essential zlib1g-dev; fi; extra=""; if [ "$BUILD_ONLY" = true ]; then extra="--build-only"; fi; python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" $extra'
-      - name: Cross-publish ARM32 musl with the .NET toolchain
+      - name: Cross-publish ARM32 with the .NET toolchain
         if: matrix.crossContainer
         env:
           CROSS_IMAGE: ${{ matrix.crossContainer }}
@@ -94,6 +82,23 @@ jobs:
             -e ROOTFS_DIR=/crossrootfs/arm -e PACKAGE_VERSION -e TARGET_RID \
             "$CROSS_IMAGE" \
             sh -ec 'python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" --build-only'
+      - name: Publish and execute in the target container
+        if: matrix.container
+        env:
+          SDK_IMAGE: ${{ matrix.container }}
+          EMULATED: ${{ matrix.emulated || false }}
+          BUILD_ONLY: ${{ matrix.build || false }}
+          CROSS_BUILT: ${{ matrix.crossContainer != '' }}
+        run: |
+          platform=()
+          emulation=()
+          if [[ "$EMULATED" == true ]]; then
+            platform=(--platform linux/arm/v7)
+            emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
+          fi
+          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e BUILD_ONLY -e CROSS_BUILT \
+            "$SDK_IMAGE" \
+            sh -ec 'if command -v apk >/dev/null; then apk add --no-cache python3 curl clang build-base zlib-dev linux-headers; else apt-get update -qq && apt-get install -y python3 curl clang build-essential zlib1g-dev; fi; extra=""; if [ "$BUILD_ONLY" = true ]; then extra="--build-only"; elif [ "$CROSS_BUILT" = true ]; then extra="--skip-build"; fi; python3 eng/test_agent.py --rid "$TARGET_RID" --version "$PACKAGE_VERSION" $extra'
       - name: Upload runtime evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

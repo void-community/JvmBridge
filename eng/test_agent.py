@@ -171,7 +171,13 @@ def exercise(home,entry,rid,compiler='cc'):
     if entry['implementation']=='hotspot' and os.name!='nt':
         libraries=list(home.rglob('libjsig.dylib' if sys.platform=='darwin' else 'libjsig.so'))
         if libraries: environment['DYLD_INSERT_LIBRARIES' if sys.platform=='darwin' else 'LD_PRELOAD']=str(libraries[0])
-    fixture=directory/'classes';compile_fixtures(home,fixture,entry['java'])
+    fixture=directory/'classes'
+    precompiled=ROOT/'artifacts/fixtures'
+    if (precompiled/'BridgeFixture.class').exists() and (precompiled/'AttachFixture.class').exists():
+        fixture.mkdir(parents=True,exist_ok=True)
+        for binary in precompiled.glob('*.class'): shutil.copy2(binary,fixture/binary.name)
+    else:
+        compile_fixtures(home,fixture,entry['java'])
     managed=json.loads(run([host,'--abi'],directory/'abi-managed.json').stdout)
     verify_abi(compile_probe(home,directory,compiler),managed)
     jvm=library(home,'jvm.dll' if os.name=='nt' else 'libjvm.dylib' if sys.platform=='darwin' else 'libjvm.so')
@@ -234,7 +240,7 @@ def main():
         build(args.rid,args.version)
     if args.build_only:
         path=ROOT/f'artifacts/results/{args.rid}/build-summary.json'
-        path.write_text(json.dumps({'rid':args.rid,'status':'build-verified','runtime':'unavailable'},indent=2)+'\n')
+        path.write_text(json.dumps({'rid':args.rid,'status':'build-verified'},indent=2)+'\n')
         return
     outcomes=[]
     path=ROOT/f'artifacts/results/{args.rid}/summary.json';path.parent.mkdir(parents=True,exist_ok=True)

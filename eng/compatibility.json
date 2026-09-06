@@ -41,12 +41,13 @@
     },
     {
       "rid": "linux-arm",
-      "runner": "ubuntu-24.04-arm",
+      "runner": "ubuntu-24.04",
       "os": "linux",
       "arch": "arm",
       "agent": true,
       "emulated": true,
-      "container": "mcr.microsoft.com/dotnet/sdk:10.0.400-noble@sha256:e1ffd2a92ae84c1291bc1b6887501f8af98e6331e7af6d4c8d37168c5e87a64c"
+      "container": "mcr.microsoft.com/dotnet/runtime-deps:10.0.11-noble@sha256:7c9ba479f4a74450a89726851c2af2b096f9bcc70a71b84ac0302869871ff4c5",
+      "crossContainer": "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm@sha256:eb77bde7194de32ed305bf62306073464995651a01c8813337d638e223be498c"
     },
     {
       "rid": "linux-musl-x64",
