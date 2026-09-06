@@ -4,6 +4,11 @@
     <NativeLib>Shared</NativeLib>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <!-- OpenJ9 needs low address space for compressed-reference metadata. Keep a
+       1 MiB null guard instead of reserving the entire low 4 GiB in Mach-O hosts. -->
+  <ItemGroup Condition="'$(JvmBridgeHost)' == 'true' and ('$(RuntimeIdentifier)' == 'osx-x64' or '$(RuntimeIdentifier)' == 'osx-arm64')">
+    <LinkerArg Include="-Wl,-pagezero_size,0x100000" />
+  </ItemGroup>
   <Target Name="ValidateJvmBridgeAgent" BeforeTargets="CoreCompile" Condition="'$(JvmBridgeAgent)' == 'true'">
     <Error Condition="'$(OutputType)' != 'Library'" Text="JvmBridge agents must be class libraries (OutputType=Library)." />
     <Error Condition="'$(PublishAot)' != 'true' Or '$(NativeLib)' != 'Shared'" Text="JvmBridge agents require PublishAot=true and NativeLib=Shared." />

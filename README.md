@@ -89,6 +89,8 @@ See the [**generated compatibility inventory**](docs/compatibility.md). It shows
 - [**HelloAgent**](samples/HelloAgent): registers native methods, preserves Unicode across threads/global references, transforms a fixture class, and supports late attachment.
 - [**JavaHost**](samples/JavaHost): creates a JVM from an explicit native-library path, invokes Java, handles exceptions, and demonstrates ownership.
 
+For NativeAOT executables that embed a JVM, set `<JvmBridgeHost>true</JvmBridgeHost>`. On macOS this reserves a 1 MiB null guard rather than the default low 4 GiB reservation, leaving room for OpenJ9 compressed-reference metadata. The JavaHost sample includes this setting.
+
 Agent callbacks borrow their JNI environment. Local references must be disposed before the callback returns. Promote a reference to a global reference before retaining it or passing it to another attached thread. Attachments only detach threads they attached. Dispose JVM-owned resources before destroying a hosted JVM. JNI failures preserve their result in `JniException.ErrorCode`; some OpenJ9 builds return `JNI_ERR` from `DestroyJavaVM` even in a plain C host. The test reports record this native baseline explicitly rather than claiming successful embedded shutdown. Checked-JNI warnings are compared with an uninstrumented Java launch; additional agent warnings fail validation. Generated entry points retain the native module until process termination, including when a JVM releases its own agent-library handle. `OnUnload` performs exactly-once logical cleanup at VM death, with the native unload export as a fallback.
 
 ## Build and test

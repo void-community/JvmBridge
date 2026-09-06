@@ -110,6 +110,7 @@ def compile_probe(home,directory,compiler):
     if os.name=='nt':
         command=[compiler,'/nologo','/TC',str(source),'/Fe:'+str(binary),*['/I'+path for path in include]]
     else: command=[compiler,str(source),'-o',str(binary),*['-I'+path for path in include],*(['-ldl'] if sys.platform!='darwin' else [])]
+    if sys.platform=='darwin': command += ['-Wl,-pagezero_size,0x100000']
     run(command,directory/'abi-build.log')
     return json.loads(run([binary],directory/'abi-native.json').stdout)
 
@@ -211,6 +212,8 @@ def build(rid,version):
     config.parent.mkdir(parents=True,exist_ok=True)
     ET.ElementTree(configuration).write(config,encoding='utf-8',xml_declaration=True)
     properties=['-p:JvmBridgeVersion='+version,'-p:RestoreConfigFile='+str(config)]
+    if os.environ.get('ROOTFS_DIR'):
+        properties += ['-p:SysRoot='+os.environ['ROOTFS_DIR'],'-p:LinkerFlavor=lld','-p:ObjCopyName=llvm-objcopy']
     for project,folder in [('HelloAgent','agent'),('JavaHost','host')]:
         run(['dotnet','publish',ROOT/f'samples/{project}/{project}.csproj','-c','Release','-r',rid,'--self-contained','-p:PublishAot=true',*properties,'-o',ROOT/'artifacts'/folder/rid],ROOT/f'artifacts/results/{rid}/build-{folder}.log',timeout=900)
     # Check exports with an object-file reader. No library is loaded/unloaded by this check.
