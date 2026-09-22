@@ -4,7 +4,7 @@
     <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">$(Version)</JvmBridgeVersion>
   </PropertyGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.9.21.5138" />
+    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.9.22.6016" />
     <PackageVersion Include="JvmBridge" Version="$(JvmBridgeVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
