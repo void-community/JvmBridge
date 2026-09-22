@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 using Xunit;
 
 namespace JvmBridge.Build.Tests;
@@ -31,7 +33,7 @@ public sealed class AbiTests
             }
             """;
 
-        var records = NativeAbiVerifier.ParseRecords(source);
+        Dictionary<string, StructDeclarationSyntax> records = NativeAbiVerifier.ParseRecords(source);
         Assert.Equal(["Invoke", "First", "Second"], [.. NativeAbiVerifier.Fields(records[key: "Callbacks"])]);
     }
 
