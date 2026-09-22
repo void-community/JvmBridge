@@ -15,9 +15,9 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
         CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
         List<JdkEntry> entries = JsonFile.Read<JdkLock>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"])).Jdks;
 
-        HashSet<(string Rid, int Java, string Implementation)> expected = [.. entries
+        HashSet<JvmMatrixCell> expected = [.. entries
             .Where(entry => entry.Status == "available")
-            .Select(entry => (entry.Rid, entry.Java, entry.Implementation))];
+            .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
 
         List<JsonObject> results = ReadResults();
 

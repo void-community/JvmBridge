@@ -6,14 +6,14 @@ internal static class ManifestValidator
 {
     internal static void ValidateManifest(CompatibilityConfiguration configuration, IReadOnlyCollection<JdkEntry> entries)
     {
-        HashSet<(string Rid, int Java, string Implementation)> expected = [.. (
+        HashSet<JvmMatrixCell> expected = [.. (
             from target in configuration.Targets
             where target.Agent
             from major in configuration.JavaMajors
             from implementation in configuration.Implementations
-            select (target.Rid, major, implementation))];
+            select new JvmMatrixCell(target.Rid, major, implementation))];
 
-        List<(string Rid, int Java, string Implementation)> actual = [.. entries.Select(entry => (entry.Rid, entry.Java, entry.Implementation))];
+        List<JvmMatrixCell> actual = [.. entries.Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
 
         if (actual.Distinct().Count() != actual.Count || !actual.ToHashSet().SetEquals(expected))
             throw new InvalidOperationException(message: "Missing or duplicate manifest cells.");

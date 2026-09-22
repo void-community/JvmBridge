@@ -15,16 +15,16 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     {
         CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
 
-        List<(TargetConfiguration Target, int Major, string Implementation)> cells = [.. (
+        List<JdkResolutionRequest> cells = [.. (
             from target in configuration.Targets
             where target.Agent
             from major in configuration.JavaMajors
             from implementation in configuration.Implementations
-            select (target, major, implementation))];
+            select new JdkResolutionRequest(target, major, implementation))];
 
         List<JdkEntry> entries = [];
 
-        foreach (IEnumerable<(TargetConfiguration Target, int Major, string Implementation)> batch in cells.Chunk(size: 8))
+        foreach (IEnumerable<JdkResolutionRequest> batch in cells.Chunk(size: 8))
         {
             Task<JdkEntry>[] tasks = [.. batch.Select(cell => ResolveCellAsync(cell.Target, cell.Major, cell.Implementation, cancellationToken))];
             JdkEntry[] resolved = await Task.WhenAll(tasks).ConfigureAwait(continueOnCapturedContext: false);
@@ -37,11 +37,11 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         {
             List<JdkEntry> previous = JsonFile.Read<JdkLock>(path).Jdks;
 
-            HashSet<(string Rid, int Java, string Implementation)> available = [.. entries
+            HashSet<JvmMatrixCell> available = [.. entries
                 .Where(entry => entry.Status == "available")
-                .Select(entry => (entry.Rid, entry.Java, entry.Implementation))];
+                .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
 
-            List<JdkEntry> lost = [.. previous.Where(entry => entry.Status == "available" && !available.Contains((entry.Rid, entry.Java, entry.Implementation)))];
+            List<JdkEntry> lost = [.. previous.Where(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)))];
 
             if (lost.Count > 0)
                 throw new InvalidOperationException(message: "Previously available JVM coverage disappeared; review vendor availability before changing the lock.");

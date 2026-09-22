@@ -27,9 +27,9 @@
       },
       "NetAgents.Analyzers": {
         "type": "Direct",
-        "requested": "[26.9.21.5138, )",
-        "resolved": "26.9.21.5138",
-        "contentHash": "VpYAiillXCg6VV1tQFoWabr4WnIqQpNnxX+6kJKLjm9RKzwktju1H8n8rY49/CjxkOgiCNU5XAdjg6XJCaBPZg=="
+        "requested": "[26.9.22.6016, )",
+        "resolved": "26.9.22.6016",
+        "contentHash": "o4YXRzv1UWKJ5WGzKexdCriOusB+9Al4QjVRsiPEaV6Oe27rVPQf3gZlTRGter3V1iGZYZ0OxBfz/H52DHrGWQ=="
       },
       "Nito.AsyncEx.Context": {
         "type": "Direct",
