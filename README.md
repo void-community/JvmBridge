@@ -98,14 +98,16 @@ Agent callbacks borrow their JNI environment. Local references must be disposed 
 Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. CI pins its SDK versions in the workflows; local builds use your installed SDK. Pack the library before restoring the solution, because the samples consume that package:
 
 ```sh
+export VersionTimestamp="$(date -u '+%y %m %d %H %M %S')"
+package_version="$(dotnet msbuild src/JvmBridge/JvmBridge.csproj -getProperty:PackageVersion)"
 dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
 dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
-dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version=0.1.0-local.1
-dotnet restore JvmBridge.slnx --locked-mode -p:JvmBridgeVersion=0.1.0-local.1
-dotnet build JvmBridge.slnx -c Release --no-restore -p:JvmBridgeVersion=0.1.0-local.1
-dotnet test JvmBridge.slnx -c Release --no-build --no-restore -p:JvmBridgeVersion=0.1.0-local.1
-dotnet publish samples/HelloAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/agent/linux-x64
-dotnet publish samples/JavaHost -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/host/linux-x64
+dotnet pack src/JvmBridge -c Release -o artifacts/packages
+dotnet restore JvmBridge.slnx --locked-mode
+dotnet build JvmBridge.slnx -c Release --no-restore
+dotnet test JvmBridge.slnx -c Release --no-build --no-restore
+dotnet publish samples/HelloAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/agent/linux-x64
+dotnet publish samples/JavaHost -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/host/linux-x64
 TARGET_RID=linux-x64 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
@@ -114,8 +116,8 @@ MSBuild publishes standalone consumers from the packed artifact; xUnit executes 
 For a focused run with an installed JDK:
 
 ```sh
-dotnet publish samples/HelloAgent -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/agent/linux-arm64
-dotnet publish samples/JavaHost -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/host/linux-arm64
+dotnet publish samples/HelloAgent -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/agent/linux-arm64
+dotnet publish samples/JavaHost -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/host/linux-arm64
 TARGET_RID=linux-arm64 JVM_JDK_HOME=/path/to/jdk JVM_JAVA_MAJOR=25 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
@@ -130,7 +132,9 @@ dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedM
 
 Generation verifies header checksums and uses a fixed Clang target and shim headers to avoid host-dependent declarations. The shims cover only unused stdio declarations and Clang's target-specific va_list. Upstream headers are unmodified. Native C probes independently validate the actual target ABI, including capability bits and callback/function-table offsets.
 
-Scheduled JDK maintenance discovers stable releases, pins archive checksums, regenerates bindings, and opens tested update PRs. Renovate maintains the SDK, packages, tools, and actions. Compatible updates may merge after protected checks pass. Public API changes and new platforms require review. Release-please owns versions, release notes, and tags.
+Scheduled JDK maintenance discovers stable releases, pins archive checksums, regenerates bindings, and opens tested update PRs. Renovate maintains the SDK, packages, tools, and actions. Compatible updates may merge after protected checks pass. Public API changes and new platforms require review.
+
+Every validated commit to `main` publishes its tested NuGet package using Trusted Publishing. Versions follow [**NetAgents' timestamp scheme**](https://github.com/caunt/NetAgents): `YY.M.D.B`, with a UTC time-of-day bucket from 1000 through 9999. CI freezes the timestamp once and uses the same version throughout packaging, testing, and publishing. There are no release PRs or tags; the publisher never rebuilds the package.
 
 Both samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. The local feed is configured in their project files. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
 

@@ -9,6 +9,9 @@ on:
       version:
         type: string
         required: true
+      timestamp:
+        type: string
+        required: true
 jobs:
   matrix:
     runs-on: ubuntu-24.04
@@ -31,6 +34,8 @@ jobs:
     env:
       PACKAGE_VERSION: ${{ inputs.version }}
       TARGET_RID: ${{ matrix.rid }}
+      Version: ${{ inputs.version }}
+      VersionTimestamp: ${{ inputs.timestamp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -86,7 +91,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" -v "$DOTNET_ROOT:/dotnet:ro" -w /repo \
             -e DOTNET_ROOT=/dotnet -e PATH=/dotnet:/usr/local/bin:/usr/bin:/bin \
-            -e ROOTFS_DIR=/crossrootfs/arm -e PACKAGE_VERSION -e TARGET_RID \
+            -e ROOTFS_DIR=/crossrootfs/arm -e PACKAGE_VERSION -e TARGET_RID -e Version -e VersionTimestamp \
             "$CROSS_IMAGE" \
             sh -ec '
               dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$ROOTFS_DIR" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/agent/$TARGET_RID"
@@ -106,7 +111,7 @@ jobs:
             platform=(--platform linux/arm/v7)
             emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
           fi
-          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT \
+          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT -e Version -e VersionTimestamp \
             "$SDK_IMAGE" \
             sh -ec '
               if command -v apk >/dev/null; then

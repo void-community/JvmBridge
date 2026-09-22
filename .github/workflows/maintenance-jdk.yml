@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
-      JvmBridgeVersion: 0.1.0-jdk-update.${{ github.run_id }}.${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -25,6 +24,13 @@ jobs:
           dotnet-version: |
             10.0.401
             11.0.100-rc.1.26425.128
+      - name: Freeze timestamp version for package-consumer validation
+        run: |
+          version_timestamp="$(date -u '+%y %m %d %H %M %S')"
+          package_version="$(dotnet msbuild src/JvmBridge/JvmBridge.csproj -getProperty:PackageVersion "-p:VersionTimestamp=$version_timestamp")"
+          echo "VersionTimestamp=$version_timestamp" >> "$GITHUB_ENV"
+          echo "Version=$package_version" >> "$GITHUB_ENV"
+          echo "JvmBridgeVersion=$package_version" >> "$GITHUB_ENV"
       - run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
       - run: dotnet restore src/JvmBridge.Maintenance --locked-mode
       - name: Update pinned releases, bindings, and support inventory

@@ -16,9 +16,11 @@ Renovate uses `RENOVATE_TOKEN` when configured, then `AUTOMATION_TOKEN`, then th
 
 ## Packages and releases
 
-Each validation run packs a unique CI version and tests standalone consumers against that artifact. NuGet packages and native example binaries are downloadable as CI artifacts. release-please opens release PRs after successful main validation; merging a release PR creates a release and uploads tested example archives.
+Every push to `main` builds and tests the package, including the complete available native JVM matrix, then calls `publish-nuget.yml`. Pull requests run validation but cannot publish. NuGet packages and native examples remain downloadable as CI artifacts. No release PR, tag, GitHub release, or automation-enable variable is required for NuGet publishing.
 
-NuGet publication is deliberately a separate manual workflow for the initial rollout. Create an environment named `nuget`, configure `NUGET_API_KEY` for the package owner, and dispatch the NuGet workflow with an existing version tag. It rebuilds and runs the native matrix for that tag before pushing the exact resulting package. Trusted publishing can replace the API key once the NuGet owner configures its trust policy. Never put credentials in tracked files.
+Versioning matches [**NetAgents**](https://github.com/caunt/NetAgents): `YY.M.D.B`, where `B = 1000 + floor(secondsSinceUtcMidnight * 9000 / 86400)`. For example, noon UTC on 2026-09-22 produces `26.9.22.5500`. The version job freezes one UTC timestamp; all builds and tests use that version. Re-running version calculation creates a new time-based version. Retrying only publication reuses the already validated artifact. As in NetAgents, builds within the same 9.6-second bucket have the same version; NuGet skips duplicates rather than replacing existing packages.
+
+The existing trust identity is preserved: repository `void-community/JvmBridge`, workflow `publish-nuget.yml`, environment `nuget`, NuGet user `caunt`. `NuGet/login` exchanges GitHub OIDC identity for a short-lived credential using `id-token: write`; no stored `NUGET_API_KEY` secret is needed. The publishing job downloads the tested package and pushes that exact version and its associated symbols. It does not rebuild. Use `Commit Workflow` on `main` for a manual validation-and-publish retry.
 
 ## Updating coverage
 

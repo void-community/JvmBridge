@@ -10,7 +10,7 @@ JvmBridge is a generic JNI/JVMTI library and NativeAOT agent toolkit. Keep all p
 - `src/JvmBridge.Maintenance`: deliberate vendor-inventory and header updates, separate from normal builds.
 - `tests`: xUnit unit and native integration tests and generic Java fixtures. The package's Roslyn generator emits the ABI inspector into the opted-in sample compilation.
 - `samples`: standalone consumers restored from the packed NuGet artifact, never project references.
-- `.github`: reusable CI, release-please, dependency maintenance, and repository templates.
+- `.github`: reusable CI, NuGet Trusted Publishing, dependency maintenance, and repository templates.
 
 ## Source conventions
 
@@ -45,7 +45,7 @@ Use Conventional Commits with a scope, a gitmoji after the scope, and past-tense
 
 Examples: `feat(agents): ✨ added generated native entry points`, `ci(test): ✅ expanded JVM compatibility checks`.
 
-Pull request descriptions use the repository template. release-please owns CHANGELOG.md, versions, release PRs, and tags: never edit CHANGELOG.md manually. Do not publish NuGet packages without a verified release and configured publishing credentials. Never print tokens or copy organization secrets into this repository.
+Pull request descriptions use the repository template. Every validated main commit publishes its tested NuGet artifact through `publish-nuget.yml` and the `nuget` environment using Trusted Publishing. There are no release PRs, release tags, or release-please workflows. Versions follow NetAgents' UTC `YY.M.D.B` scheme, with the timestamp frozen once per workflow run; `B` is 1000 plus the integer part of seconds-since-midnight multiplied by 9000/86400. Never rebuild packages in the publishing job, publish unvalidated artifacts, print tokens, or copy organization secrets into this repository.
 
 ## Documentation
 

@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">0.1.0</JvmBridgeVersion>
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">$(Version)</JvmBridgeVersion>
   </PropertyGroup>
   <ItemGroup>
     <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.9.21.5138" />

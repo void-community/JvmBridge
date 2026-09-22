@@ -15,11 +15,13 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       version: ${{ needs.version.outputs.version }}
+      timestamp: ${{ needs.version.outputs.timestamp }}
   test:
     needs: [version, build]
     uses: ./.github/workflows/reusable-test.yml
     with:
       version: ${{ needs.version.outputs.version }}
+      timestamp: ${{ needs.version.outputs.timestamp }}
   required:
     if: always()
     needs: [build, test]

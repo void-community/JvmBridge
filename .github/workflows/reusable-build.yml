@@ -9,11 +9,16 @@ on:
       version:
         type: string
         required: true
+      timestamp:
+        type: string
+        required: true
 jobs:
   build:
     runs-on: ubuntu-24.04
     env:
       JvmBridgeVersion: ${{ inputs.version }}
+      Version: ${{ inputs.version }}
+      VersionTimestamp: ${{ inputs.timestamp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -26,7 +31,7 @@ jobs:
       - name: Restore binding generator
         run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
       - name: Pack the consumer artifact before restoring samples
-        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RestoreLockedMode=true
+        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
       - name: Restore solution
         run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests

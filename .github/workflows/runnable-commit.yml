@@ -16,17 +16,19 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       version: ${{ needs.version.outputs.version }}
+      timestamp: ${{ needs.version.outputs.timestamp }}
   test:
     needs: [version, build]
     uses: ./.github/workflows/reusable-test.yml
     with:
       version: ${{ needs.version.outputs.version }}
-  release:
-    needs: [build, test]
+      timestamp: ${{ needs.version.outputs.timestamp }}
+  publish:
+    if: github.repository == 'void-community/JvmBridge' && github.ref == 'refs/heads/main'
+    needs: [version, build, test]
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      actions: write
-    uses: ./.github/workflows/publish-github.yml
-    secrets: inherit
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-nuget.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
