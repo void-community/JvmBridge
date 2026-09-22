@@ -144,11 +144,17 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD" })
+        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM" })
         {
             if (!result.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
         }
+
+        bool missingSelectedRetransformation = !result.Output.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
+            || !result.Output.Contains(value: "SELECTED_RETRANSFORM", StringComparison.Ordinal);
+
+        if (result.Output.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) && missingSelectedRetransformation)
+            throw new InvalidOperationException("Selected loader retransformation did not run in " + identifier);
 
         Dictionary<string, int> plainWarnings = Warnings(plain.Output);
 
@@ -182,7 +188,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (callbackFailed)
             throw new InvalidOperationException(message: "Callback exception was not contained");
 
-        await AttachTestAsync(java, agent, fixture, home, directory, entry.Java, environment, entry.Implementation, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await AttachTestAsync(java, agent, fixture, home, directory, entry.Java, environment, entry.Implementation, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         JsonObject outcome = JsonFile.ToObject(entry);
         outcome.SetProperty(propertyName: "status", value: "passed");
@@ -259,6 +265,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         int major,
         IReadOnlyDictionary<string, string?> environment,
         string implementation,
+        IReadOnlyDictionary<string, int> baselineWarnings,
         CancellationToken cancellationToken
     )
     {
@@ -274,6 +281,8 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
         if (major >= 21 && implementation == "hotspot")
             processStartInformation.ArgumentList.Add(item: "-XX:+EnableDynamicAgentLoading");
+
+        processStartInformation.ArgumentList.Add(item: "-Xcheck:jni");
 
         foreach (string argument in new[] { "-cp", fixture, "BridgeFixture", "attach" })
             processStartInformation.ArgumentList.Add(argument);
@@ -348,7 +357,21 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             await Task.WhenAll(outputReader, errorReader).ConfigureAwait(continueOnCapturedContext: false);
 
-            bool missingOutput = !string.Concat(output).Contains(value: "AGENT_OK", StringComparison.Ordinal) || !string.Concat(errors).Contains(value: "ATTACH", StringComparison.Ordinal);
+            string targetOutput = string.Concat(output.Concat(errors));
+
+            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH"];
+            bool missingOutput = requiredMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal));
+
+            bool missingRetransformation = !targetOutput.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
+                || !targetOutput.Contains(value: "SELECTED_RETRANSFORM", StringComparison.Ordinal);
+
+            if (targetOutput.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) && missingRetransformation)
+                throw new InvalidOperationException(message: "Selected loader late-attach retransformation did not run");
+
+            bool introducedWarning = Warnings(targetOutput).Any(entry => entry.Value > baselineWarnings.GetValueOrDefault(entry.Key));
+
+            if (introducedWarning || targetOutput.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
+                throw new InvalidOperationException("Late attachment introduced JNI diagnostics: " + targetOutput);
 
             if (process.ExitCode != 0 || missingOutput)
                 throw new InvalidOperationException(message: "Late attachment failed");

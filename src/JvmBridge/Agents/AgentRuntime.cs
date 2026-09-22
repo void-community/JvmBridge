@@ -171,8 +171,15 @@ public static unsafe class AgentRuntime
         {
             if (!_contexts.TryGetValue((nint)tooling, out AgentContext? context))
                 return;
+            jvmtiPhase phase = default;
+            AgentContext.Check((*tooling)->GetPhase(tooling, &phase), "GetPhase");
+            bool canUseJni = environment != null && phase is jvmtiPhase.JVMTI_PHASE_START or jvmtiPhase.JVMTI_PHASE_LIVE;
+            if (canUseJni && (*environment)->ExceptionCheck(environment) != 0)
+                return;
+            using JavaEnvironment? javaEnvironment = environment == null ? null : new JavaEnvironment((nint)environment);
             ClassFile file = new(name == null ? null : ModifiedUtf8.Decode(name), redefined != null, new ReadOnlySpan<byte>(bytes, length));
-            byte[]? result = context.Agent.TransformClass(context, file);
+            ClassTransformContext callback = new(javaEnvironment, (nint)loader, (nint)protectionDomain, (nint)redefined, canUseJni);
+            byte[]? result = context.Agent.TransformClass(context, file, callback);
             if (result is null)
                 return;
             byte* output = null;

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 
+using JvmBridge.Agents;
 using JvmBridge.Native;
 using JvmBridge.Runtime;
 
@@ -12,6 +13,19 @@ namespace JvmBridge.Tests;
 /// </summary>
 public sealed unsafe class RuntimeTests
 {
+    /// <summary>Verifies that optional callback references and the JNI environment preserve their absent values.</summary>
+    [Fact]
+    public void EmptyTransformContextHasNoBorrowedReferences()
+    {
+        ClassTransformContext callback = default;
+
+        Assert.Null(callback.Environment);
+        Assert.Equal(expected: 0, callback.Loader);
+        Assert.Equal(expected: 0, callback.ProtectionDomain);
+        Assert.Equal(expected: 0, callback.ClassBeingRedefined);
+        Assert.False(callback.CanUseJni);
+    }
+
     /// <summary>
     /// Verifies that a JNI environment rejects access from a different managed thread.
     /// </summary>

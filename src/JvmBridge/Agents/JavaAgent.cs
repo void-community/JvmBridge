@@ -39,6 +39,13 @@ public abstract class JavaAgent
     /// <returns>Owned replacement bytes, or <see langword="null"/> to leave the class unchanged.</returns>
     public virtual byte[]? TransformClass(AgentContext context, ClassFile file) => null;
 
+    /// <summary>Transforms class bytes with borrowed JNI context. References and environment must not escape this callback.</summary>
+    /// <param name="context">The active agent context.</param>
+    /// <param name="file">The nullable name, transformation kind, and borrowed bytes.</param>
+    /// <param name="callback">Callback references and phase-aware JNI access. Promote references to globals before retaining them.</param>
+    /// <returns>Owned replacement bytes, or <see langword="null"/> to leave the class unchanged.</returns>
+    public virtual byte[]? TransformClass(AgentContext context, ClassFile file, ClassTransformContext callback) => TransformClass(context, file);
+
     /// <summary>Performs logical cleanup during JVM shutdown without unloading the NativeAOT module.</summary>
     /// <param name="context">The context being released.</param>
     public virtual void OnUnload(AgentContext context) { }

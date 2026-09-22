@@ -65,6 +65,17 @@ public sealed unsafe class JavaEnvironment : IDisposable
     /// <returns>The owned local reference.</returns>
     public JavaLocalReference NewLocalReference(nint value) => Own(Functions->NewLocalRef(_environment, (_jobject*)value), nameof(NewLocalReference));
 
+    /// <summary>Compares two JNI references by Java object identity, including zero for Java <see langword="null"/>.</summary>
+    /// <param name="first">A reference valid in this environment, or zero.</param>
+    /// <param name="second">Another reference valid in this environment, or zero.</param>
+    /// <returns>Whether both references identify the same Java object.</returns>
+    public bool IsSameObject(nint first, nint second)
+    {
+        bool same = Functions->IsSameObject(_environment, (_jobject*)first, (_jobject*)second) != 0;
+        ThrowIfException(nameof(IsSameObject));
+        return same;
+    }
+
     /// <summary>Creates a Java string from the exact UTF-16 code units in a managed string.</summary>
     /// <param name="value">The managed UTF-16 string.</param>
     /// <returns>An owned local reference to the Java string.</returns>
@@ -130,8 +141,10 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
-        fixed (jvalue* values = arguments)
+        jvalue emptyArgument = default;
+        fixed (jvalue* pinnedValues = arguments)
         {
+            jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
             _jobject* result = isStatic
                 ? Functions->CallStaticObjectMethodA(_environment, (_jobject*)receiver, (_jmethodID*)method, values)
                 : Functions->CallObjectMethodA(_environment, (_jobject*)receiver, (_jmethodID*)method, values);
@@ -150,8 +163,10 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
-        fixed (jvalue* values = arguments)
+        jvalue emptyArgument = default;
+        fixed (jvalue* pinnedValues = arguments)
         {
+            jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
             int result = isStatic
                 ? Functions->CallStaticIntMethodA(_environment, (_jobject*)receiver, (_jmethodID*)method, values)
                 : Functions->CallIntMethodA(_environment, (_jobject*)receiver, (_jmethodID*)method, values);
@@ -169,8 +184,10 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
-        fixed (jvalue* values = arguments)
+        jvalue emptyArgument = default;
+        fixed (jvalue* pinnedValues = arguments)
         {
+            jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
             if (isStatic)
                 Functions->CallStaticVoidMethodA(_environment, (_jobject*)receiver, (_jmethodID*)method, values);
             else
