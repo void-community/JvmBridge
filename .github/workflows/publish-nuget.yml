@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     if: github.repository == 'void-community/JvmBridge' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: nuget
     permissions:
       contents: read
