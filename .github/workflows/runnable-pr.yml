@@ -25,7 +25,7 @@ jobs:
   required:
     if: always()
     needs: [build, test]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - env:
           BUILD_RESULT: ${{ needs.build.result }}
