@@ -8,11 +8,21 @@ public final class BridgeFixture {
     private static native String roundTrip(String value);
     private static native boolean retransform(Class<?> type);
     private static native void registerTargetLoader(ClassLoader loader);
+    private static native void registerHelperLoader(ClassLoader loader);
     private static native void clearTargetLoader();
     private static String message() { return "ORIGINAL"; }
+    public static void probe(Object client) { client.hashCode(); }
+
+    public static final class Client {
+        private final Thread thread;
+
+        Client(Thread thread) { this.thread = thread; }
+        public Thread owner() { return thread; }
+    }
 
     public static final class Twin {
         public static String message() { return "ORIGINAL"; }
+        public static void probe(Object client) { client.hashCode(); }
     }
 
     private static final class TwinLoader extends ClassLoader {
@@ -49,15 +59,26 @@ public final class BridgeFixture {
         byte[] bytes = twinBytes();
         TwinLoader selected = new TwinLoader("file:/jvmbridge-selected.jar");
         TwinLoader other = new TwinLoader("file:/jvmbridge-other.jar");
+        registerHelperLoader(selected);
+        registerHelperLoader(selected);
+        registerHelperLoader(other);
+        registerHelperLoader(other);
         registerTargetLoader(selected);
         try {
             Class<?> target = selected.defineTarget(bytes);
             Class<?> ignored = other.defineTarget(bytes);
+            Class<?> helperFromSelected = Class.forName("jvmbridge.sample.AgentCallbacks", false, selected);
+            Class<?> helperFromOther = Class.forName("jvmbridge.sample.AgentCallbacks", false, other);
+            if (helperFromSelected == helperFromOther || helperFromSelected.getClassLoader() != selected || helperFromOther.getClassLoader() != other)
+                throw new AssertionError("Helper is not defined in both isolated loaders");
+            System.out.println("HELPER_LOADER_VISIBILITY_OK");
             String selectedMessage = twinMessage(target);
             String otherMessage = twinMessage(ignored);
             if (!"MODIFIED".equals(selectedMessage) || !originalMessage().equals(otherMessage))
                 throw new AssertionError("Identical class names were not distinguished by loader: " + selectedMessage + ", " + otherMessage);
             System.out.println("LOADER_ISOLATION_OK");
+            target.getMethod("probe", Object.class).invoke(null, new Client(Thread.currentThread()));
+            System.out.println("HELPER_TWIN_OK");
             if (retransform(target)) {
                 if (!"RELOADED".equals(twinMessage(target)) || !originalMessage().equals(twinMessage(ignored)))
                     throw new AssertionError("Selected loader retransformation failed");
@@ -86,6 +107,14 @@ public final class BridgeFixture {
             if (!"true".equals(System.getProperty("jvmbridge.loaded"))) throw new AssertionError("VMInit did not run");
             if (!"MODIFIED".equals(message())) throw new AssertionError("Load transformation did not run: " + message());
         }
+        probe(null);
+        probe(new Client(Thread.currentThread()));
+        Thread helperWorker = new Thread(new Runnable() {
+            public void run() { probe(new Client(Thread.currentThread())); }
+        }, "jvmbridge-helper-worker");
+        helperWorker.start();
+        helperWorker.join();
+        System.out.println("HELPER_CALLS_OK");
         String[] values = {"ASCII", "A\u0000B", "\uD83D\uDE00", "\uD800", "", "\u03BB\u4E16\u754C"};
         for (int repeat = 0; repeat < 100; repeat++)
             for (String value : values)

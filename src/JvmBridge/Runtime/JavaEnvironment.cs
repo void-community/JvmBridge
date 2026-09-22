@@ -60,6 +60,20 @@ public sealed unsafe class JavaEnvironment : IDisposable
             return Own(Functions->FindClass(_environment, encoded), nameof(FindClass));
     }
 
+    /// <summary>Defines a class from JVM class-file bytes in the supplied loader.</summary>
+    /// <param name="name">The JNI binary class name (slash-separated).</param>
+    /// <param name="loader">The defining loader, or zero for the bootstrap loader.</param>
+    /// <param name="bytes">The complete class-file bytes.</param>
+    /// <returns>An owned local reference to the defined class.</returns>
+    public JavaLocalReference DefineClass(string name, nint loader, ReadOnlySpan<byte> bytes)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentOutOfRangeException.ThrowIfZero(bytes.Length);
+        fixed (byte* encodedName = ModifiedUtf8.Encode(name))
+        fixed (byte* pinnedBytes = bytes)
+            return Own(Functions->DefineClass(_environment, encodedName, (_jobject*)loader, (sbyte*)pinnedBytes, bytes.Length), nameof(DefineClass));
+    }
+
     /// <summary>Creates an owned local reference from another JNI reference.</summary>
     /// <param name="value">The JNI reference to duplicate.</param>
     /// <returns>The owned local reference.</returns>

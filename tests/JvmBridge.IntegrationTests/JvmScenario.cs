@@ -144,7 +144,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM" })
+        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK" })
         {
             if (!result.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
@@ -164,6 +164,12 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
         if (introduced.Count > 0 || result.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
             throw new InvalidOperationException("Agent introduced JNI diagnostics: " + JsonSerializer.Serialize(introduced, JsonFile.Options));
+
+        bool helperInstalledOncePerLoader = result.Output.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
+        bool calledOnThreads = result.Output.Split(separator: "HELPER_THREAD_OK", StringSplitOptions.None).Length >= 4;
+
+        if (!helperInstalledOncePerLoader || !calledOnThreads)
+            throw new InvalidOperationException(message: "Helper registration was not idempotent or callback did not run on both application threads and the isolated loader.");
 
         ProcessResult failed = await _processRunner.RunAsync(
             [java, "-agentpath:" + agent + "=fail-start", "-version"],
@@ -187,6 +193,22 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
         if (callbackFailed)
             throw new InvalidOperationException(message: "Callback exception was not contained");
+
+        ProcessResult helperFailure = await _processRunner.RunAsync(
+            [java, "-Xcheck:jni", "-agentpath:" + agent + "=fail-helper", "-cp", fixture, "BridgeFixture"],
+            Path.Combine(directory, path2: "failed-helper.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        bool contained = helperFailure.Output.Contains(value: "HELPER_CALLBACK_CONTAINED", StringComparison.Ordinal)
+            && helperFailure.Output.Contains(value: "AGENT_OK", StringComparison.Ordinal);
+
+        bool unexpectedFailure = helperFailure.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal)
+            || Warnings(helperFailure.Output).Any(warning => warning.Value > plainWarnings.GetValueOrDefault(warning.Key));
+
+        if (!contained || unexpectedFailure)
+            throw new InvalidOperationException(message: "Helper callback exception was not contained under checked JNI.");
 
         await AttachTestAsync(java, agent, fixture, home, directory, entry.Java, environment, entry.Implementation, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
@@ -359,7 +381,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             string targetOutput = string.Concat(output.Concat(errors));
 
-            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH"];
+            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK"];
             bool missingOutput = requiredMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal));
 
             bool missingRetransformation = !targetOutput.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
@@ -373,7 +395,9 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             if (introducedWarning || targetOutput.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
                 throw new InvalidOperationException("Late attachment introduced JNI diagnostics: " + targetOutput);
 
-            if (process.ExitCode != 0 || missingOutput)
+            bool helperInstalledOncePerLoader = targetOutput.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
+
+            if (process.ExitCode != 0 || missingOutput || !helperInstalledOncePerLoader)
                 throw new InvalidOperationException(message: "Late attachment failed");
         }
         finally

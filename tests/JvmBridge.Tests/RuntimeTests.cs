@@ -13,6 +13,58 @@ namespace JvmBridge.Tests;
 /// </summary>
 public sealed unsafe class RuntimeTests
 {
+    private static int s_clearedExceptions;
+    private static byte[]? s_definedBytes;
+    private static nint s_definedLoader;
+    private static byte[]? s_definedName;
+    private static nint s_deletedReference;
+    private static bool s_pendingDefinitionException;
+
+    /// <summary>Checks that a failed definition clears Java's exception before raising the managed error.</summary>
+    [Fact]
+    public void DefineClassClearsPendingJavaException()
+    {
+        JNINativeInterface_ table = new() { DefineClass = &FakeDefineClass, ExceptionCheck = &FakeExceptionCheck, ExceptionClear = &FakeExceptionClear };
+        JNINativeInterface_* functions = &table;
+
+        nint environmentHandle = (nint)(&functions);
+
+        using JavaEnvironment environment = new(environmentHandle);
+
+        s_pendingDefinitionException = true;
+        s_clearedExceptions = 0;
+
+        JavaException exception = Assert.Throws<JavaException>(() => environment.DefineClass(name: "example/Agent", loader: 0, [1]));
+
+        Assert.Equal(nameof(JavaEnvironment.DefineClass), exception.Operation);
+        Assert.Equal(expected: 1, s_clearedExceptions);
+        Assert.False(s_pendingDefinitionException);
+        Assert.Equal(expected: 0, s_definedLoader);
+    }
+
+    /// <summary>Checks class-file bytes, loader identity, local-reference ownership, and modified UTF-8 names.</summary>
+    [Fact]
+    public void DefineClassOwnsTheReturnedLocalReference()
+    {
+        JNINativeInterface_ table = new() { DefineClass = &FakeDefineClass, ExceptionCheck = &FakeExceptionCheck, ExceptionClear = &FakeExceptionClear, DeleteLocalRef = &FakeDeleteLocal };
+        JNINativeInterface_* functions = &table;
+
+        nint environmentHandle = (nint)(&functions);
+
+        using JavaEnvironment environment = new(environmentHandle);
+
+        s_pendingDefinitionException = false;
+        s_deletedReference = 0;
+
+        using (JavaLocalReference type = environment.DefineClass(name: "example/Agent", loader: 123, [0xca, 0xfe, 0xba, 0xbe]))
+            Assert.Equal(expected: 456, type.Handle);
+
+        Assert.Equal(ModifiedUtf8.Encode(value: "example/Agent"), s_definedName);
+        Assert.Equal(new byte[] { 0xca, 0xfe, 0xba, 0xbe }, s_definedBytes);
+        Assert.Equal(expected: 123, s_definedLoader);
+        Assert.Equal(expected: 456, s_deletedReference);
+    }
+
     /// <summary>Verifies that optional callback references and the JNI environment preserve their absent values.</summary>
     [Fact]
     public void EmptyTransformContextHasNoBorrowedReferences()
@@ -134,5 +186,39 @@ public sealed unsafe class RuntimeTests
         FormatException exception = Assert.Throws<FormatException>(static () => { string unexpectedValue = ModifiedUtf8.Decode([0xf0, 0x9f, 0x98, 0x80]); GC.KeepAlive(unexpectedValue); });
 
         Assert.NotEmpty(exception.Message);
+    }
+
+    [UnmanagedCallersOnly]
+    private static _jobject* FakeDefineClass(JNINativeInterface_** environment, byte* name, _jobject* loader, sbyte* bytes, int length)
+    {
+        int nameLength = 0;
+
+        while (name[nameLength] != 0)
+            nameLength++;
+
+        s_definedName = new ReadOnlySpan<byte>(name, nameLength + 1).ToArray();
+        s_definedBytes = new ReadOnlySpan<byte>(bytes, length).ToArray();
+        s_definedLoader = (nint)loader;
+
+        return s_pendingDefinitionException ? null : (_jobject*)456;
+    }
+
+    [UnmanagedCallersOnly]
+    private static void FakeDeleteLocal(JNINativeInterface_** environment, _jobject* value)
+    {
+        s_deletedReference = (nint)value;
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte FakeExceptionCheck(JNINativeInterface_** environment)
+    {
+        return s_pendingDefinitionException ? (byte)1 : (byte)0;
+    }
+
+    [UnmanagedCallersOnly]
+    private static void FakeExceptionClear(JNINativeInterface_** environment)
+    {
+        s_clearedExceptions++;
+        s_pendingDefinitionException = false;
     }
 }

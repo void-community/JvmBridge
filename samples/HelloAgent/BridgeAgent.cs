@@ -12,6 +12,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 {
     private static BridgeAgent? s_agent;
     private static AgentContext? s_context;
+    private readonly List<(JavaGlobalReference Loader, JavaGlobalReference Class)> _helpers = [];
     private JavaGlobalReference? _targetLoader;
 
     /// <inheritdoc/>
@@ -30,6 +31,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         using JavaThreadAttachment attachment = context.VirtualMachine.AttachCurrentThread();
 
         JavaEnvironment environment = attachment.Environment;
+        InstallSystemHelper(environment);
         int localCapacity = 4096;
         int capacityResult = environment.Functions->EnsureLocalCapacity((JNINativeInterface_**)environment.Handle, localCapacity);
         environment.ThrowIfException(operation: "EnsureLocalCapacity");
@@ -83,6 +85,14 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     {
         _targetLoader?.Dispose();
         _targetLoader = null;
+
+        foreach ((JavaGlobalReference loader, JavaGlobalReference type) in _helpers)
+        {
+            type.Dispose();
+            loader.Dispose();
+        }
+
+        _helpers.Clear();
         Log(message: "UNLOAD");
     }
 
@@ -96,6 +106,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     public override void OnVmInit(AgentContext context, JavaEnvironment environment)
     {
         Log(message: "VM_INIT");
+        InstallSystemHelper(environment);
 
         using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
 
@@ -116,6 +127,9 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     /// <inheritdoc/>
     public override byte[]? TransformClass(AgentContext context, ClassFile file)
     {
+        if (file.Name == CallbackClassFile.Name)
+            return null;
+
         if (file.Name != "BridgeFixture")
             return null;
 
@@ -130,6 +144,10 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             throw new InvalidOperationException(message: "Fixture constant was not found.");
 
         replacement.CopyTo(result, index);
+
+        if (_helpers.Count > 0)
+            result = CallbackClassFile.Inject(result);
+
         Log(file.IsRetransformation ? "RETRANSFORM" : "TRANSFORM");
 
         return result;
@@ -192,6 +210,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             throw new InvalidOperationException(message: "Twin class constant was not found.");
 
         Encoding.ASCII.GetBytes(file.IsRetransformation ? "RELOADED" : "MODIFIED").CopyTo(result, index);
+        result = CallbackClassFile.Inject(result);
         Log(file.IsRetransformation ? "SELECTED_RETRANSFORM" : "SELECTED_TRANSFORM");
 
         return result;
@@ -226,6 +245,63 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         catch (Exception exception) when (ContainLoggingFailure(exception)) { return; }
     }
 
+    [UnmanagedCallersOnly]
+    private static void OnFrame(JNINativeInterface_** nativeEnvironment, _jobject* caller, _jobject* client)
+    {
+        try
+        {
+            if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                return;
+
+            using JavaEnvironment environment = new((nint)nativeEnvironment);
+
+            if (s_context?.Options.Contains(value: "fail-helper", StringComparison.Ordinal) == true)
+                throw new InvalidOperationException(message: "Intentional helper callback failure.");
+
+            if (client == null)
+            {
+                Log(message: "HELPER_NULL_OK");
+
+                return;
+            }
+
+            _jobject* clientType = environment.Functions->GetObjectClass(nativeEnvironment, client);
+            environment.ThrowIfException(nameof(OnFrame));
+
+            if (clientType == null)
+                throw new InvalidOperationException(message: "GetObjectClass returned null.");
+
+            try
+            {
+                nint ownerMethod = environment.GetMethod((nint)clientType, name: "owner", signature: "()Ljava/lang/Thread;");
+
+                using JavaLocalReference owner = environment.CallObject((nint)client, ownerMethod, []);
+
+                using JavaLocalReference threadType = environment.FindClass(name: "java/lang/Thread");
+
+                nint currentMethod = environment.GetMethod(threadType.Handle, name: "currentThread", signature: "()Ljava/lang/Thread;", isStatic: true);
+
+                using JavaLocalReference current = environment.CallObject(threadType.Handle, currentMethod, [], isStatic: true);
+
+                if (!environment.IsSameObject(owner.Handle, current.Handle))
+                    throw new InvalidOperationException(message: "Helper callback crossed Java threads.");
+            }
+            finally
+            {
+                environment.Functions->DeleteLocalRef(nativeEnvironment, clientType);
+            }
+
+            Log(message: "HELPER_THREAD_OK");
+        }
+        catch (Exception exception) when (ContainLoggingFailure(exception))
+        {
+            if (exception.Message == "Intentional helper callback failure.")
+                Log(message: "HELPER_CALLBACK_CONTAINED");
+            else
+                Log($"NATIVE_ERROR {exception.Message}");
+        }
+    }
+
     private static void Register(JavaEnvironment environment, nint type)
     {
         environment.RegisterNative(
@@ -248,11 +324,33 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         );
         environment.RegisterNative(
             type,
+            name: "registerHelperLoader",
+            signature: "(Ljava/lang/ClassLoader;)V",
+            (nint)(delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, void>)&RegisterHelperLoader
+        );
+        environment.RegisterNative(
+            type,
             name: "clearTargetLoader",
             signature: "()V",
             (nint)(delegate* unmanaged<JNINativeInterface_**, _jobject*, void>)&ClearTargetLoader
         );
         Log(message: "REGISTER_NATIVES");
+    }
+
+    [UnmanagedCallersOnly]
+    private static void RegisterHelperLoader(JNINativeInterface_** nativeEnvironment, _jobject* caller, _jobject* loader)
+    {
+        try
+        {
+            if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                return;
+
+            using JavaEnvironment environment = new((nint)nativeEnvironment);
+
+            BridgeAgent agent = s_agent ?? throw new InvalidOperationException(message: "Agent is not active.");
+            agent.InstallHelper(environment, (nint)loader);
+        }
+        catch (Exception exception) when (ContainLoggingFailure(exception)) { Log($"NATIVE_ERROR {exception.Message}"); }
     }
 
     [UnmanagedCallersOnly]
@@ -344,5 +442,63 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
             return null;
         }
+    }
+
+    private void InstallHelper(JavaEnvironment environment, nint loader)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(loader);
+
+        if (_helpers.Any(helper => environment.IsSameObject(helper.Loader.Handle, loader)))
+            return;
+
+        byte[] bytes = CallbackClassFile.Generate();
+
+        using JavaLocalReference helper = environment.DefineClass(CallbackClassFile.Name, loader, bytes);
+
+        environment.RegisterNative(
+            helper.Handle,
+            name: "onFrame",
+            signature: "(Ljava/lang/Object;)V",
+            (nint)(delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, void>)&OnFrame
+        );
+
+        using JavaLocalReference localLoader = environment.NewLocalReference(loader);
+
+        JavaGlobalReference globalLoader = localLoader.ToGlobal();
+
+        try
+        {
+            _helpers.Add((globalLoader, helper.ToGlobal()));
+        }
+        catch
+        {
+            globalLoader.Dispose();
+
+            throw;
+        }
+
+        Log(message: "HELPER_INSTALLED");
+
+        try
+        {
+            using JavaLocalReference duplicate = environment.DefineClass(CallbackClassFile.Name, loader, bytes);
+
+            throw new InvalidOperationException(message: "Duplicate helper class definition unexpectedly succeeded.");
+        }
+        catch (JavaException exception) when (exception.Operation == nameof(JavaEnvironment.DefineClass))
+        {
+            Log(message: "HELPER_DUPLICATE_REJECTED");
+        }
+    }
+
+    private void InstallSystemHelper(JavaEnvironment environment)
+    {
+        using JavaLocalReference loaderType = environment.FindClass(name: "java/lang/ClassLoader");
+
+        nint method = environment.GetMethod(loaderType.Handle, name: "getSystemClassLoader", signature: "()Ljava/lang/ClassLoader;", isStatic: true);
+
+        using JavaLocalReference loader = environment.CallObject(loaderType.Handle, method, [], isStatic: true);
+
+        InstallHelper(environment, loader.Handle);
     }
 }
