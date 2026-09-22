@@ -99,31 +99,33 @@ Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing tool
 
 ```sh
 dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
-dotnet msbuild build.proj -t:VerifyGenerated
+dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
 dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version=0.1.0-local.1
 dotnet restore JvmBridge.slnx --locked-mode -p:JvmBridgeVersion=0.1.0-local.1
 dotnet build JvmBridge.slnx -c Release --no-restore -p:JvmBridgeVersion=0.1.0-local.1
 dotnet test JvmBridge.slnx -c Release --no-build --no-restore -p:JvmBridgeVersion=0.1.0-local.1
-dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid=linux-x64 -p:PackageVersion=0.1.0-local.1
+dotnet publish samples/HelloAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/agent/linux-x64
+dotnet publish samples/JavaHost -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/host/linux-x64
 TARGET_RID=linux-x64 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
-MSBuild publishes standalone consumers from the packed artifact; xUnit executes each pinned JVM cell as a separate test, downloading one JDK at a time. Native tests are explicitly skipped in ordinary solution test runs unless `TARGET_RID` is set. CI compiles portable Java 8 fixture bytecode once with `dotnet msbuild build.proj -t:CompileFixtures` and runs it unchanged on all target JVMs; local runs can compile fixtures with the supplied JDK. Coverage includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
+MSBuild publishes standalone consumers from the packed artifact; xUnit executes each pinned JVM cell as a separate test, downloading one JDK at a time. Native tests are explicitly skipped in ordinary solution test runs unless `TARGET_RID` is set. CI compiles portable Java 8 fixture bytecode once with `dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures -p:RestoreLockedMode=true` and runs it unchanged on all target JVMs; local runs can compile fixtures with the supplied JDK. Coverage includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
 
 For a focused run with an installed JDK:
 
 ```sh
-dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid=linux-arm64 -p:PackageVersion=0.1.0-local.1
+dotnet publish samples/HelloAgent -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/agent/linux-arm64
+dotnet publish samples/JavaHost -c Release -r linux-arm64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=0.1.0-local.1 -o artifacts/host/linux-arm64
 TARGET_RID=linux-arm64 JVM_JDK_HOME=/path/to/jdk JVM_JAVA_MAJOR=25 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
-Set `NATIVE_COMPILER` when the C compiler is not `cc` (`cl` on Windows). Logs, native/managed ABI reports, and per-cell results are written to `artifacts/results`. `dotnet msbuild build.proj -t:VerifyCoverage` requires all available manifest cells to have passed; it is intended for the aggregated CI run. Do not treat a subset run as full coverage.
+Set `NATIVE_COMPILER` when the C compiler is not `cc` (`cl` on Windows). Logs, native/managed ABI reports, and per-cell results are written to `artifacts/results`. `dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage -p:RestoreLockedMode=true` requires all available manifest cells to have passed; it is intended for the aggregated CI run. Do not treat a subset run as full coverage.
 
 ## Reproducible maintenance
 
 ```sh
-dotnet msbuild build.proj -t:Generate
-dotnet msbuild build.proj -t:VerifyGenerated
+dotnet build src/JvmBridge.Build -c Release -t:Generate -p:RestoreLockedMode=true
+dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
 ```
 
 Generation verifies header checksums and uses a fixed Clang target and shim headers to avoid host-dependent declarations. The shims cover only unused stdio declarations and Clang's target-specific va_list. Upstream headers are unmodified. Native C probes independently validate the actual target ABI, including capability bits and callback/function-table offsets.

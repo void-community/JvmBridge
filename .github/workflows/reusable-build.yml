@@ -31,11 +31,11 @@ jobs:
         run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests
         run: |
-          dotnet msbuild build.proj -t:VerifyGenerated
+          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
           dotnet build JvmBridge.slnx -c Release --no-restore
           dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Compile portable Java fixtures with the pinned JDK
-        run: dotnet msbuild build.proj -t:CompileFixtures
+        run: dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures -p:RestoreLockedMode=true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: packages

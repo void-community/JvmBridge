@@ -41,10 +41,7 @@ public sealed class NativeTests
     public static bool NativeEnabled => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID"));
 
     /// <summary>Verifies required exports without loading the native agent library.</summary>
-    [Fact(
-        SkipUnless = nameof(NativeEnabled),
-        Skip = "Set TARGET_RID and publish package consumers with the PublishConsumers MSBuild target."
-    )]
+    [Fact(SkipUnless = nameof(NativeEnabled), Skip = "Set TARGET_RID and publish both samples with dotnet publish as described in README.")]
     public async Task ExportsAsync()
     {
         RepositoryContext repository = RepositoryContext.Discover();
@@ -70,10 +67,7 @@ public sealed class NativeTests
     /// <param name="rid">Native consumer target.</param>
     /// <param name="major">Java major version.</param>
     /// <param name="implementation">JVM implementation.</param>
-    [Theory(
-        SkipUnless = nameof(NativeEnabled),
-        Skip = "Set TARGET_RID and publish package consumers with the PublishConsumers MSBuild target."
-    )]
+    [Theory(SkipUnless = nameof(NativeEnabled), Skip = "Set TARGET_RID and publish both samples with dotnet publish as described in README.")]
     [MemberData(nameof(Cells))]
     public async Task JvmContractAsync(string rid, int major, string implementation)
     {

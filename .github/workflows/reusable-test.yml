@@ -73,7 +73,8 @@ jobs:
           compiler=cc
           if [[ "$RUNNER_OS" == Windows ]]; then compiler=cl; fi
           if [[ "$TARGET_RID" == linux-arm ]]; then compiler=arm-linux-gnueabihf-gcc; fi
-          dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid="$TARGET_RID" -p:PackageVersion="$PACKAGE_VERSION"
+          dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"
+          dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/host/$TARGET_RID"
           NATIVE_COMPILER="$compiler" dotnet test tests/JvmBridge.IntegrationTests -c Release --logger trx --results-directory "artifacts/results/$TARGET_RID"
       - name: Publish self-contained ARM32 xUnit tests
         if: matrix.rid == 'linux-arm'
@@ -87,7 +88,11 @@ jobs:
             -e DOTNET_ROOT=/dotnet -e PATH=/dotnet:/usr/local/bin:/usr/bin:/bin \
             -e ROOTFS_DIR=/crossrootfs/arm -e PACKAGE_VERSION -e TARGET_RID \
             "$CROSS_IMAGE" \
-            sh -ec 'dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid="$TARGET_RID" -p:PackageVersion="$PACKAGE_VERSION" && dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~ExportsAsync'
+            sh -ec '
+              dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$ROOTFS_DIR" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/agent/$TARGET_RID"
+              dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$ROOTFS_DIR" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/host/$TARGET_RID"
+              dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~ExportsAsync
+            '
       - name: Publish and execute in the target container
         if: matrix.container
         env:
@@ -113,7 +118,8 @@ jobs:
               if [ "$CROSS_BUILT" = true ]; then
                 /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit.xml"
               else
-                dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid="$TARGET_RID" -p:PackageVersion="$PACKAGE_VERSION"
+                dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"
+                dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/host/$TARGET_RID"
                 dotnet test tests/JvmBridge.IntegrationTests -c Release --logger trx --results-directory "artifacts/results/$TARGET_RID"
               fi
             '
@@ -152,4 +158,4 @@ jobs:
           path: artifacts/results
           merge-multiple: true
       - name: Require every expected JVM cell
-        run: dotnet msbuild build.proj -t:VerifyCoverage
+        run: dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage -p:RestoreLockedMode=true

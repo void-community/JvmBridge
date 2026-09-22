@@ -30,10 +30,10 @@ jobs:
       - name: Update pinned releases, bindings, and support inventory
         run: |
           dotnet run --project src/JvmBridge.Maintenance --no-restore -- update
-          dotnet msbuild build.proj -t:Generate
+          dotnet build src/JvmBridge.Build -c Release -t:Generate -p:RestoreLockedMode=true
       - name: Verify regeneration and unit tests
         run: |
-          dotnet msbuild build.proj -t:VerifyGenerated
+          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
           dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RestoreLockedMode=true
           dotnet restore JvmBridge.slnx --locked-mode
           dotnet build JvmBridge.slnx -c Release --no-restore
