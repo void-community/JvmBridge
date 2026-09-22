@@ -10,1479 +10,3457 @@ using System.Runtime.InteropServices;
 
 namespace JvmBridge.Native;
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jobject</c>.
+/// </summary>
 public partial struct _jobject
 {
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvalue</c>.
+/// </summary>
 [StructLayout(LayoutKind.Explicit)]
 public unsafe partial struct jvalue
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.z</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jboolean")]
     public byte z;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.b</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jbyte")]
     public sbyte b;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.c</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jchar")]
     public ushort c;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.s</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jshort")]
     public short s;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.i</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jint")]
     public int i;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.j</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jlong")]
     public long j;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.f</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jfloat")]
     public float f;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.d</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jdouble")]
     public double d;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvalue.l</c>.
+    /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jobject")]
     public _jobject* l;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jfieldID</c>.
+/// </summary>
 public partial struct _jfieldID
 {
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jmethodID</c>.
+/// </summary>
 public partial struct _jmethodID
 {
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jobjectType</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum _jobjectType : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>_jobjectType.JNIInvalidRefType</c>.
+    /// </summary>
     JNIInvalidRefType = 0,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>_jobjectType.JNILocalRefType</c>.
+    /// </summary>
     JNILocalRefType = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>_jobjectType.JNIGlobalRefType</c>.
+    /// </summary>
     JNIGlobalRefType = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>_jobjectType.JNIWeakGlobalRefType</c>.
+    /// </summary>
     JNIWeakGlobalRefType = 3,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JNINativeMethod</c>.
+/// </summary>
 public unsafe partial struct JNINativeMethod
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeMethod.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeMethod.signature</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* signature;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeMethod.fnPtr</c>.
+    /// </summary>
     public void* fnPtr;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_</c>.
+/// </summary>
 public unsafe partial struct JNINativeInterface_
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.reserved0</c>.
+    /// </summary>
     public void* reserved0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.reserved1</c>.
+    /// </summary>
     public void* reserved1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.reserved2</c>.
+    /// </summary>
     public void* reserved2;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.reserved3</c>.
+    /// </summary>
     public void* reserved3;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetVersion</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *)")]
     public delegate* unmanaged<JNINativeInterface_**, int> GetVersion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.DefineClass</c>.
+    /// </summary>
     [NativeTypeName("jclass (*)(JNIEnv *, const char *, jobject, const jbyte *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, byte*, _jobject*, sbyte*, int, _jobject*> DefineClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.FindClass</c>.
+    /// </summary>
     [NativeTypeName("jclass (*)(JNIEnv *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, byte*, _jobject*> FindClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.FromReflectedMethod</c>.
+    /// </summary>
     [NativeTypeName("jmethodID (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*> FromReflectedMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.FromReflectedField</c>.
+    /// </summary>
     [NativeTypeName("jfieldID (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*> FromReflectedField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ToReflectedMethod</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, jboolean)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, byte, _jobject*> ToReflectedMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetSuperclass</c>.
+    /// </summary>
     [NativeTypeName("jclass (*)(JNIEnv *, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> GetSuperclass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.IsAssignableFrom</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, byte> IsAssignableFrom;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ToReflectedField</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jfieldID, jboolean)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, byte, _jobject*> ToReflectedField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.Throw</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jthrowable)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> Throw;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ThrowNew</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, int> ThrowNew;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ExceptionOccurred</c>.
+    /// </summary>
     [NativeTypeName("jthrowable (*)(JNIEnv *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*> ExceptionOccurred;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ExceptionDescribe</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *)")]
     public delegate* unmanaged<JNINativeInterface_**, void> ExceptionDescribe;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ExceptionClear</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *)")]
     public delegate* unmanaged<JNINativeInterface_**, void> ExceptionClear;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.FatalError</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, byte*, void> FatalError;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.PushLocalFrame</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, int, int> PushLocalFrame;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.PopLocalFrame</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> PopLocalFrame;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewGlobalRef</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> NewGlobalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.DeleteGlobalRef</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, void> DeleteGlobalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.DeleteLocalRef</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, void> DeleteLocalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.IsSameObject</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, byte> IsSameObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewLocalRef</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> NewLocalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.EnsureLocalCapacity</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, int, int> EnsureLocalCapacity;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.AllocObject</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> AllocObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewObject</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint NewObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewObjectV</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint NewObjectV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewObjectA</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> NewObjectA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetObjectClass</c>.
+    /// </summary>
     [NativeTypeName("jclass (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> GetObjectClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.IsInstanceOf</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, byte> IsInstanceOf;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetMethodID</c>.
+    /// </summary>
     [NativeTypeName("jmethodID (*)(JNIEnv *, jclass, const char *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*, _jmethodID*> GetMethodID;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallObjectMethod</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallObjectMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallObjectMethodV</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallObjectMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallObjectMethodA</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> CallObjectMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallBooleanMethod</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallBooleanMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallBooleanMethodV</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallBooleanMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallBooleanMethodA</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, byte> CallBooleanMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallByteMethod</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallByteMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallByteMethodV</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallByteMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallByteMethodA</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, sbyte> CallByteMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallCharMethod</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallCharMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallCharMethodV</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallCharMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallCharMethodA</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, ushort> CallCharMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallShortMethod</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallShortMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallShortMethodV</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallShortMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallShortMethodA</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, short> CallShortMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallIntMethod</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallIntMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallIntMethodV</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallIntMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallIntMethodA</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, int> CallIntMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallLongMethod</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallLongMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallLongMethodV</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallLongMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallLongMethodA</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, long> CallLongMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallFloatMethod</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallFloatMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallFloatMethodV</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallFloatMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallFloatMethodA</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, float> CallFloatMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallDoubleMethod</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallDoubleMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallDoubleMethodV</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallDoubleMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallDoubleMethodA</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, double> CallDoubleMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallVoidMethod</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jmethodID, ...)")]
     public nint CallVoidMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallVoidMethodV</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jmethodID, va_list)")]
     public nint CallVoidMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallVoidMethodA</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, void> CallVoidMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualObjectMethod</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualObjectMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualObjectMethodV</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualObjectMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualObjectMethodA</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, _jobject*> CallNonvirtualObjectMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualBooleanMethod</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualBooleanMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualBooleanMethodV</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualBooleanMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualBooleanMethodA</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, byte> CallNonvirtualBooleanMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualByteMethod</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualByteMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualByteMethodV</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualByteMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualByteMethodA</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, sbyte> CallNonvirtualByteMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualCharMethod</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualCharMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualCharMethodV</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualCharMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualCharMethodA</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, ushort> CallNonvirtualCharMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualShortMethod</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualShortMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualShortMethodV</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualShortMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualShortMethodA</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, short> CallNonvirtualShortMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualIntMethod</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualIntMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualIntMethodV</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualIntMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualIntMethodA</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, int> CallNonvirtualIntMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualLongMethod</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualLongMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualLongMethodV</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualLongMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualLongMethodA</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, long> CallNonvirtualLongMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualFloatMethod</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualFloatMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualFloatMethodV</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualFloatMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualFloatMethodA</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, float> CallNonvirtualFloatMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualDoubleMethod</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualDoubleMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualDoubleMethodV</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualDoubleMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualDoubleMethodA</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, double> CallNonvirtualDoubleMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualVoidMethod</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jclass, jmethodID, ...)")]
     public nint CallNonvirtualVoidMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualVoidMethodV</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jclass, jmethodID, va_list)")]
     public nint CallNonvirtualVoidMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualVoidMethodA</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, void> CallNonvirtualVoidMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetFieldID</c>.
+    /// </summary>
     [NativeTypeName("jfieldID (*)(JNIEnv *, jclass, const char *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*, _jfieldID*> GetFieldID;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetObjectField</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, _jobject*> GetObjectField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetBooleanField</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, byte> GetBooleanField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetByteField</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, sbyte> GetByteField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetCharField</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, ushort> GetCharField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetShortField</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, short> GetShortField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetIntField</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, int> GetIntField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetLongField</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, long> GetLongField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetFloatField</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, float> GetFloatField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetDoubleField</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, double> GetDoubleField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetObjectField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, _jobject*, void> SetObjectField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetBooleanField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jboolean)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, byte, void> SetBooleanField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetByteField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jbyte)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, sbyte, void> SetByteField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetCharField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jchar)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, ushort, void> SetCharField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetShortField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jshort)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, short, void> SetShortField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetIntField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, int, void> SetIntField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetLongField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jlong)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, long, void> SetLongField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetFloatField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jfloat)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, float, void> SetFloatField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetDoubleField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jfieldID, jdouble)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, double, void> SetDoubleField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticMethodID</c>.
+    /// </summary>
     [NativeTypeName("jmethodID (*)(JNIEnv *, jclass, const char *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*, _jmethodID*> GetStaticMethodID;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticObjectMethod</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticObjectMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticObjectMethodV</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticObjectMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticObjectMethodA</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> CallStaticObjectMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticBooleanMethod</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticBooleanMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticBooleanMethodV</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticBooleanMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticBooleanMethodA</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, byte> CallStaticBooleanMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticByteMethod</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticByteMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticByteMethodV</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticByteMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticByteMethodA</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, sbyte> CallStaticByteMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticCharMethod</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticCharMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticCharMethodV</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticCharMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticCharMethodA</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, ushort> CallStaticCharMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticShortMethod</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticShortMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticShortMethodV</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticShortMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticShortMethodA</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, short> CallStaticShortMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticIntMethod</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticIntMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticIntMethodV</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticIntMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticIntMethodA</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, int> CallStaticIntMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticLongMethod</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticLongMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticLongMethodV</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticLongMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticLongMethodA</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, long> CallStaticLongMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticFloatMethod</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticFloatMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticFloatMethodV</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticFloatMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticFloatMethodA</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, float> CallStaticFloatMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticDoubleMethod</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticDoubleMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticDoubleMethodV</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticDoubleMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticDoubleMethodA</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, double> CallStaticDoubleMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticVoidMethod</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jmethodID, ...)")]
     public nint CallStaticVoidMethod;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticVoidMethodV</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jmethodID, va_list)")]
     public nint CallStaticVoidMethodV;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticVoidMethodA</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, void> CallStaticVoidMethodA;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticFieldID</c>.
+    /// </summary>
     [NativeTypeName("jfieldID (*)(JNIEnv *, jclass, const char *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*, _jfieldID*> GetStaticFieldID;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticObjectField</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, _jobject*> GetStaticObjectField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticBooleanField</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, byte> GetStaticBooleanField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticByteField</c>.
+    /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, sbyte> GetStaticByteField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticCharField</c>.
+    /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, ushort> GetStaticCharField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticShortField</c>.
+    /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, short> GetStaticShortField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticIntField</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, int> GetStaticIntField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticLongField</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, long> GetStaticLongField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticFloatField</c>.
+    /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, float> GetStaticFloatField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticDoubleField</c>.
+    /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, double> GetStaticDoubleField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticObjectField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, _jobject*, void> SetStaticObjectField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticBooleanField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jboolean)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, byte, void> SetStaticBooleanField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticByteField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jbyte)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, sbyte, void> SetStaticByteField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticCharField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jchar)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, ushort, void> SetStaticCharField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticShortField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jshort)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, short, void> SetStaticShortField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticIntField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, int, void> SetStaticIntField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticLongField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jlong)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, long, void> SetStaticLongField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticFloatField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jfloat)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, float, void> SetStaticFloatField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetStaticDoubleField</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jfieldID, jdouble)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jfieldID*, double, void> SetStaticDoubleField;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewString</c>.
+    /// </summary>
     [NativeTypeName("jstring (*)(JNIEnv *, const jchar *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, ushort*, int, _jobject*> NewString;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringLength</c>.
+    /// </summary>
     [NativeTypeName("jsize (*)(JNIEnv *, jstring)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> GetStringLength;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringChars</c>.
+    /// </summary>
     [NativeTypeName("const jchar *(*)(JNIEnv *, jstring, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, ushort*> GetStringChars;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseStringChars</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jstring, const jchar *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, ushort*, void> ReleaseStringChars;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewStringUTF</c>.
+    /// </summary>
     [NativeTypeName("jstring (*)(JNIEnv *, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, byte*, _jobject*> NewStringUTF;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringUTFLength</c>.
+    /// </summary>
     [NativeTypeName("jsize (*)(JNIEnv *, jstring)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> GetStringUTFLength;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringUTFChars</c>.
+    /// </summary>
     [NativeTypeName("const char *(*)(JNIEnv *, jstring, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*> GetStringUTFChars;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseStringUTFChars</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jstring, const char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, void> ReleaseStringUTFChars;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetArrayLength</c>.
+    /// </summary>
     [NativeTypeName("jsize (*)(JNIEnv *, jarray)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> GetArrayLength;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewObjectArray</c>.
+    /// </summary>
     [NativeTypeName("jobjectArray (*)(JNIEnv *, jsize, jclass, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*, _jobject*, _jobject*> NewObjectArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetObjectArrayElement</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobjectArray, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, _jobject*> GetObjectArrayElement;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetObjectArrayElement</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobjectArray, jsize, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, _jobject*, void> SetObjectArrayElement;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewBooleanArray</c>.
+    /// </summary>
     [NativeTypeName("jbooleanArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewBooleanArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewByteArray</c>.
+    /// </summary>
     [NativeTypeName("jbyteArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewByteArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewCharArray</c>.
+    /// </summary>
     [NativeTypeName("jcharArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewCharArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewShortArray</c>.
+    /// </summary>
     [NativeTypeName("jshortArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewShortArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewIntArray</c>.
+    /// </summary>
     [NativeTypeName("jintArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewIntArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewLongArray</c>.
+    /// </summary>
     [NativeTypeName("jlongArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewLongArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewFloatArray</c>.
+    /// </summary>
     [NativeTypeName("jfloatArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewFloatArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewDoubleArray</c>.
+    /// </summary>
     [NativeTypeName("jdoubleArray (*)(JNIEnv *, jsize)")]
     public delegate* unmanaged<JNINativeInterface_**, int, _jobject*> NewDoubleArray;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetBooleanArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jboolean *(*)(JNIEnv *, jbooleanArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, byte*> GetBooleanArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetByteArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jbyte *(*)(JNIEnv *, jbyteArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, sbyte*> GetByteArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetCharArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jchar *(*)(JNIEnv *, jcharArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, ushort*> GetCharArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetShortArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jshort *(*)(JNIEnv *, jshortArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, short*> GetShortArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetIntArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jint *(*)(JNIEnv *, jintArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, int*> GetIntArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetLongArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jlong *(*)(JNIEnv *, jlongArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, long*> GetLongArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetFloatArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jfloat *(*)(JNIEnv *, jfloatArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, float*> GetFloatArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetDoubleArrayElements</c>.
+    /// </summary>
     [NativeTypeName("jdouble *(*)(JNIEnv *, jdoubleArray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, double*> GetDoubleArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseBooleanArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbooleanArray, jboolean *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, int, void> ReleaseBooleanArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseByteArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbyteArray, jbyte *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, sbyte*, int, void> ReleaseByteArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseCharArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jcharArray, jchar *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, ushort*, int, void> ReleaseCharArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseShortArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jshortArray, jshort *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, short*, int, void> ReleaseShortArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseIntArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jintArray, jint *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int*, int, void> ReleaseIntArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseLongArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jlongArray, jlong *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, long*, int, void> ReleaseLongArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseFloatArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jfloatArray, jfloat *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, float*, int, void> ReleaseFloatArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseDoubleArrayElements</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jdoubleArray, jdouble *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, double*, int, void> ReleaseDoubleArrayElements;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetBooleanArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbooleanArray, jsize, jsize, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, byte*, void> GetBooleanArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetByteArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbyteArray, jsize, jsize, jbyte *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, sbyte*, void> GetByteArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetCharArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jcharArray, jsize, jsize, jchar *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, ushort*, void> GetCharArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetShortArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jshortArray, jsize, jsize, jshort *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, short*, void> GetShortArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetIntArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jintArray, jsize, jsize, jint *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, int*, void> GetIntArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetLongArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jlongArray, jsize, jsize, jlong *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, long*, void> GetLongArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetFloatArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jfloatArray, jsize, jsize, jfloat *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, float*, void> GetFloatArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetDoubleArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jdoubleArray, jsize, jsize, jdouble *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, double*, void> GetDoubleArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetBooleanArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbooleanArray, jsize, jsize, const jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, byte*, void> SetBooleanArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetByteArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jbyteArray, jsize, jsize, const jbyte *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, sbyte*, void> SetByteArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetCharArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jcharArray, jsize, jsize, const jchar *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, ushort*, void> SetCharArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetShortArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jshortArray, jsize, jsize, const jshort *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, short*, void> SetShortArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetIntArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jintArray, jsize, jsize, const jint *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, int*, void> SetIntArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetLongArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jlongArray, jsize, jsize, const jlong *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, long*, void> SetLongArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetFloatArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jfloatArray, jsize, jsize, const jfloat *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, float*, void> SetFloatArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.SetDoubleArrayRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jdoubleArray, jsize, jsize, const jdouble *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, double*, void> SetDoubleArrayRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.RegisterNatives</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, const JNINativeMethod *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, JNINativeMethod*, int, int> RegisterNatives;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.UnregisterNatives</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> UnregisterNatives;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.MonitorEnter</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> MonitorEnter;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.MonitorExit</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int> MonitorExit;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetJavaVM</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, JavaVM **)")]
     public delegate* unmanaged<JNINativeInterface_**, JNIInvokeInterface_***, int> GetJavaVM;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jstring, jsize, jsize, jchar *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, ushort*, void> GetStringRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringUTFRegion</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jstring, jsize, jsize, char *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int, byte*, void> GetStringUTFRegion;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetPrimitiveArrayCritical</c>.
+    /// </summary>
     [NativeTypeName("void *(*)(JNIEnv *, jarray, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, void*> GetPrimitiveArrayCritical;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleasePrimitiveArrayCritical</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jarray, void *, jint)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, void*, int, void> ReleasePrimitiveArrayCritical;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringCritical</c>.
+    /// </summary>
     [NativeTypeName("const jchar *(*)(JNIEnv *, jstring, jboolean *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte*, ushort*> GetStringCritical;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ReleaseStringCritical</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jstring, const jchar *)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, ushort*, void> ReleaseStringCritical;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewWeakGlobalRef</c>.
+    /// </summary>
     [NativeTypeName("jweak (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> NewWeakGlobalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.DeleteWeakGlobalRef</c>.
+    /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jweak)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, void> DeleteWeakGlobalRef;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.ExceptionCheck</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *)")]
     public delegate* unmanaged<JNINativeInterface_**, byte> ExceptionCheck;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewDirectByteBuffer</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, void *, jlong)")]
     public delegate* unmanaged<JNINativeInterface_**, void*, long, _jobject*> NewDirectByteBuffer;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetDirectBufferAddress</c>.
+    /// </summary>
     [NativeTypeName("void *(*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, void*> GetDirectBufferAddress;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetDirectBufferCapacity</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, long> GetDirectBufferCapacity;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetObjectRefType</c>.
+    /// </summary>
     [NativeTypeName("jobjectRefType (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobjectType> GetObjectRefType;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetModule</c>.
+    /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*> GetModule;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.IsVirtualThread</c>.
+    /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, byte> IsVirtualThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStringUTFLengthAsLong</c>.
+    /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jstring)")]
     public delegate* unmanaged<JNINativeInterface_**, _jobject*, long> GetStringUTFLengthAsLong;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JNIEnv_</c>.
+/// </summary>
 public unsafe partial struct JNIEnv_
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIEnv_.functions</c>.
+    /// </summary>
     [NativeTypeName("const struct JNINativeInterface_ *")]
     public JNINativeInterface_* functions;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JavaVMOption</c>.
+/// </summary>
 public unsafe partial struct JavaVMOption
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMOption.optionString</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* optionString;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMOption.extraInfo</c>.
+    /// </summary>
     public void* extraInfo;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JavaVMInitArgs</c>.
+/// </summary>
 public unsafe partial struct JavaVMInitArgs
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMInitArgs.version</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int version;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMInitArgs.nOptions</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int nOptions;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMInitArgs.options</c>.
+    /// </summary>
     public JavaVMOption* options;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMInitArgs.ignoreUnrecognized</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte ignoreUnrecognized;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JavaVMAttachArgs</c>.
+/// </summary>
 public unsafe partial struct JavaVMAttachArgs
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMAttachArgs.version</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int version;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMAttachArgs.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVMAttachArgs.group</c>.
+    /// </summary>
     [NativeTypeName("jobject")]
     public _jobject* group;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_</c>.
+/// </summary>
 public unsafe partial struct JNIInvokeInterface_
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.reserved0</c>.
+    /// </summary>
     public void* reserved0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.reserved1</c>.
+    /// </summary>
     public void* reserved1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.reserved2</c>.
+    /// </summary>
     public void* reserved2;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.DestroyJavaVM</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JavaVM *)")]
     public delegate* unmanaged<JNIInvokeInterface_**, int> DestroyJavaVM;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.AttachCurrentThread</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JavaVM *, void **, void *)")]
     public delegate* unmanaged<JNIInvokeInterface_**, void**, void*, int> AttachCurrentThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.DetachCurrentThread</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JavaVM *)")]
     public delegate* unmanaged<JNIInvokeInterface_**, int> DetachCurrentThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.GetEnv</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JavaVM *, void **, jint)")]
     public delegate* unmanaged<JNIInvokeInterface_**, void**, int, int> GetEnv;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JNIInvokeInterface_.AttachCurrentThreadAsDaemon</c>.
+    /// </summary>
     [NativeTypeName("jint (*)(JavaVM *, void **, void *)")]
     public delegate* unmanaged<JNIInvokeInterface_**, void**, void*, int> AttachCurrentThreadAsDaemon;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>JavaVM_</c>.
+/// </summary>
 public unsafe partial struct JavaVM_
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>JavaVM_.functions</c>.
+    /// </summary>
     [NativeTypeName("const struct JNIInvokeInterface_ *")]
     public JNIInvokeInterface_* functions;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jrawMonitorID</c>.
+/// </summary>
 public partial struct _jrawMonitorID
 {
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiHeapReferenceKind : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_CLASS</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_CLASS = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_FIELD</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_FIELD = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_ARRAY_ELEMENT = 3,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_CLASS_LOADER</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_CLASS_LOADER = 4,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_SIGNERS</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_SIGNERS = 5,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_PROTECTION_DOMAIN = 6,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_INTERFACE</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_INTERFACE = 7,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_STATIC_FIELD</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_STATIC_FIELD = 8,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_CONSTANT_POOL</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_CONSTANT_POOL = 9,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_SUPERCLASS</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_SUPERCLASS = 10,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_JNI_GLOBAL</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_JNI_GLOBAL = 21,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_SYSTEM_CLASS</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_SYSTEM_CLASS = 22,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_MONITOR</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_MONITOR = 23,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_STACK_LOCAL</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_STACK_LOCAL = 24,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_JNI_LOCAL</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_JNI_LOCAL = 25,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_THREAD</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_THREAD = 26,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceKind.JVMTI_HEAP_REFERENCE_OTHER</c>.
+    /// </summary>
     JVMTI_HEAP_REFERENCE_OTHER = 27,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiPrimitiveType : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_BOOLEAN</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_BOOLEAN = 90,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_BYTE</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_BYTE = 66,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_CHAR</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_CHAR = 67,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_SHORT</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_SHORT = 83,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_INT</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_INT = 73,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_LONG</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_LONG = 74,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_FLOAT</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_FLOAT = 70,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPrimitiveType.JVMTI_PRIMITIVE_TYPE_DOUBLE</c>.
+    /// </summary>
     JVMTI_PRIMITIVE_TYPE_DOUBLE = 68,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapObjectFilter</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiHeapObjectFilter : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapObjectFilter.JVMTI_HEAP_OBJECT_TAGGED</c>.
+    /// </summary>
     JVMTI_HEAP_OBJECT_TAGGED = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapObjectFilter.JVMTI_HEAP_OBJECT_UNTAGGED</c>.
+    /// </summary>
     JVMTI_HEAP_OBJECT_UNTAGGED = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapObjectFilter.JVMTI_HEAP_OBJECT_EITHER</c>.
+    /// </summary>
     JVMTI_HEAP_OBJECT_EITHER = 3,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiHeapRootKind : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_JNI_GLOBAL</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_JNI_GLOBAL = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_SYSTEM_CLASS</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_SYSTEM_CLASS = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_MONITOR</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_MONITOR = 3,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_STACK_LOCAL</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_STACK_LOCAL = 4,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_JNI_LOCAL</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_JNI_LOCAL = 5,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_THREAD</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_THREAD = 6,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapRootKind.JVMTI_HEAP_ROOT_OTHER</c>.
+    /// </summary>
     JVMTI_HEAP_ROOT_OTHER = 7,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiObjectReferenceKind : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_CLASS</c>.
+    /// </summary>
     JVMTI_REFERENCE_CLASS = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_FIELD</c>.
+    /// </summary>
     JVMTI_REFERENCE_FIELD = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_ARRAY_ELEMENT</c>.
+    /// </summary>
     JVMTI_REFERENCE_ARRAY_ELEMENT = 3,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_CLASS_LOADER</c>.
+    /// </summary>
     JVMTI_REFERENCE_CLASS_LOADER = 4,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_SIGNERS</c>.
+    /// </summary>
     JVMTI_REFERENCE_SIGNERS = 5,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_PROTECTION_DOMAIN</c>.
+    /// </summary>
     JVMTI_REFERENCE_PROTECTION_DOMAIN = 6,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_INTERFACE</c>.
+    /// </summary>
     JVMTI_REFERENCE_INTERFACE = 7,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_STATIC_FIELD</c>.
+    /// </summary>
     JVMTI_REFERENCE_STATIC_FIELD = 8,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiObjectReferenceKind.JVMTI_REFERENCE_CONSTANT_POOL</c>.
+    /// </summary>
     JVMTI_REFERENCE_CONSTANT_POOL = 9,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiIterationControl</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiIterationControl : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiIterationControl.JVMTI_ITERATION_CONTINUE</c>.
+    /// </summary>
     JVMTI_ITERATION_CONTINUE = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiIterationControl.JVMTI_ITERATION_IGNORE</c>.
+    /// </summary>
     JVMTI_ITERATION_IGNORE = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiIterationControl.JVMTI_ITERATION_ABORT</c>.
+    /// </summary>
     JVMTI_ITERATION_ABORT = 0,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiEventMode</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiEventMode : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventMode.JVMTI_ENABLE</c>.
+    /// </summary>
     JVMTI_ENABLE = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventMode.JVMTI_DISABLE</c>.
+    /// </summary>
     JVMTI_DISABLE = 0,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiParamTypes : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JBYTE</c>.
+    /// </summary>
     JVMTI_TYPE_JBYTE = 101,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JCHAR</c>.
+    /// </summary>
     JVMTI_TYPE_JCHAR = 102,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JSHORT</c>.
+    /// </summary>
     JVMTI_TYPE_JSHORT = 103,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JINT</c>.
+    /// </summary>
     JVMTI_TYPE_JINT = 104,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JLONG</c>.
+    /// </summary>
     JVMTI_TYPE_JLONG = 105,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JFLOAT</c>.
+    /// </summary>
     JVMTI_TYPE_JFLOAT = 106,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JDOUBLE</c>.
+    /// </summary>
     JVMTI_TYPE_JDOUBLE = 107,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JBOOLEAN</c>.
+    /// </summary>
     JVMTI_TYPE_JBOOLEAN = 108,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JOBJECT</c>.
+    /// </summary>
     JVMTI_TYPE_JOBJECT = 109,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JTHREAD</c>.
+    /// </summary>
     JVMTI_TYPE_JTHREAD = 110,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JCLASS</c>.
+    /// </summary>
     JVMTI_TYPE_JCLASS = 111,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JVALUE</c>.
+    /// </summary>
     JVMTI_TYPE_JVALUE = 112,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JFIELDID</c>.
+    /// </summary>
     JVMTI_TYPE_JFIELDID = 113,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JMETHODID</c>.
+    /// </summary>
     JVMTI_TYPE_JMETHODID = 114,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_CCHAR</c>.
+    /// </summary>
     JVMTI_TYPE_CCHAR = 115,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_CVOID</c>.
+    /// </summary>
     JVMTI_TYPE_CVOID = 116,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamTypes.JVMTI_TYPE_JNIENV</c>.
+    /// </summary>
     JVMTI_TYPE_JNIENV = 117,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiParamKind : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_IN</c>.
+    /// </summary>
     JVMTI_KIND_IN = 91,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_IN_PTR</c>.
+    /// </summary>
     JVMTI_KIND_IN_PTR = 92,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_IN_BUF</c>.
+    /// </summary>
     JVMTI_KIND_IN_BUF = 93,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_ALLOC_BUF</c>.
+    /// </summary>
     JVMTI_KIND_ALLOC_BUF = 94,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_ALLOC_ALLOC_BUF</c>.
+    /// </summary>
     JVMTI_KIND_ALLOC_ALLOC_BUF = 95,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_OUT</c>.
+    /// </summary>
     JVMTI_KIND_OUT = 96,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamKind.JVMTI_KIND_OUT_BUF</c>.
+    /// </summary>
     JVMTI_KIND_OUT_BUF = 97,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerKind</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiTimerKind : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerKind.JVMTI_TIMER_USER_CPU</c>.
+    /// </summary>
     JVMTI_TIMER_USER_CPU = 30,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerKind.JVMTI_TIMER_TOTAL_CPU</c>.
+    /// </summary>
     JVMTI_TIMER_TOTAL_CPU = 31,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerKind.JVMTI_TIMER_ELAPSED</c>.
+    /// </summary>
     JVMTI_TIMER_ELAPSED = 32,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiPhase : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase.JVMTI_PHASE_ONLOAD</c>.
+    /// </summary>
     JVMTI_PHASE_ONLOAD = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase.JVMTI_PHASE_PRIMORDIAL</c>.
+    /// </summary>
     JVMTI_PHASE_PRIMORDIAL = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase.JVMTI_PHASE_START</c>.
+    /// </summary>
     JVMTI_PHASE_START = 6,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase.JVMTI_PHASE_LIVE</c>.
+    /// </summary>
     JVMTI_PHASE_LIVE = 4,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiPhase.JVMTI_PHASE_DEAD</c>.
+    /// </summary>
     JVMTI_PHASE_DEAD = 8,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiVerboseFlag</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiVerboseFlag : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiVerboseFlag.JVMTI_VERBOSE_OTHER</c>.
+    /// </summary>
     JVMTI_VERBOSE_OTHER = 0,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiVerboseFlag.JVMTI_VERBOSE_GC</c>.
+    /// </summary>
     JVMTI_VERBOSE_GC = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiVerboseFlag.JVMTI_VERBOSE_CLASS</c>.
+    /// </summary>
     JVMTI_VERBOSE_CLASS = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiVerboseFlag.JVMTI_VERBOSE_JNI</c>.
+    /// </summary>
     JVMTI_VERBOSE_JNI = 4,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiJlocationFormat</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiJlocationFormat : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiJlocationFormat.JVMTI_JLOCATION_JVMBCI</c>.
+    /// </summary>
     JVMTI_JLOCATION_JVMBCI = 1,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiJlocationFormat.JVMTI_JLOCATION_MACHINEPC</c>.
+    /// </summary>
     JVMTI_JLOCATION_MACHINEPC = 2,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiJlocationFormat.JVMTI_JLOCATION_OTHER</c>.
+    /// </summary>
     JVMTI_JLOCATION_OTHER = 0,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiError</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiError : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NONE</c>.
+    /// </summary>
     JVMTI_ERROR_NONE = 0,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_THREAD</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_THREAD = 10,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_THREAD_GROUP</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_THREAD_GROUP = 11,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_PRIORITY</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_PRIORITY = 12,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_THREAD_NOT_SUSPENDED</c>.
+    /// </summary>
     JVMTI_ERROR_THREAD_NOT_SUSPENDED = 13,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_THREAD_SUSPENDED</c>.
+    /// </summary>
     JVMTI_ERROR_THREAD_SUSPENDED = 14,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_THREAD_NOT_ALIVE</c>.
+    /// </summary>
     JVMTI_ERROR_THREAD_NOT_ALIVE = 15,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_OBJECT</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_OBJECT = 20,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_CLASS</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_CLASS = 21,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_CLASS_NOT_PREPARED</c>.
+    /// </summary>
     JVMTI_ERROR_CLASS_NOT_PREPARED = 22,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_METHODID</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_METHODID = 23,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_LOCATION</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_LOCATION = 24,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_FIELDID</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_FIELDID = 25,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_MODULE</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_MODULE = 26,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NO_MORE_FRAMES</c>.
+    /// </summary>
     JVMTI_ERROR_NO_MORE_FRAMES = 31,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_OPAQUE_FRAME</c>.
+    /// </summary>
     JVMTI_ERROR_OPAQUE_FRAME = 32,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_TYPE_MISMATCH</c>.
+    /// </summary>
     JVMTI_ERROR_TYPE_MISMATCH = 34,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_SLOT</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_SLOT = 35,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_DUPLICATE</c>.
+    /// </summary>
     JVMTI_ERROR_DUPLICATE = 40,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NOT_FOUND</c>.
+    /// </summary>
     JVMTI_ERROR_NOT_FOUND = 41,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_MONITOR</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_MONITOR = 50,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NOT_MONITOR_OWNER</c>.
+    /// </summary>
     JVMTI_ERROR_NOT_MONITOR_OWNER = 51,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INTERRUPT</c>.
+    /// </summary>
     JVMTI_ERROR_INTERRUPT = 52,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_CLASS_FORMAT</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_CLASS_FORMAT = 60,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION</c>.
+    /// </summary>
     JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION = 61,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_FAILS_VERIFICATION</c>.
+    /// </summary>
     JVMTI_ERROR_FAILS_VERIFICATION = 62,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED = 63,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED = 64,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_TYPESTATE</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_TYPESTATE = 65,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED = 66,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED = 67,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_VERSION</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_VERSION = 68,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NAMES_DONT_MATCH</c>.
+    /// </summary>
     JVMTI_ERROR_NAMES_DONT_MATCH = 69,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED = 70,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED = 71,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED = 72,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNSUPPORTED_OPERATION</c>.
+    /// </summary>
     JVMTI_ERROR_UNSUPPORTED_OPERATION = 73,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNMODIFIABLE_CLASS</c>.
+    /// </summary>
     JVMTI_ERROR_UNMODIFIABLE_CLASS = 79,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNMODIFIABLE_MODULE</c>.
+    /// </summary>
     JVMTI_ERROR_UNMODIFIABLE_MODULE = 80,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NOT_AVAILABLE</c>.
+    /// </summary>
     JVMTI_ERROR_NOT_AVAILABLE = 98,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_MUST_POSSESS_CAPABILITY</c>.
+    /// </summary>
     JVMTI_ERROR_MUST_POSSESS_CAPABILITY = 99,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NULL_POINTER</c>.
+    /// </summary>
     JVMTI_ERROR_NULL_POINTER = 100,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_ABSENT_INFORMATION</c>.
+    /// </summary>
     JVMTI_ERROR_ABSENT_INFORMATION = 101,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_EVENT_TYPE</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_EVENT_TYPE = 102,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_ILLEGAL_ARGUMENT</c>.
+    /// </summary>
     JVMTI_ERROR_ILLEGAL_ARGUMENT = 103,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_NATIVE_METHOD</c>.
+    /// </summary>
     JVMTI_ERROR_NATIVE_METHOD = 104,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED</c>.
+    /// </summary>
     JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED = 106,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_OUT_OF_MEMORY</c>.
+    /// </summary>
     JVMTI_ERROR_OUT_OF_MEMORY = 110,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_ACCESS_DENIED</c>.
+    /// </summary>
     JVMTI_ERROR_ACCESS_DENIED = 111,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_WRONG_PHASE</c>.
+    /// </summary>
     JVMTI_ERROR_WRONG_PHASE = 112,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INTERNAL</c>.
+    /// </summary>
     JVMTI_ERROR_INTERNAL = 113,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_UNATTACHED_THREAD</c>.
+    /// </summary>
     JVMTI_ERROR_UNATTACHED_THREAD = 115,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_INVALID_ENVIRONMENT</c>.
+    /// </summary>
     JVMTI_ERROR_INVALID_ENVIRONMENT = 116,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiError.JVMTI_ERROR_MAX</c>.
+    /// </summary>
     JVMTI_ERROR_MAX = 116,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent</c>.
+/// </summary>
 [NativeTypeName("unsigned int")]
 public enum jvmtiEvent : uint
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_MIN_EVENT_TYPE_VAL</c>.
+    /// </summary>
     JVMTI_MIN_EVENT_TYPE_VAL = 50,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VM_INIT</c>.
+    /// </summary>
     JVMTI_EVENT_VM_INIT = 50,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VM_DEATH</c>.
+    /// </summary>
     JVMTI_EVENT_VM_DEATH = 51,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_THREAD_START</c>.
+    /// </summary>
     JVMTI_EVENT_THREAD_START = 52,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_THREAD_END</c>.
+    /// </summary>
     JVMTI_EVENT_THREAD_END = 53,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_CLASS_FILE_LOAD_HOOK</c>.
+    /// </summary>
     JVMTI_EVENT_CLASS_FILE_LOAD_HOOK = 54,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_CLASS_LOAD</c>.
+    /// </summary>
     JVMTI_EVENT_CLASS_LOAD = 55,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_CLASS_PREPARE</c>.
+    /// </summary>
     JVMTI_EVENT_CLASS_PREPARE = 56,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VM_START</c>.
+    /// </summary>
     JVMTI_EVENT_VM_START = 57,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_EXCEPTION</c>.
+    /// </summary>
     JVMTI_EVENT_EXCEPTION = 58,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_EXCEPTION_CATCH</c>.
+    /// </summary>
     JVMTI_EVENT_EXCEPTION_CATCH = 59,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_SINGLE_STEP</c>.
+    /// </summary>
     JVMTI_EVENT_SINGLE_STEP = 60,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_FRAME_POP</c>.
+    /// </summary>
     JVMTI_EVENT_FRAME_POP = 61,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_BREAKPOINT</c>.
+    /// </summary>
     JVMTI_EVENT_BREAKPOINT = 62,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_FIELD_ACCESS</c>.
+    /// </summary>
     JVMTI_EVENT_FIELD_ACCESS = 63,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_FIELD_MODIFICATION</c>.
+    /// </summary>
     JVMTI_EVENT_FIELD_MODIFICATION = 64,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_METHOD_ENTRY</c>.
+    /// </summary>
     JVMTI_EVENT_METHOD_ENTRY = 65,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_METHOD_EXIT</c>.
+    /// </summary>
     JVMTI_EVENT_METHOD_EXIT = 66,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_NATIVE_METHOD_BIND</c>.
+    /// </summary>
     JVMTI_EVENT_NATIVE_METHOD_BIND = 67,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_COMPILED_METHOD_LOAD</c>.
+    /// </summary>
     JVMTI_EVENT_COMPILED_METHOD_LOAD = 68,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_COMPILED_METHOD_UNLOAD</c>.
+    /// </summary>
     JVMTI_EVENT_COMPILED_METHOD_UNLOAD = 69,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_DYNAMIC_CODE_GENERATED</c>.
+    /// </summary>
     JVMTI_EVENT_DYNAMIC_CODE_GENERATED = 70,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_DATA_DUMP_REQUEST</c>.
+    /// </summary>
     JVMTI_EVENT_DATA_DUMP_REQUEST = 71,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_MONITOR_WAIT</c>.
+    /// </summary>
     JVMTI_EVENT_MONITOR_WAIT = 73,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_MONITOR_WAITED</c>.
+    /// </summary>
     JVMTI_EVENT_MONITOR_WAITED = 74,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_MONITOR_CONTENDED_ENTER</c>.
+    /// </summary>
     JVMTI_EVENT_MONITOR_CONTENDED_ENTER = 75,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_MONITOR_CONTENDED_ENTERED</c>.
+    /// </summary>
     JVMTI_EVENT_MONITOR_CONTENDED_ENTERED = 76,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_RESOURCE_EXHAUSTED</c>.
+    /// </summary>
     JVMTI_EVENT_RESOURCE_EXHAUSTED = 80,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_GARBAGE_COLLECTION_START</c>.
+    /// </summary>
     JVMTI_EVENT_GARBAGE_COLLECTION_START = 81,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_GARBAGE_COLLECTION_FINISH</c>.
+    /// </summary>
     JVMTI_EVENT_GARBAGE_COLLECTION_FINISH = 82,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_OBJECT_FREE</c>.
+    /// </summary>
     JVMTI_EVENT_OBJECT_FREE = 83,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VM_OBJECT_ALLOC</c>.
+    /// </summary>
     JVMTI_EVENT_VM_OBJECT_ALLOC = 84,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_SAMPLED_OBJECT_ALLOC</c>.
+    /// </summary>
     JVMTI_EVENT_SAMPLED_OBJECT_ALLOC = 86,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VIRTUAL_THREAD_START</c>.
+    /// </summary>
     JVMTI_EVENT_VIRTUAL_THREAD_START = 87,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_EVENT_VIRTUAL_THREAD_END</c>.
+    /// </summary>
     JVMTI_EVENT_VIRTUAL_THREAD_END = 88,
+
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEvent.JVMTI_MAX_EVENT_TYPE_VAL</c>.
+    /// </summary>
     JVMTI_MAX_EVENT_TYPE_VAL = 88,
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiThreadInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo.priority</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int priority;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo.is_daemon</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte is_daemon;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo.thread_group</c>.
+    /// </summary>
     [NativeTypeName("jthreadGroup")]
     public _jobject* thread_group;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadInfo.context_class_loader</c>.
+    /// </summary>
     [NativeTypeName("jobject")]
     public _jobject* context_class_loader;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorStackDepthInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiMonitorStackDepthInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorStackDepthInfo.monitor</c>.
+    /// </summary>
     [NativeTypeName("jobject")]
     public _jobject* monitor;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorStackDepthInfo.stack_depth</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int stack_depth;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadGroupInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiThreadGroupInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadGroupInfo.parent</c>.
+    /// </summary>
     [NativeTypeName("jthreadGroup")]
     public _jobject* parent;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadGroupInfo.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadGroupInfo.max_priority</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int max_priority;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiThreadGroupInfo.is_daemon</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte is_daemon;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiFrameInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiFrameInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiFrameInfo.method</c>.
+    /// </summary>
     [NativeTypeName("jmethodID")]
     public _jmethodID* method;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiFrameInfo.location</c>.
+    /// </summary>
     [NativeTypeName("jlocation")]
     public long location;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiStackInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiStackInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiStackInfo.thread</c>.
+    /// </summary>
     [NativeTypeName("jthread")]
     public _jobject* thread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiStackInfo.state</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int state;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiStackInfo.frame_buffer</c>.
+    /// </summary>
     public jvmtiFrameInfo* frame_buffer;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiStackInfo.frame_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int frame_count;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoField</c>.
+/// </summary>
 public partial struct jvmtiHeapReferenceInfoField
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoField.index</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int index;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoArray</c>.
+/// </summary>
 public partial struct jvmtiHeapReferenceInfoArray
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoArray.index</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int index;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoConstantPool</c>.
+/// </summary>
 public partial struct jvmtiHeapReferenceInfoConstantPool
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoConstantPool.index</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int index;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal</c>.
+/// </summary>
 public unsafe partial struct jvmtiHeapReferenceInfoStackLocal
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.thread_tag</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long thread_tag;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.thread_id</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long thread_id;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.depth</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int depth;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.method</c>.
+    /// </summary>
     [NativeTypeName("jmethodID")]
     public _jmethodID* method;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.location</c>.
+    /// </summary>
     [NativeTypeName("jlocation")]
     public long location;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoStackLocal.slot</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int slot;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoJniLocal</c>.
+/// </summary>
 public unsafe partial struct jvmtiHeapReferenceInfoJniLocal
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoJniLocal.thread_tag</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long thread_tag;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoJniLocal.thread_id</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long thread_id;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoJniLocal.depth</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int depth;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoJniLocal.method</c>.
+    /// </summary>
     [NativeTypeName("jmethodID")]
     public _jmethodID* method;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved</c>.
+/// </summary>
 public partial struct jvmtiHeapReferenceInfoReserved
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved1</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved2</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved2;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved3</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved3;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved4</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved4;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved5</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved5;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved6</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved6;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved7</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved7;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfoReserved.reserved8</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved8;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo</c>.
+/// </summary>
 [StructLayout(LayoutKind.Explicit)]
 public partial struct jvmtiHeapReferenceInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.field</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoField field;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.array</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoArray array;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.constant_pool</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoConstantPool constant_pool;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.stack_local</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoStackLocal stack_local;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.jni_local</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoJniLocal jni_local;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapReferenceInfo.other</c>.
+    /// </summary>
     [FieldOffset(0)]
     public jvmtiHeapReferenceInfoReserved other;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks</c>.
+/// </summary>
 public unsafe partial struct jvmtiHeapCallbacks
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.heap_iteration_callback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiHeapIterationCallback")]
     public delegate* unmanaged<long, long, long*, int, void*, int> heap_iteration_callback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.heap_reference_callback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiHeapReferenceCallback")]
     public delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long, long, long*, long*, int, void*, int> heap_reference_callback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.primitive_field_callback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiPrimitiveFieldCallback")]
     public delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long*, jvalue, jvmtiPrimitiveType, void*, int> primitive_field_callback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.array_primitive_value_callback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiArrayPrimitiveValueCallback")]
     public delegate* unmanaged<long, long, long*, int, jvmtiPrimitiveType, void*, void*, int> array_primitive_value_callback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.string_primitive_value_callback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiStringPrimitiveValueCallback")]
     public delegate* unmanaged<long, long, long*, ushort*, int, void*, int> string_primitive_value_callback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved5</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved5;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved6</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved6;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved7</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved7;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved8</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved8;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved9</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved9;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved10</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved10;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved11</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved11;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved12</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved12;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved13</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved13;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved14</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved14;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.reserved15</c>.
+    /// </summary>
     [NativeTypeName("jvmtiReservedCallback")]
     public IntPtr reserved15;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiClassDefinition</c>.
+/// </summary>
 public unsafe partial struct jvmtiClassDefinition
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiClassDefinition.klass</c>.
+    /// </summary>
     [NativeTypeName("jclass")]
     public _jobject* klass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiClassDefinition.class_byte_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int class_byte_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiClassDefinition.class_bytes</c>.
+    /// </summary>
     [NativeTypeName("const unsigned char *")]
     public byte* class_bytes;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage</c>.
+/// </summary>
 public unsafe partial struct jvmtiMonitorUsage
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.owner</c>.
+    /// </summary>
     [NativeTypeName("jthread")]
     public _jobject* owner;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.entry_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int entry_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.waiter_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int waiter_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.waiters</c>.
+    /// </summary>
     [NativeTypeName("jthread *")]
     public _jobject** waiters;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.notify_waiter_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int notify_waiter_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiMonitorUsage.notify_waiters</c>.
+    /// </summary>
     [NativeTypeName("jthread *")]
     public _jobject** notify_waiters;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiLineNumberEntry</c>.
+/// </summary>
 public partial struct jvmtiLineNumberEntry
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLineNumberEntry.start_location</c>.
+    /// </summary>
     [NativeTypeName("jlocation")]
     public long start_location;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLineNumberEntry.line_number</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int line_number;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry</c>.
+/// </summary>
 public unsafe partial struct jvmtiLocalVariableEntry
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.start_location</c>.
+    /// </summary>
     [NativeTypeName("jlocation")]
     public long start_location;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.length</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int length;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.signature</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* signature;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.generic_signature</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* generic_signature;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiLocalVariableEntry.slot</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int slot;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiParamInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiParamInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamInfo.name</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* name;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamInfo.kind</c>.
+    /// </summary>
     public jvmtiParamKind kind;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamInfo.base_type</c>.
+    /// </summary>
     public jvmtiParamTypes base_type;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiParamInfo.null_ok</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte null_ok;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiExtensionFunctionInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.func</c>.
+    /// </summary>
     [NativeTypeName("jvmtiExtensionFunction")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiError> func;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.id</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* id;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.short_description</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* short_description;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.param_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int param_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.@params</c>.
+    /// </summary>
     public jvmtiParamInfo* @params;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.error_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int error_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionFunctionInfo.errors</c>.
+    /// </summary>
     public jvmtiError* errors;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo</c>.
+/// </summary>
 public unsafe partial struct jvmtiExtensionEventInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo.extension_event_index</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int extension_event_index;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo.id</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* id;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo.short_description</c>.
+    /// </summary>
     [NativeTypeName("char *")]
     public byte* short_description;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo.param_count</c>.
+    /// </summary>
     [NativeTypeName("jint")]
     public int param_count;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiExtensionEventInfo.@params</c>.
+    /// </summary>
     public jvmtiParamInfo* @params;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo</c>.
+/// </summary>
 public partial struct jvmtiTimerInfo
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.max_value</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long max_value;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.may_skip_forward</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte may_skip_forward;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.may_skip_backward</c>.
+    /// </summary>
     [NativeTypeName("jboolean")]
     public byte may_skip_backward;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.kind</c>.
+    /// </summary>
     public jvmtiTimerKind kind;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.reserved1</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiTimerInfo.reserved2</c>.
+    /// </summary>
     [NativeTypeName("jlong")]
     public long reserved2;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiAddrLocationMap</c>.
+/// </summary>
 public unsafe partial struct jvmtiAddrLocationMap
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiAddrLocationMap.start_address</c>.
+    /// </summary>
     [NativeTypeName("const void *")]
     public void* start_address;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiAddrLocationMap.location</c>.
+    /// </summary>
     [NativeTypeName("jlocation")]
     public long location;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities</c>.
+/// </summary>
 public partial struct jvmtiCapabilities
 {
+    /// <summary>
+    /// Stores the packed JVMTI capability flags in <c>_bitfield1</c>.
+    /// </summary>
     public uint _bitfield1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_tag_objects</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_tag_objects
     {
@@ -1497,6 +3475,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_field_modification_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_field_modification_events
     {
@@ -1511,6 +3492,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_field_access_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_field_access_events
     {
@@ -1525,6 +3509,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_bytecodes</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_bytecodes
     {
@@ -1539,6 +3526,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_synthetic_attribute</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_synthetic_attribute
     {
@@ -1553,6 +3543,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_owned_monitor_info</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_owned_monitor_info
     {
@@ -1567,6 +3560,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_current_contended_monitor</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_current_contended_monitor
     {
@@ -1581,6 +3577,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_monitor_info</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_monitor_info
     {
@@ -1595,6 +3594,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_pop_frame</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_pop_frame
     {
@@ -1609,6 +3611,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_redefine_classes</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_redefine_classes
     {
@@ -1623,6 +3628,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_signal_thread</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_signal_thread
     {
@@ -1637,6 +3645,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_source_file_name</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_source_file_name
     {
@@ -1651,6 +3662,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_line_numbers</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_line_numbers
     {
@@ -1665,6 +3679,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_source_debug_extension</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_source_debug_extension
     {
@@ -1679,6 +3696,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_access_local_variables</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_access_local_variables
     {
@@ -1693,6 +3713,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_maintain_original_method_order</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_maintain_original_method_order
     {
@@ -1707,6 +3730,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_single_step_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_single_step_events
     {
@@ -1721,6 +3747,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_exception_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_exception_events
     {
@@ -1735,6 +3764,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_frame_pop_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_frame_pop_events
     {
@@ -1749,6 +3781,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_breakpoint_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_breakpoint_events
     {
@@ -1763,6 +3798,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_suspend</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_suspend
     {
@@ -1777,6 +3815,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_redefine_any_class</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_redefine_any_class
     {
@@ -1791,6 +3832,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_current_thread_cpu_time</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_current_thread_cpu_time
     {
@@ -1805,6 +3849,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_thread_cpu_time</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_thread_cpu_time
     {
@@ -1819,6 +3866,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_method_entry_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_method_entry_events
     {
@@ -1833,6 +3883,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_method_exit_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_method_exit_events
     {
@@ -1847,6 +3900,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_all_class_hook_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_all_class_hook_events
     {
@@ -1861,6 +3917,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_compiled_method_load_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_compiled_method_load_events
     {
@@ -1875,6 +3934,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_monitor_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_monitor_events
     {
@@ -1889,6 +3951,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_vm_object_alloc_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_vm_object_alloc_events
     {
@@ -1903,6 +3968,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_native_method_bind_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_native_method_bind_events
     {
@@ -1917,6 +3985,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_garbage_collection_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_garbage_collection_events
     {
@@ -1931,8 +4002,14 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Stores the packed JVMTI capability flags in <c>_bitfield2</c>.
+    /// </summary>
     public uint _bitfield2;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_object_free_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_object_free_events
     {
@@ -1947,6 +4024,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_force_early_return</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_force_early_return
     {
@@ -1961,6 +4041,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_owned_monitor_stack_depth_info</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_owned_monitor_stack_depth_info
     {
@@ -1975,6 +4058,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_get_constant_pool</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_get_constant_pool
     {
@@ -1989,6 +4075,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_set_native_method_prefix</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_set_native_method_prefix
     {
@@ -2003,6 +4092,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_retransform_classes</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_retransform_classes
     {
@@ -2017,6 +4109,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_retransform_any_class</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_retransform_any_class
     {
@@ -2031,6 +4126,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_resource_exhaustion_heap_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_resource_exhaustion_heap_events
     {
@@ -2045,6 +4143,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_resource_exhaustion_threads_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_resource_exhaustion_threads_events
     {
@@ -2059,6 +4160,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_early_vmstart</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_early_vmstart
     {
@@ -2073,6 +4177,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_early_class_hook_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_early_class_hook_events
     {
@@ -2087,6 +4194,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_generate_sampled_object_alloc_events</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_generate_sampled_object_alloc_events
     {
@@ -2101,6 +4211,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.can_support_virtual_threads</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 1")]
     public uint can_support_virtual_threads
     {
@@ -2115,6 +4228,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous1</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 3")]
     public uint Anonymous1
     {
@@ -2129,6 +4245,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous2</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 16")]
     public uint Anonymous2
     {
@@ -2143,8 +4262,14 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Stores the packed JVMTI capability flags in <c>_bitfield3</c>.
+    /// </summary>
     public uint _bitfield3;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous3</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 16")]
     public uint Anonymous3
     {
@@ -2159,6 +4284,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous4</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 16")]
     public uint Anonymous4
     {
@@ -2173,8 +4301,14 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Stores the packed JVMTI capability flags in <c>_bitfield4</c>.
+    /// </summary>
     public uint _bitfield4;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous5</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 16")]
     public uint Anonymous5
     {
@@ -2189,6 +4323,9 @@ public partial struct jvmtiCapabilities
         }
     }
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiCapabilities.Anonymous6</c>.
+    /// </summary>
     [NativeTypeName("unsigned int : 16")]
     public uint Anonymous6
     {
@@ -2204,734 +4341,1577 @@ public partial struct jvmtiCapabilities
     }
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks</c>.
+/// </summary>
 public unsafe partial struct jvmtiEventCallbacks
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VMInit</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVMInit")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, void> VMInit;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VMDeath</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVMDeath")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, void> VMDeath;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ThreadStart</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventThreadStart")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, void> ThreadStart;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ThreadEnd</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventThreadEnd")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, void> ThreadEnd;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ClassFileLoadHook</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventClassFileLoadHook")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, byte*, _jobject*, int, byte*, int*, byte**, void> ClassFileLoadHook;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ClassLoad</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventClassLoad")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, void> ClassLoad;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ClassPrepare</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventClassPrepare")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, void> ClassPrepare;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VMStart</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVMStart")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, void> VMStart;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.Exception</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventException")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, _jmethodID*, long, void> Exception;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ExceptionCatch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventExceptionCatch")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, void> ExceptionCatch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.SingleStep</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventSingleStep")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, void> SingleStep;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.FramePop</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventFramePop")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, byte, void> FramePop;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.Breakpoint</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventBreakpoint")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, void> Breakpoint;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.FieldAccess</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventFieldAccess")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, _jobject*, _jfieldID*, void> FieldAccess;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.FieldModification</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventFieldModification")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, _jobject*, _jfieldID*, byte, jvalue, void> FieldModification;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MethodEntry</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMethodEntry")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, void> MethodEntry;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MethodExit</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMethodExit")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, byte, jvalue, void> MethodExit;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.NativeMethodBind</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventNativeMethodBind")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, void*, void**, void> NativeMethodBind;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.CompiledMethodLoad</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventCompiledMethodLoad")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int, void*, int, jvmtiAddrLocationMap*, void*, void> CompiledMethodLoad;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.CompiledMethodUnload</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventCompiledMethodUnload")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, void*, void> CompiledMethodUnload;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.DynamicCodeGenerated</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventDynamicCodeGenerated")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, void*, int, void> DynamicCodeGenerated;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.DataDumpRequest</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventDataDumpRequest")]
     public delegate* unmanaged<jvmtiInterface_1_**, void> DataDumpRequest;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.reserved72</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventReserved")]
     public delegate* unmanaged<void> reserved72;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MonitorWait</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMonitorWait")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, long, void> MonitorWait;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MonitorWaited</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMonitorWaited")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, byte, void> MonitorWaited;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MonitorContendedEnter</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMonitorContendedEnter")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, void> MonitorContendedEnter;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MonitorContendedEntered</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventMonitorContendedEntered")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, void> MonitorContendedEntered;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.reserved77</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventReserved")]
     public delegate* unmanaged<void> reserved77;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.reserved78</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventReserved")]
     public delegate* unmanaged<void> reserved78;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.reserved79</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventReserved")]
     public delegate* unmanaged<void> reserved79;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ResourceExhausted</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventResourceExhausted")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, int, void*, byte*, void> ResourceExhausted;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.GarbageCollectionStart</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventGarbageCollectionStart")]
     public delegate* unmanaged<jvmtiInterface_1_**, void> GarbageCollectionStart;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.GarbageCollectionFinish</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventGarbageCollectionFinish")]
     public delegate* unmanaged<jvmtiInterface_1_**, void> GarbageCollectionFinish;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.ObjectFree</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventObjectFree")]
     public delegate* unmanaged<jvmtiInterface_1_**, long, void> ObjectFree;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VMObjectAlloc</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVMObjectAlloc")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, _jobject*, long, void> VMObjectAlloc;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.reserved85</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventReserved")]
     public delegate* unmanaged<void> reserved85;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.SampledObjectAlloc</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventSampledObjectAlloc")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jobject*, _jobject*, long, void> SampledObjectAlloc;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VirtualThreadStart</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVirtualThreadStart")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, void> VirtualThreadStart;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.VirtualThreadEnd</c>.
+    /// </summary>
     [NativeTypeName("jvmtiEventVirtualThreadEnd")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, void> VirtualThreadEnd;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_</c>.
+/// </summary>
 public unsafe partial struct jvmtiInterface_1_
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.reserved1</c>.
+    /// </summary>
     public void* reserved1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetEventNotificationMode</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiEventMode, jvmtiEvent, jthread, ...)")]
     public nint SetEventNotificationMode;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetAllModules</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jobject **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, _jobject***, jvmtiError> GetAllModules;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetAllThreads</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jthread **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, _jobject***, jvmtiError> GetAllThreads;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SuspendThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> SuspendThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ResumeThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> ResumeThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.StopThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject*, jvmtiError> StopThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.InterruptThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> InterruptThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jvmtiThreadInfo *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiThreadInfo*, jvmtiError> GetThreadInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetOwnedMonitorInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint *, jobject **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jobject***, jvmtiError> GetOwnedMonitorInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetCurrentContendedMonitor</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jobject *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject**, jvmtiError> GetCurrentContendedMonitor;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RunAgentThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jvmtiStartFunction, const void *, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, void*, void>, void*, int, jvmtiError> RunAgentThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetTopThreadGroups</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jthreadGroup **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, _jobject***, jvmtiError> GetTopThreadGroups;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadGroupInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthreadGroup, jvmtiThreadGroupInfo *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiThreadGroupInfo*, jvmtiError> GetThreadGroupInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadGroupChildren</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthreadGroup, jint *, jthread **, jint *, jthreadGroup **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jobject***, int*, _jobject***, jvmtiError> GetThreadGroupChildren;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetFrameCount</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiError> GetFrameCount;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadState</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiError> GetThreadState;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetCurrentThread</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject**, jvmtiError> GetCurrentThread;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetFrameLocation</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jmethodID *, jlocation *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, _jmethodID**, long*, jvmtiError> GetFrameLocation;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.NotifyFramePop</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, jvmtiError> NotifyFramePop;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalObject</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jobject *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, _jobject**, jvmtiError> GetLocalObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalInt</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, int*, jvmtiError> GetLocalInt;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalLong</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, long*, jvmtiError> GetLocalLong;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalFloat</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jfloat *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, float*, jvmtiError> GetLocalFloat;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalDouble</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jdouble *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, double*, jvmtiError> GetLocalDouble;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetLocalObject</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, _jobject*, jvmtiError> SetLocalObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetLocalInt</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, int, jvmtiError> SetLocalInt;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetLocalLong</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jlong)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, long, jvmtiError> SetLocalLong;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetLocalFloat</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jfloat)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, float, jvmtiError> SetLocalFloat;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetLocalDouble</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jdouble)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, double, jvmtiError> SetLocalDouble;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.CreateRawMonitor</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *, jrawMonitorID *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, _jrawMonitorID**, jvmtiError> CreateRawMonitor;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.DestroyRawMonitor</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, jvmtiError> DestroyRawMonitor;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RawMonitorEnter</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, jvmtiError> RawMonitorEnter;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RawMonitorExit</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, jvmtiError> RawMonitorExit;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RawMonitorWait</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID, jlong)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, long, jvmtiError> RawMonitorWait;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RawMonitorNotify</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, jvmtiError> RawMonitorNotify;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RawMonitorNotifyAll</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jrawMonitorID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jrawMonitorID*, jvmtiError> RawMonitorNotifyAll;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetBreakpoint</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jlocation)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, long, jvmtiError> SetBreakpoint;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ClearBreakpoint</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jlocation)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, long, jvmtiError> ClearBreakpoint;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetNamedModule</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, const char *, jobject *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, _jobject**, jvmtiError> GetNamedModule;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetFieldAccessWatch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, jvmtiError> SetFieldAccessWatch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ClearFieldAccessWatch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, jvmtiError> ClearFieldAccessWatch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetFieldModificationWatch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, jvmtiError> SetFieldModificationWatch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ClearFieldModificationWatch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, jvmtiError> ClearFieldModificationWatch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsModifiableClass</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, jvmtiError> IsModifiableClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.Allocate</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jlong, unsigned char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, long, byte**, jvmtiError> Allocate;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.Deallocate</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, unsigned char *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, jvmtiError> Deallocate;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassSignature</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, char **, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte**, byte**, jvmtiError> GetClassSignature;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassStatus</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiError> GetClassStatus;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetSourceFileName</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte**, jvmtiError> GetSourceFileName;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassModifiers</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiError> GetClassModifiers;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassMethods</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *, jmethodID **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jmethodID***, jvmtiError> GetClassMethods;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassFields</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *, jfieldID **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jfieldID***, jvmtiError> GetClassFields;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetImplementedInterfaces</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *, jclass **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jobject***, jvmtiError> GetImplementedInterfaces;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsInterface</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, jvmtiError> IsInterface;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsArrayClass</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, jvmtiError> IsArrayClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassLoader</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jobject *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject**, jvmtiError> GetClassLoader;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetObjectHashCode</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiError> GetObjectHashCode;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetObjectMonitorUsage</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jvmtiMonitorUsage *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiMonitorUsage*, jvmtiError> GetObjectMonitorUsage;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetFieldName</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID, char **, char **, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, byte**, byte**, byte**, jvmtiError> GetFieldName;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetFieldDeclaringClass</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID, jclass *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, _jobject**, jvmtiError> GetFieldDeclaringClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetFieldModifiers</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, int*, jvmtiError> GetFieldModifiers;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsFieldSynthetic</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jfieldID, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jfieldID*, byte*, jvmtiError> IsFieldSynthetic;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetMethodName</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, char **, char **, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, byte**, byte**, byte**, jvmtiError> GetMethodName;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetMethodDeclaringClass</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jclass *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, _jobject**, jvmtiError> GetMethodDeclaringClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetMethodModifiers</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, jvmtiError> GetMethodModifiers;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ClearAllFramePops</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> ClearAllFramePops;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetMaxLocals</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, jvmtiError> GetMaxLocals;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetArgumentsSize</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, jvmtiError> GetArgumentsSize;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLineNumberTable</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *, jvmtiLineNumberEntry **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, jvmtiLineNumberEntry**, jvmtiError> GetLineNumberTable;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetMethodLocation</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jlocation *, jlocation *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, long*, long*, jvmtiError> GetMethodLocation;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalVariableTable</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *, jvmtiLocalVariableEntry **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, jvmtiLocalVariableEntry**, jvmtiError> GetLocalVariableTable;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetNativeMethodPrefix</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, jvmtiError> SetNativeMethodPrefix;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetNativeMethodPrefixes</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, byte**, jvmtiError> SetNativeMethodPrefixes;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetBytecodes</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jint *, unsigned char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, int*, byte**, jvmtiError> GetBytecodes;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsMethodNative</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, byte*, jvmtiError> IsMethodNative;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsMethodSynthetic</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, byte*, jvmtiError> IsMethodSynthetic;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLoadedClasses</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jclass **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, _jobject***, jvmtiError> GetLoadedClasses;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassLoaderClasses</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jint *, jclass **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, _jobject***, jvmtiError> GetClassLoaderClasses;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.PopFrame</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> PopFrame;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnObject</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject*, jvmtiError> ForceEarlyReturnObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnInt</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, jvmtiError> ForceEarlyReturnInt;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnLong</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jlong)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, long, jvmtiError> ForceEarlyReturnLong;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnFloat</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jfloat)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, float, jvmtiError> ForceEarlyReturnFloat;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnDouble</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jdouble)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, double, jvmtiError> ForceEarlyReturnDouble;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceEarlyReturnVoid</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiError> ForceEarlyReturnVoid;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RedefineClasses</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jvmtiClassDefinition *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, jvmtiClassDefinition*, jvmtiError> RedefineClasses;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetVersionNumber</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, jvmtiError> GetVersionNumber;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetCapabilities</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiCapabilities *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiCapabilities*, jvmtiError> GetCapabilities;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetSourceDebugExtension</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte**, jvmtiError> GetSourceDebugExtension;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsMethodObsolete</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jmethodID, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jmethodID*, byte*, jvmtiError> IsMethodObsolete;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SuspendThreadList</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jthread *, jvmtiError *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, jvmtiError*, jvmtiError> SuspendThreadList;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ResumeThreadList</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jthread *, jvmtiError *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, jvmtiError*, jvmtiError> ResumeThreadList;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddModuleReads</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject*, jvmtiError> AddModuleReads;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddModuleExports</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, const char *, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, _jobject*, jvmtiError> AddModuleExports;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddModuleOpens</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, const char *, jobject)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, _jobject*, jvmtiError> AddModuleOpens;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddModuleUses</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jclass)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject*, jvmtiError> AddModuleUses;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddModuleProvides</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jclass, jclass)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, _jobject*, _jobject*, jvmtiError> AddModuleProvides;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IsModifiableModule</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jboolean *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, byte*, jvmtiError> IsModifiableModule;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetAllStackTraces</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, jvmtiStackInfo **, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, jvmtiStackInfo**, int*, jvmtiError> GetAllStackTraces;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadListStackTraces</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jthread *, jint, jvmtiStackInfo **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, int, jvmtiStackInfo**, jvmtiError> GetThreadListStackTraces;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadLocalStorage</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, void **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, void**, jvmtiError> GetThreadLocalStorage;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetThreadLocalStorage</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, void*, jvmtiError> SetThreadLocalStorage;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetStackTrace</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jint, jvmtiFrameInfo *, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, int, jvmtiFrameInfo*, int*, jvmtiError> GetStackTrace;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.reserved105</c>.
+    /// </summary>
     public void* reserved105;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetTag</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, long*, jvmtiError> GetTag;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetTag</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jlong)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, long, jvmtiError> SetTag;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ForceGarbageCollection</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiError> ForceGarbageCollection;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IterateOverObjectsReachableFromObject</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jvmtiObjectReferenceCallback, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, delegate* unmanaged<jvmtiObjectReferenceKind, long, long, long*, long, int, void*, jvmtiIterationControl>, void*, jvmtiError> IterateOverObjectsReachableFromObject;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IterateOverReachableObjects</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiHeapRootCallback, jvmtiStackReferenceCallback, jvmtiObjectReferenceCallback, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, delegate* unmanaged<jvmtiHeapRootKind, long, long, long*, void*, jvmtiIterationControl>, delegate* unmanaged<jvmtiHeapRootKind, long, long, long*, long, int, _jmethodID*, int, void*, jvmtiIterationControl>, delegate* unmanaged<jvmtiObjectReferenceKind, long, long, long*, long, int, void*, jvmtiIterationControl>, void*, jvmtiError> IterateOverReachableObjects;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IterateOverHeap</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiHeapObjectFilter, jvmtiHeapObjectCallback, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiHeapObjectFilter, delegate* unmanaged<long, long, long*, void*, jvmtiIterationControl>, void*, jvmtiError> IterateOverHeap;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IterateOverInstancesOfClass</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jvmtiHeapObjectFilter, jvmtiHeapObjectCallback, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, jvmtiHeapObjectFilter, delegate* unmanaged<long, long, long*, void*, jvmtiIterationControl>, void*, jvmtiError> IterateOverInstancesOfClass;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.reserved113</c>.
+    /// </summary>
     public void* reserved113;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetObjectsWithTags</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jlong *, jint *, jobject **, jlong **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, long*, int*, _jobject***, long**, jvmtiError> GetObjectsWithTags;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.FollowReferences</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, jclass, jobject, const jvmtiHeapCallbacks *, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject*, _jobject*, jvmtiHeapCallbacks*, void*, jvmtiError> FollowReferences;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.IterateThroughHeap</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, jclass, const jvmtiHeapCallbacks *, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject*, jvmtiHeapCallbacks*, void*, jvmtiError> IterateThroughHeap;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.reserved117</c>.
+    /// </summary>
     public void* reserved117;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SuspendAllVirtualThreads</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jthread *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, jvmtiError> SuspendAllVirtualThreads;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.ResumeAllVirtualThreads</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jthread *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, jvmtiError> ResumeAllVirtualThreads;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetJNIFunctionTable</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const jniNativeInterface *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_*, jvmtiError> SetJNIFunctionTable;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetJNIFunctionTable</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jniNativeInterface **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, jvmtiError> GetJNIFunctionTable;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetEventCallbacks</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const jvmtiEventCallbacks *, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiEventCallbacks*, int, jvmtiError> SetEventCallbacks;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GenerateEvents</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiEvent)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiEvent, jvmtiError> GenerateEvents;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetExtensionFunctions</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jvmtiExtensionFunctionInfo **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, jvmtiExtensionFunctionInfo**, jvmtiError> GetExtensionFunctions;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetExtensionEvents</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, jvmtiExtensionEventInfo **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, jvmtiExtensionEventInfo**, jvmtiError> GetExtensionEvents;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetExtensionEventCallback</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, jvmtiExtensionEvent)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, delegate* unmanaged<jvmtiInterface_1_**, void>, jvmtiError> SetExtensionEventCallback;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.DisposeEnvironment</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiError> DisposeEnvironment;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetErrorName</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiError, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiError, byte**, jvmtiError> GetErrorName;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetJLocationFormat</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiJlocationFormat *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiJlocationFormat*, jvmtiError> GetJLocationFormat;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetSystemProperties</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *, char ***)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, byte***, jvmtiError> GetSystemProperties;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetSystemProperty</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *, char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, byte**, jvmtiError> GetSystemProperty;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetSystemProperty</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *, const char *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, byte*, jvmtiError> SetSystemProperty;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetPhase</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiPhase *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiPhase*, jvmtiError> GetPhase;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetCurrentThreadCpuTimerInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiTimerInfo *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiTimerInfo*, jvmtiError> GetCurrentThreadCpuTimerInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetCurrentThreadCpuTime</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, long*, jvmtiError> GetCurrentThreadCpuTime;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadCpuTimerInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiTimerInfo *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiTimerInfo*, jvmtiError> GetThreadCpuTimerInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetThreadCpuTime</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, long*, jvmtiError> GetThreadCpuTime;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetTimerInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiTimerInfo *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiTimerInfo*, jvmtiError> GetTimerInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetTime</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, long*, jvmtiError> GetTime;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetPotentialCapabilities</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiCapabilities *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiCapabilities*, jvmtiError> GetPotentialCapabilities;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.reserved141</c>.
+    /// </summary>
     public void* reserved141;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddCapabilities</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const jvmtiCapabilities *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiCapabilities*, jvmtiError> AddCapabilities;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RelinquishCapabilities</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const jvmtiCapabilities *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiCapabilities*, jvmtiError> RelinquishCapabilities;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetAvailableProcessors</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int*, jvmtiError> GetAvailableProcessors;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetClassVersionNumbers</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *, jint *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, int*, jvmtiError> GetClassVersionNumbers;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetConstantPool</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jclass, jint *, jint *, unsigned char **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, int*, byte**, jvmtiError> GetConstantPool;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetEnvironmentLocalStorage</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, void **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, void**, jvmtiError> GetEnvironmentLocalStorage;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetEnvironmentLocalStorage</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const void *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, void*, jvmtiError> SetEnvironmentLocalStorage;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddToBootstrapClassLoaderSearch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, jvmtiError> AddToBootstrapClassLoaderSearch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetVerboseFlag</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jvmtiVerboseFlag, jboolean)")]
     public delegate* unmanaged<jvmtiInterface_1_**, jvmtiVerboseFlag, byte, jvmtiError> SetVerboseFlag;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.AddToSystemClassLoaderSearch</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, const char *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, byte*, jvmtiError> AddToSystemClassLoaderSearch;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.RetransformClasses</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint, const jclass *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, _jobject**, jvmtiError> RetransformClasses;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetOwnedMonitorStackDepthInfo</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint *, jvmtiMonitorStackDepthInfo **)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int*, jvmtiMonitorStackDepthInfo**, jvmtiError> GetOwnedMonitorStackDepthInfo;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetObjectSize</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jobject, jlong *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, long*, jvmtiError> GetObjectSize;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.GetLocalInstance</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jthread, jint, jobject *)")]
     public delegate* unmanaged<jvmtiInterface_1_**, _jobject*, int, _jobject**, jvmtiError> GetLocalInstance;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>jvmtiInterface_1_.SetHeapSamplingInterval</c>.
+    /// </summary>
     [NativeTypeName("jvmtiError (*)(jvmtiEnv *, jint)")]
     public delegate* unmanaged<jvmtiInterface_1_**, int, jvmtiError> SetHeapSamplingInterval;
 }
 
+/// <summary>
+/// Provides the pinned OpenJDK native declaration for <c>_jvmtiEnv</c>.
+/// </summary>
 public unsafe partial struct _jvmtiEnv
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native declaration for <c>_jvmtiEnv.functions</c>.
+    /// </summary>
     [NativeTypeName("const struct jvmtiInterface_1_ *")]
     public jvmtiInterface_1_* functions;
 }
 
+/// <summary>
+/// Provides constants copied from the pinned OpenJDK headers.
+/// </summary>
 public static partial class Methods
 {
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_FALSE</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_FALSE 0")]
     public const int JNI_FALSE = 0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_TRUE</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_TRUE 1")]
     public const int JNI_TRUE = 1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_OK</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_OK 0")]
     public const int JNI_OK = 0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_ERR</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_ERR (-1)")]
     public const int JNI_ERR = (-1);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_EDETACHED</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_EDETACHED (-2)")]
     public const int JNI_EDETACHED = (-2);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_EVERSION</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_EVERSION (-3)")]
     public const int JNI_EVERSION = (-3);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_ENOMEM</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_ENOMEM (-4)")]
     public const int JNI_ENOMEM = (-4);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_EEXIST</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_EEXIST (-5)")]
     public const int JNI_EEXIST = (-5);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_EINVAL</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_EINVAL (-6)")]
     public const int JNI_EINVAL = (-6);
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_COMMIT</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_COMMIT 1")]
     public const int JNI_COMMIT = 1;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_ABORT</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_ABORT 2")]
     public const int JNI_ABORT = 2;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_1</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_1 0x00010001")]
     public const int JNI_VERSION_1_1 = 0x00010001;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_2</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_2 0x00010002")]
     public const int JNI_VERSION_1_2 = 0x00010002;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_4</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_4 0x00010004")]
     public const int JNI_VERSION_1_4 = 0x00010004;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_6</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_6 0x00010006")]
     public const int JNI_VERSION_1_6 = 0x00010006;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_8</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_8 0x00010008")]
     public const int JNI_VERSION_1_8 = 0x00010008;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_9</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_9 0x00090000")]
     public const int JNI_VERSION_9 = 0x00090000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_10</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_10 0x000a0000")]
     public const int JNI_VERSION_10 = 0x000a0000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_19</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_19 0x00130000")]
     public const int JNI_VERSION_19 = 0x00130000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_20</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_20 0x00140000")]
     public const int JNI_VERSION_20 = 0x00140000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_21</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_21 0x00150000")]
     public const int JNI_VERSION_21 = 0x00150000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_24</c>.
+    /// </summary>
     [NativeTypeName("#define JNI_VERSION_24 0x00180000")]
     public const int JNI_VERSION_24 = 0x00180000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_1 = 0x30010000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_0</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_1_0 = 0x30010000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_1</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_1_1 = 0x30010100;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_2</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_1_2 = 0x30010200;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_9</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_9 = 0x30090000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_11</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_11 = 0x300B0000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_19</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_19 = 0x30130000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_21</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_21 = 0x30150000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION</c>.
+    /// </summary>
     public const uint JVMTI_VERSION = 0x30000000 + (26 * 0x10000) + (0 * 0x100) + 0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_ALIVE</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_ALIVE = 0x0001;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_TERMINATED</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_TERMINATED = 0x0002;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_RUNNABLE</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_RUNNABLE = 0x0004;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER = 0x0400;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING = 0x0080;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING_INDEFINITELY</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING_INDEFINITELY = 0x0010;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT = 0x0020;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_SLEEPING</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_SLEEPING = 0x0040;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_IN_OBJECT_WAIT</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_IN_OBJECT_WAIT = 0x0100;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_PARKED</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_PARKED = 0x0200;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_SUSPENDED</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_SUSPENDED = 0x100000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_INTERRUPTED</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_INTERRUPTED = 0x200000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_IN_NATIVE</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_IN_NATIVE = 0x400000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_1</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_1 = 0x10000000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_2</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_2 = 0x20000000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_3</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_3 = 0x40000000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_MASK</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_MASK = JVMTI_THREAD_STATE_TERMINATED | JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_RUNNABLE | JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_INDEFINITELY | JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_NEW</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_NEW = 0;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_TERMINATED</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_TERMINATED = JVMTI_THREAD_STATE_TERMINATED;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_RUNNABLE</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_RUNNABLE = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_RUNNABLE;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_BLOCKED</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_BLOCKED = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_WAITING</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_WAITING = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_TIMED_WAITING</c>.
+    /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_TIMED_WAITING = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_MIN_PRIORITY</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_MIN_PRIORITY = 1;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_NORM_PRIORITY</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_NORM_PRIORITY = 5;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_MAX_PRIORITY</c>.
+    /// </summary>
     public const uint JVMTI_THREAD_MAX_PRIORITY = 10;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_TAGGED</c>.
+    /// </summary>
     public const uint JVMTI_HEAP_FILTER_TAGGED = 0x4;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_UNTAGGED</c>.
+    /// </summary>
     public const uint JVMTI_HEAP_FILTER_UNTAGGED = 0x8;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_CLASS_TAGGED</c>.
+    /// </summary>
     public const uint JVMTI_HEAP_FILTER_CLASS_TAGGED = 0x10;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_CLASS_UNTAGGED</c>.
+    /// </summary>
     public const uint JVMTI_HEAP_FILTER_CLASS_UNTAGGED = 0x20;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VISIT_OBJECTS</c>.
+    /// </summary>
     public const uint JVMTI_VISIT_OBJECTS = 0x100;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VISIT_ABORT</c>.
+    /// </summary>
     public const uint JVMTI_VISIT_ABORT = 0x8000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_VERIFIED</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_VERIFIED = 1;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_PREPARED</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_PREPARED = 2;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_INITIALIZED</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_INITIALIZED = 4;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_ERROR</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_ERROR = 8;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_ARRAY</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_ARRAY = 16;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_PRIMITIVE</c>.
+    /// </summary>
     public const uint JVMTI_CLASS_STATUS_PRIMITIVE = 32;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_INTERFACE_JNI</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_INTERFACE_JNI = 0x00000000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_INTERFACE_JVMTI</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_INTERFACE_JVMTI = 0x30000000;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_INTERFACE_TYPE</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_MASK_INTERFACE_TYPE = 0x70000000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MAJOR</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_MASK_MAJOR = 0x0FFF0000;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MINOR</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_MASK_MINOR = 0x0000FF00;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MICRO</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_MASK_MICRO = 0x000000FF;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MAJOR</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MAJOR = 16;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MINOR</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MINOR = 8;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MICRO</c>.
+    /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MICRO = 0;
 
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR</c>.
+    /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR = 0x0001;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP</c>.
+    /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP = 0x0002;
+    /// <summary>
+    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_THREADS</c>.
+    /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_THREADS = 0x0004;
 }
 

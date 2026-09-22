@@ -3,7 +3,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageId>JvmBridge</PackageId>
     <Description>Generated JNI and JVMTI bindings, JVM runtime helpers, and NativeAOT agents for .NET.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>

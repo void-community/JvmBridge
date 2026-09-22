@@ -9,14 +9,21 @@ public sealed unsafe class JavaEnvironment : IDisposable
     private readonly int _threadIdentifier = Environment.CurrentManagedThreadId;
     private bool _disposed;
 
+    /// <summary>Creates a borrowed environment for the current thread and native scope.</summary>
+    /// <param name="environment">The nonzero raw JNI environment pointer.</param>
     public JavaEnvironment(nint environment)
     {
         ArgumentOutOfRangeException.ThrowIfZero(environment);
         _environment = (JNINativeInterface_**)environment;
     }
 
+    /// <summary>Gets the raw JNI environment pointer after validating thread and scope ownership.</summary>
     public nint Handle { get { EnsureAccessible(); return (nint)_environment; } }
+
+    /// <summary>Gets the JNI function table after validating thread and scope ownership.</summary>
     public JNINativeInterface_* Functions { get { EnsureAccessible(); return *_environment; } }
+
+    /// <summary>Gets the JNI version reported by this environment.</summary>
     public int Version => Functions->GetVersion(_environment);
 
     internal void EnsureAccessible()
@@ -26,6 +33,8 @@ public sealed unsafe class JavaEnvironment : IDisposable
             throw new InvalidOperationException("JNI environments and local references cannot cross threads.");
     }
 
+    /// <summary>Clears and reports a pending Java exception after a checked JNI operation.</summary>
+    /// <param name="operation">The managed operation name included in a thrown <see cref="JavaException"/>.</param>
     public void ThrowIfException(string operation)
     {
         if (Functions->ExceptionCheck(_environment) == 0)
@@ -42,14 +51,23 @@ public sealed unsafe class JavaEnvironment : IDisposable
         return new JavaLocalReference(this, (nint)value);
     }
 
+    /// <summary>Finds a Java class by its JNI binary name.</summary>
+    /// <param name="name">The binary class name encoded as modified UTF-8 for JNI.</param>
+    /// <returns>An owned local class reference.</returns>
     public JavaLocalReference FindClass(string name)
     {
         fixed (byte* encoded = ModifiedUtf8.Encode(name))
             return Own(Functions->FindClass(_environment, encoded), nameof(FindClass));
     }
 
+    /// <summary>Creates an owned local reference from another JNI reference.</summary>
+    /// <param name="value">The JNI reference to duplicate.</param>
+    /// <returns>The owned local reference.</returns>
     public JavaLocalReference NewLocalReference(nint value) => Own(Functions->NewLocalRef(_environment, (_jobject*)value), nameof(NewLocalReference));
 
+    /// <summary>Creates a Java string from the exact UTF-16 code units in a managed string.</summary>
+    /// <param name="value">The managed UTF-16 string.</param>
+    /// <returns>An owned local reference to the Java string.</returns>
     public JavaLocalReference NewString(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -57,6 +75,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
             return Own(Functions->NewString(_environment, (ushort*)characters, value.Length), nameof(NewString));
     }
 
+    /// <summary>Copies a Java string into a managed UTF-16 string.</summary>
+    /// <param name="value">The Java string reference, or zero for Java <see langword="null"/>.</param>
+    /// <returns>The managed string, or <see langword="null"/> for a null Java reference.</returns>
     public string? GetString(nint value)
     {
         EnsureAccessible();
@@ -77,6 +98,12 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
+    /// <summary>Resolves an instance or static Java method identifier.</summary>
+    /// <param name="type">The declaring Java class reference.</param>
+    /// <param name="name">The JNI method name.</param>
+    /// <param name="signature">The JNI method descriptor.</param>
+    /// <param name="isStatic">Whether to resolve a static method.</param>
+    /// <returns>The nonzero JNI method identifier.</returns>
     public nint GetMethod(nint type, string name, string signature, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
@@ -94,6 +121,11 @@ public sealed unsafe class JavaEnvironment : IDisposable
     }
 
     /// <summary>Calls an object-returning method; a Java null result is represented by an empty reference.</summary>
+    /// <param name="receiver">The instance or declaring-class reference.</param>
+    /// <param name="method">The resolved JNI method identifier.</param>
+    /// <param name="arguments">The typed JNI argument array.</param>
+    /// <param name="isStatic">Whether to invoke a static method.</param>
+    /// <returns>An owned local reference that may contain a zero handle for Java <see langword="null"/>.</returns>
     public JavaLocalReference CallObject(nint receiver, nint method, ReadOnlySpan<jvalue> arguments, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
@@ -108,6 +140,12 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
+    /// <summary>Calls an integer-returning instance or static Java method.</summary>
+    /// <param name="receiver">The instance or declaring-class reference.</param>
+    /// <param name="method">The resolved JNI method identifier.</param>
+    /// <param name="arguments">The typed JNI argument array.</param>
+    /// <param name="isStatic">Whether to invoke a static method.</param>
+    /// <returns>The Java integer result.</returns>
     public int CallInt(nint receiver, nint method, ReadOnlySpan<jvalue> arguments, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
@@ -122,6 +160,11 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
+    /// <summary>Calls a void-returning instance or static Java method.</summary>
+    /// <param name="receiver">The instance or declaring-class reference.</param>
+    /// <param name="method">The resolved JNI method identifier.</param>
+    /// <param name="arguments">The typed JNI argument array.</param>
+    /// <param name="isStatic">Whether to invoke a static method.</param>
     public void CallVoid(nint receiver, nint method, ReadOnlySpan<jvalue> arguments, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
@@ -136,6 +179,11 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
+    /// <summary>Registers one unmanaged function as a native implementation of a Java method.</summary>
+    /// <param name="type">The declaring Java class reference.</param>
+    /// <param name="name">The Java method name.</param>
+    /// <param name="signature">The JNI method descriptor.</param>
+    /// <param name="function">The unmanaged function pointer.</param>
     public void RegisterNative(nint type, string name, string signature, nint function)
     {
         ArgumentOutOfRangeException.ThrowIfZero(function);
@@ -149,6 +197,8 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
+    /// <summary>Gets a borrowed wrapper for the JVM that owns this environment.</summary>
+    /// <returns>A JVM wrapper that does not destroy the borrowed machine.</returns>
     public JavaVirtualMachine GetVirtualMachine()
     {
         JNIInvokeInterface_** machine = null;
@@ -167,6 +217,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
 
     internal void DeleteLocal(nint value) => Functions->DeleteLocalRef(_environment, (_jobject*)value);
     internal void DeleteGlobal(nint value) => Functions->DeleteGlobalRef(_environment, (_jobject*)value);
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (_disposed)

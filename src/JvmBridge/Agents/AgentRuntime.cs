@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+
 using JvmBridge.Native;
 using JvmBridge.Runtime;
 
@@ -10,6 +11,13 @@ public static unsafe class AgentRuntime
 {
     private static readonly ConcurrentDictionary<nint, AgentContext> _contexts = new();
 
+    /// <summary>Starts an agent from a generated native load or attach entry point.</summary>
+    /// <param name="factory">Creates the configured agent instance.</param>
+    /// <param name="machine">The raw JVM invocation-interface pointer.</param>
+    /// <param name="options">The nullable modified UTF-8 options pointer supplied by the JVM.</param>
+    /// <param name="attached">Whether the entry point represents late attachment.</param>
+    /// <param name="entryPoint">An address inside the NativeAOT module that must remain loaded.</param>
+    /// <returns>The JNI success or failure result for the native entry point.</returns>
     public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0)
     {
         AgentContext? context = null;
@@ -39,23 +47,49 @@ public static unsafe class AgentRuntime
                 context.Agent.OnLoad(context);
             return Methods.JNI_OK;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (ReportAndContain(exception))
         {
-            Report(exception);
             if (context is not null)
             {
-                _contexts.TryRemove(context.RawHandle, out _);
-                try { context.Dispose(); }
-                catch (Exception cleanupException) { Report(cleanupException); }
+                AgentContext cleanupContext = context;
+
+                if (_contexts.TryRemove(context.RawHandle, out AgentContext? registeredContext))
+                    cleanupContext = registeredContext;
+
+                DisposeContext(cleanupContext);
             }
+
             return Methods.JNI_ERR;
         }
     }
 
+    /// <summary>Performs non-throwing logical cleanup for agents owned by a JVM during shutdown.</summary>
+    /// <param name="machine">The raw JVM invocation-interface pointer.</param>
     public static void Stop(nint machine)
     {
         try { StopCore(machine); }
-        catch (Exception exception) { Report(exception); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+    }
+
+    private static bool ContainReportingFailure(Exception exception)
+    {
+        GC.KeepAlive(exception);
+
+        return true;
+    }
+
+    private static void DisposeContext(AgentContext context)
+    {
+        try { context.Dispose(); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+    }
+
+    private static bool ReportAndContain(Exception exception)
+    {
+        try { Console.Error.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}"); }
+        catch (Exception reportingException) when (ContainReportingFailure(reportingException)) { return true; }
+
+        return true;
     }
 
     private static void StopCore(nint machine)
@@ -65,15 +99,9 @@ public static unsafe class AgentRuntime
             if (entry.Value.VirtualMachine.Handle != machine || !_contexts.TryRemove(entry.Key, out AgentContext? context))
                 continue;
             try { context.Agent.OnUnload(context); }
-            catch (Exception exception) { Report(exception); }
+            catch (Exception exception) when (ReportAndContain(exception)) { continue; }
             // JVM shutdown owns native environment disposal. NativeAOT libraries stay loaded until process exit.
         }
-    }
-
-    private static void Report(Exception exception)
-    {
-        try { Console.Error.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}"); }
-        catch { /* The unmanaged boundary must remain non-throwing even if stderr is unavailable. */ }
     }
 
     [UnmanagedCallersOnly]
@@ -92,7 +120,7 @@ public static unsafe class AgentRuntime
                 context.Agent.OnVmInit(context, environment);
             }
         }
-        catch (Exception exception) { Report(exception); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
     [UnmanagedCallersOnly]
@@ -112,7 +140,7 @@ public static unsafe class AgentRuntime
                 finally { Stop(context.VirtualMachine.Handle); }
             }
         }
-        catch (Exception exception) { Report(exception); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
     [UnmanagedCallersOnly]
@@ -131,7 +159,7 @@ public static unsafe class AgentRuntime
                 context.Agent.OnClassPrepare(context, environment, (nint)type);
             }
         }
-        catch (Exception exception) { Report(exception); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
     [UnmanagedCallersOnly]
@@ -151,6 +179,6 @@ public static unsafe class AgentRuntime
             *replacementLength = result.Length;
             *replacement = output;
         }
-        catch (Exception exception) { Report(exception); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 }

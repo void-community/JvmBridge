@@ -18,7 +18,9 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          global-json-file: global.json
+          dotnet-version: |
+            10.0.401
+            11.0.100-rc.1.26425.128
       - name: Restore binding generator
         run: dotnet tool restore
       - name: Verify generation, manifests, build, and unit tests

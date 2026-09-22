@@ -95,7 +95,7 @@ Agent callbacks borrow their JNI environment. Local references must be disposed 
 
 ## Build and test
 
-Install the SDK from `global.json`, Python 3.12+, and the native publishing toolchain:
+Install the .NET 11 RC1 SDK, the .NET 10 runtime, Python 3.12+, and the native publishing toolchain:
 
 ```sh
 dotnet tool restore

@@ -20,6 +20,12 @@
           "System.Threading.Tasks.Extensions": "4.5.4"
         }
       },
+      "NetAgents.Analyzers": {
+        "type": "Direct",
+        "requested": "[26.9.21.5138, )",
+        "resolved": "26.9.21.5138",
+        "contentHash": "VpYAiillXCg6VV1tQFoWabr4WnIqQpNnxX+6kJKLjm9RKzwktju1H8n8rY49/CjxkOgiCNU5XAdjg6XJCaBPZg=="
+      },
       "NETStandard.Library": {
         "type": "Direct",
         "requested": "[2.0.3, )",

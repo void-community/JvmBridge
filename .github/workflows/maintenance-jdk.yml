@@ -21,7 +21,9 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          global-json-file: global.json
+          dotnet-version: |
+            10.0.401
+            11.0.100-rc.1.26425.128
       - run: dotnet tool restore
       - name: Update pinned releases, bindings, and support inventory
         run: python3 eng/update.py

@@ -5,6 +5,9 @@ namespace JvmBridge.Runtime;
 /// <summary>Encodes JNI names and options as modified UTF-8 (UTF-16 code units).</summary>
 public static class ModifiedUtf8
 {
+    /// <summary>Encodes UTF-16 code units as null-terminated JNI modified UTF-8.</summary>
+    /// <param name="value">The managed string to encode.</param>
+    /// <returns>The modified UTF-8 bytes followed by a zero terminator.</returns>
     public static byte[] Encode(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -29,6 +32,9 @@ public static class ModifiedUtf8
         return bytes.ToArray();
     }
 
+    /// <summary>Decodes JNI modified UTF-8 bytes into their exact UTF-16 code units.</summary>
+    /// <param name="value">The modified UTF-8 payload without a zero terminator.</param>
+    /// <returns>The decoded managed string.</returns>
     public static string Decode(ReadOnlySpan<byte> value)
     {
         StringBuilder result = new();
@@ -38,14 +44,14 @@ public static class ModifiedUtf8
             if (first == 0)
                 throw new FormatException("Modified UTF-8 must not contain embedded zero bytes.");
             if (first < 0x80)
-                result.Append((char)first);
+                result = result.Append((char)first);
             else if ((first & 0xe0) == 0xc0 && index + 1 < value.Length)
             {
                 byte second = value[++index];
                 int character = ((first & 0x1f) << 6) | (second & 0x3f);
                 if ((second & 0xc0) != 0x80 || character is > 0 and < 0x80)
                     throw new FormatException("Invalid modified UTF-8 sequence.");
-                result.Append((char)character);
+                result = result.Append((char)character);
             }
             else if ((first & 0xf0) == 0xe0 && index + 2 < value.Length)
             {
@@ -54,7 +60,7 @@ public static class ModifiedUtf8
                 int character = ((first & 0x0f) << 12) | ((second & 0x3f) << 6) | (third & 0x3f);
                 if ((second & 0xc0) != 0x80 || (third & 0xc0) != 0x80 || character < 0x800)
                     throw new FormatException("Invalid modified UTF-8 sequence.");
-                result.Append((char)character);
+                result = result.Append((char)character);
             }
             else
                 throw new FormatException("Invalid modified UTF-8 sequence.");

@@ -30,7 +30,7 @@ Generated files preserve upstream names and generator formatting; these style ru
 
 ## Verification
 
-Install the SDK pinned in global.json and restore the pinned tool with `dotnet tool restore`. Run `python eng/check.py` after source, generator, manifest, or build changes. It verifies deterministic generation, lock coverage, documentation, build, and xUnit tests.
+Install the .NET 11 RC1 SDK and .NET 10 runtime, then restore the pinned tool with `dotnet tool restore`. Run `python eng/check.py` after source, generator, manifest, or build changes. It verifies deterministic generation, lock coverage, documentation, build, and xUnit tests.
 
 For native changes, pack a fresh package version, then run `python eng/test_agent.py --rid <RID> --version <VERSION>` with the required native compiler. This publishes consumers, checks exports and ABI layouts, and runs real JVM startup/attach/transform/Unicode/thread/reference/failure/shutdown tests. Do not substitute project-reference tests for package-consumer tests. Record which platforms and Java versions actually executed.
 
