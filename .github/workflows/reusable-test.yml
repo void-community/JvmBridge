@@ -80,7 +80,8 @@ jobs:
           if [[ "$TARGET_RID" == linux-arm ]]; then compiler=arm-linux-gnueabihf-gcc; fi
           dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"
           dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/host/$TARGET_RID"
-          NATIVE_COMPILER="$compiler" dotnet test tests/JvmBridge.IntegrationTests -c Release --logger trx --results-directory "artifacts/results/$TARGET_RID"
+          # vcvarsall sets Platform=x86 for the native compiler; the managed test host must use the runner's .NET architecture.
+          NATIVE_COMPILER="$compiler" dotnet test tests/JvmBridge.IntegrationTests -c Release -p:Platform=AnyCPU --logger trx --results-directory "artifacts/results/$TARGET_RID"
       - name: Publish self-contained ARM32 xUnit tests
         if: matrix.rid == 'linux-arm'
         run: dotnet publish tests/JvmBridge.IntegrationTests -c Release -r linux-arm --self-contained -o artifacts/tests/linux-arm
