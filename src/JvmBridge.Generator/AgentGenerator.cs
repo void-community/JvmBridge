@@ -39,7 +39,15 @@ public sealed class AgentGenerator : IIncrementalGenerator
             agents.Collect().Combine(context.CompilationProvider).Combine(context.AnalyzerConfigOptionsProvider),
             static (production, input) =>
         {
-            ImmutableArray<INamedTypeSymbol> types = input.Left.Left;
+            System.Collections.Generic.HashSet<INamedTypeSymbol> distinctTypes = new(SymbolEqualityComparer.Default);
+
+            foreach (INamedTypeSymbol candidate in input.Left.Left)
+            {
+                if (!distinctTypes.Add(candidate))
+                    continue;
+            }
+
+            ImmutableArray<INamedTypeSymbol> types = [.. distinctTypes];
             bool agentEnabled = input.Right.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAgent", out string? setting) && string.Equals(setting, b: "true", StringComparison.OrdinalIgnoreCase);
 
             if (types.Length == 0 && !agentEnabled)
@@ -56,12 +64,12 @@ public sealed class AgentGenerator : IIncrementalGenerator
 
             INamedTypeSymbol type = types[index: 0];
             bool derivesAgent = DerivesAgent(type);
-            bool accessible = true;
+            bool accessible = input.Left.Right.IsSymbolAccessibleWithin(type, input.Left.Right.Assembly) && !type.IsFileLocal;
 
             for (INamedTypeSymbol? current = type; current != null; current = current.ContainingType)
-                accessible &= current.DeclaredAccessibility != Accessibility.Private && current.Arity == 0;
+                accessible &= current.Arity == 0 && !current.IsFileLocal;
 
-            bool constructor = type.InstanceConstructors.Any(static value => value.Parameters.Length == 0 && value.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal);
+            bool constructor = type.InstanceConstructors.Any(value => value.Parameters.Length == 0 && input.Left.Right.IsSymbolAccessibleWithin(value, input.Left.Right.Assembly));
 
             if (!derivesAgent || type.IsAbstract || !accessible || !constructor)
             {
@@ -81,6 +89,8 @@ public sealed class AgentGenerator : IIncrementalGenerator
                 production.ReportDiagnostic(
                     Diagnostic.Create(InvalidAgent, type.Locations.FirstOrDefault(), messageArgs: ["Set <JvmBridgeAgent>true</JvmBridgeAgent> in the agent project."])
                 );
+
+                return;
             }
 
             foreach (INamedTypeSymbol candidate in AllTypes(input.Left.Right.Assembly.GlobalNamespace))

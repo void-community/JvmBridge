@@ -3,4 +3,4 @@
 *.so binary
 *.dylib binary
 # Preserve upstream header bytes and whitespace for checksum verification.
-eng/headers/** -text -whitespace
+src/JvmBridge.Build/headers/** -text -whitespace

@@ -2,6 +2,10 @@
 
 The reusable workflows follow the same organization as Void: runnable PR/main workflows orchestrate versioning, builds, tests, and publication. All available JVM matrix cells are required. Tests are not skipped based on Conventional Commit types.
 
+Build orchestration lives in `build.proj`. `src/JvmBridge.Build` supplies MSBuild tasks for pinned-header generation, Roslyn-based ABI inspection, Java fixture compilation, and coverage validation. `src/JvmBridge.Maintenance` only refreshes vendor inputs. Tests live in the xUnit projects under `tests`; real JVM cells are theories in `JvmBridge.IntegrationTests`, not commands in a custom test runner. Samples remain independent NuGet consumers.
+
+The native workflow first publishes consumers with `PublishConsumers`, then runs xUnit with `TARGET_RID` set. ARM32 uses the same tests published as a self-contained xUnit executable. Each JVM cell records its exact pinned archive and outcome; aggregate coverage rejects missing cells, failed cells, mismatched archive provenance, or missing native export verification.
+
 ## Repository settings
 
 Use `main`, enable auto-merge and automatic branch deletion, and protect main with the `required` PR check. Enable Actions to create pull requests. Bot updates use explicit workflow dispatches because pushes/PRs created by GITHUB_TOKEN do not normally trigger other workflows. A reconciliation schedule validates main after bot merges if no commit run exists.
@@ -18,7 +22,7 @@ NuGet publication is deliberately a separate manual workflow for the initial rol
 
 ## Updating coverage
 
-`eng/compatibility.json` describes Java majors and target capabilities; `eng/jdks.lock.json` pins each available vendor archive with SHA256 or records an explicit unavailable cell. The updater refuses to silently drop previously available combinations. Network failures are errors, not evidence of unsupported platforms.
+`src/JvmBridge.Build/compatibility.json` describes Java majors and target capabilities; `src/JvmBridge.Build/jdks.lock.json` pins each available vendor archive with SHA256 or records an explicit unavailable cell. The updater refuses to silently drop previously available combinations. Network failures are errors, not evidence of unsupported platforms.
 
 HotSpot uses Temurin with Zulu fallback. OpenJ9 uses IBM Semeru's public release archives. Native builds, ABI probes, JVM host tests, startup agents, and late attachment run against each available combination. Runtime tests are executed inside matching Alpine containers for musl and with a cross toolchain/emulation where needed for ARM32.
 

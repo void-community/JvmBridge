@@ -8,7 +8,6 @@ TestResults/
 *.suo
 .vs/
 .idea/
-__pycache__/
 hs_err_pid*
 core
 samples/**/packages.lock.json

@@ -25,9 +25,10 @@ public sealed unsafe class HelloAgent : JavaAgent
         Log("ATTACH");
         using JavaThreadAttachment attachment = context.VirtualMachine.AttachCurrentThread();
         JavaEnvironment environment = attachment.Environment;
-        foreach (nint type in context.GetLoadedClasses(environment))
+        nint[] classes = context.GetLoadedClasses(environment);
+        try
         {
-            try
+            foreach (nint type in classes)
             {
                 if (context.GetClassSignature(type) == "LBridgeFixture;")
                 {
@@ -36,7 +37,11 @@ public sealed unsafe class HelloAgent : JavaAgent
                         context.Retransform(type);
                 }
             }
-            finally { environment.Functions->DeleteLocalRef((JNINativeInterface_**)environment.Handle, (_jobject*)type); }
+        }
+        finally
+        {
+            foreach (nint type in classes)
+                environment.Functions->DeleteLocalRef((JNINativeInterface_**)environment.Handle, (_jobject*)type);
         }
     }
 
@@ -136,7 +141,17 @@ public sealed unsafe class HelloAgent : JavaAgent
     public override void OnUnload(AgentContext context) => Log("UNLOAD");
     private static void Log(string message)
     {
-        lock (_logLock)
-            Console.Error.WriteLine($"JvmBridge sample: {message}");
+        try
+        {
+            lock (_logLock)
+                Console.Error.WriteLine($"JvmBridge sample: {message}");
+        }
+        catch (Exception exception) when (ContainLoggingFailure(exception)) { return; }
+    }
+
+    private static bool ContainLoggingFailure(Exception exception)
+    {
+        GC.KeepAlive(exception);
+        return true;
     }
 }

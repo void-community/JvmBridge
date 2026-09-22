@@ -1,0 +1,37 @@
+<Project DefaultTargets="VerifyGenerated">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)</RepositoryRoot>
+    <BuildProject>$(RepositoryRoot)src/JvmBridge.Build/JvmBridge.Build.csproj</BuildProject>
+    <BuildAssembly>$(RepositoryRoot)src/JvmBridge.Build/bin/$(Configuration)/net10.0/JvmBridge.Build.dll</BuildAssembly>
+    <ConsumerConfig>$(RepositoryRoot)artifacts/consumer.nuget.config</ConsumerConfig>
+  </PropertyGroup>
+  <UsingTask TaskName="JvmBridge.Build.RepositoryTask" AssemblyFile="$(BuildAssembly)" />
+  <Target Name="BuildTasks">
+    <MSBuild Projects="$(BuildProject)" Targets="Restore;Build" Properties="Configuration=$(Configuration);RestoreLockedMode=true" />
+  </Target>
+  <Target Name="Generate" DependsOnTargets="BuildTasks">
+    <RepositoryTask Operation="Generate" />
+  </Target>
+  <Target Name="VerifyGenerated" DependsOnTargets="BuildTasks">
+    <RepositoryTask Operation="VerifyGenerated" />
+  </Target>
+  <Target Name="VerifyCoverage" DependsOnTargets="BuildTasks">
+    <RepositoryTask Operation="VerifyCoverage" />
+  </Target>
+  <Target Name="CompileFixtures" DependsOnTargets="BuildTasks">
+    <RepositoryTask Operation="CompileFixtures" />
+  </Target>
+  <Target Name="PublishConsumers">
+    <Error Condition="'$(TargetRid)' == ''" Text="TargetRid is required." />
+    <Error Condition="'$(PackageVersion)' == ''" Text="PackageVersion is required." />
+    <MakeDir Directories="$(RepositoryRoot)artifacts" />
+    <WriteLinesToFile File="$(ConsumerConfig)" Overwrite="true" Lines="&lt;configuration&gt;&lt;packageSources&gt;&lt;clear /&gt;&lt;add key='local' value='packages' /&gt;&lt;add key='nuget.org' value='https://api.nuget.org/v3/index.json' /&gt;&lt;/packageSources&gt;&lt;/configuration&gt;" />
+    <PropertyGroup>
+      <ConsumerProperties>Configuration=$(Configuration);RuntimeIdentifier=$(TargetRid);SelfContained=true;PublishAot=true;JvmBridgeVersion=$(PackageVersion);RestoreConfigFile=$(ConsumerConfig)</ConsumerProperties>
+      <ConsumerProperties Condition="'$(ROOTFS_DIR)' != ''">$(ConsumerProperties);SysRoot=$(ROOTFS_DIR);LinkerFlavor=lld;ObjCopyName=llvm-objcopy</ConsumerProperties>
+    </PropertyGroup>
+    <MSBuild Projects="$(RepositoryRoot)samples/HelloAgent/HelloAgent.csproj" Targets="Restore;Publish" Properties="$(ConsumerProperties);PublishDir=$(RepositoryRoot)artifacts/agent/$(TargetRid)/" />
+    <MSBuild Projects="$(RepositoryRoot)samples/JavaHost/JavaHost.csproj" Targets="Restore;Publish" Properties="$(ConsumerProperties);PublishDir=$(RepositoryRoot)artifacts/host/$(TargetRid)/" />
+  </Target>
+</Project>

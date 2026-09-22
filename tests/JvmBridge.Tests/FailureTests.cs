@@ -12,13 +12,30 @@ namespace JvmBridge.Tests;
 /// </summary>
 public sealed unsafe class FailureTests
 {
+    /// <summary>Verifies JVM lookup fails before JNI can allocate a global reference.</summary>
+    [Fact]
+    public void FailedMachineLookupDoesNotAllocateGlobalReference()
+    {
+        // NewGlobalRef deliberately has no function pointer: reaching it would crash the test process.
+        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, GetJavaVM = &FailMachine, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_* pointer = &table;
+
+        using JavaEnvironment environment = new((nint)(&pointer));
+
+        using JavaLocalReference local = environment.NewLocalReference(value: 123);
+
+        JniException failure = Assert.Throws<JniException>(local.ToGlobal);
+        Assert.Equal(Methods.JNI_ERR, failure.ErrorCode);
+        Assert.Equal(expected: 123, local.Handle);
+    }
+
     /// <summary>
     /// Verifies that a failed global-reference promotion leaves the local reference usable.
     /// </summary>
     [Fact]
     public void FailedPromotionPreservesTheLocalReference()
     {
-        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, NewGlobalRef = &FailPromotion, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, NewGlobalRef = &FailPromotion, GetJavaVM = &GetMachine, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
         JNINativeInterface_* pointer = &table;
 
         using JavaEnvironment environment = new((nint)(&pointer));
@@ -60,9 +77,23 @@ public sealed unsafe class FailureTests
     }
 
     [UnmanagedCallersOnly]
+    private static int FailMachine(JNINativeInterface_** environment, JNIInvokeInterface_*** machine)
+    {
+        return Methods.JNI_ERR;
+    }
+
+    [UnmanagedCallersOnly]
     private static _jobject* FailPromotion(JNINativeInterface_** environment, _jobject* value)
     {
         return null;
+    }
+
+    [UnmanagedCallersOnly]
+    private static int GetMachine(JNINativeInterface_** environment, JNIInvokeInterface_*** machine)
+    {
+        *machine = (JNIInvokeInterface_**)1;
+
+        return Methods.JNI_OK;
     }
 
     [UnmanagedCallersOnly]

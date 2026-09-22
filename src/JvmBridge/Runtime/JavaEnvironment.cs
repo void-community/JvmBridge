@@ -186,6 +186,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     /// <param name="function">The unmanaged function pointer.</param>
     public void RegisterNative(nint type, string name, string signature, nint function)
     {
+        ArgumentOutOfRangeException.ThrowIfZero(type);
         ArgumentOutOfRangeException.ThrowIfZero(function);
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* encodedSignature = ModifiedUtf8.Encode(signature))
@@ -208,11 +209,12 @@ public sealed unsafe class JavaEnvironment : IDisposable
 
     internal JavaGlobalReference Promote(nint value)
     {
+        JavaVirtualMachine machine = GetVirtualMachine();
         _jobject* global = Functions->NewGlobalRef(_environment, (_jobject*)value);
         ThrowIfException(nameof(Promote));
         if (global == null)
             throw new InvalidOperationException("NewGlobalRef failed; the original local reference is still owned by the caller.");
-        return new JavaGlobalReference(GetVirtualMachine(), (nint)global);
+        return new JavaGlobalReference(machine, (nint)global);
     }
 
     internal void DeleteLocal(nint value) => Functions->DeleteLocalRef(_environment, (_jobject*)value);

@@ -82,7 +82,11 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
         return (nint)environment;
     }
 
-    internal void DetachCurrentThread() => Check((*_machine)->DetachCurrentThread(_machine), nameof(DetachCurrentThread));
+    internal void DetachCurrentThread()
+    {
+        EnsureAccessible();
+        Check((*_machine)->DetachCurrentThread(_machine), nameof(DetachCurrentThread));
+    }
     internal static void Check(int result, string operation)
     {
         if (result != Methods.JNI_OK)
@@ -98,29 +102,6 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
             return;
         if (_owned)
             Check((*_machine)->DestroyJavaVM(_machine), nameof(Dispose));
-        _disposed = true;
-    }
-}
-
-/// <summary>Detaches only threads attached by this scope. Dispose on the creating thread.</summary>
-public sealed class JavaThreadAttachment : IDisposable
-{
-    private readonly JavaVirtualMachine _machine;
-    private readonly bool _attached;
-    private bool _disposed;
-
-    /// <summary>Gets the JNI environment borrowed for the current thread and attachment scope.</summary>
-    public JavaEnvironment Environment { get; }
-    internal JavaThreadAttachment(JavaVirtualMachine machine, JavaEnvironment environment, bool attached) { _machine = machine; Environment = environment; _attached = attached; }
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-        Environment.EnsureAccessible();
-        if (_attached)
-            _machine.DetachCurrentThread();
-        Environment.Dispose();
         _disposed = true;
     }
 }

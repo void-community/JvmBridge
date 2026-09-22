@@ -44,6 +44,16 @@ public sealed class GeneratorTests
         Assert.True(result.Results[index: 0].GeneratedSources.Length is 1);
     }
 
+    /// <summary>Verifies that repeated base lists on partial declarations identify one agent.</summary>
+    [Fact]
+    public void PartialDeclarationsGenerateOneAgent()
+    {
+        GeneratorDriverRunResult result = Generate(source: "public partial class Agent : JvmBridge.Agents.JavaAgent {} public partial class Agent : JvmBridge.Agents.JavaAgent {}");
+        Assert.True(result.Diagnostics.IsEmpty);
+        Assert.True(result.Results.Length is 1);
+        Assert.True(result.Results[index: 0].GeneratedSources.Length is 1);
+    }
+
     /// <summary>
     /// Verifies that invalid agent declarations produce the generator diagnostic.
     /// </summary>
@@ -54,6 +64,8 @@ public sealed class GeneratorTests
     [InlineData("public class Agent { }")]
     [InlineData("public class Agent : JvmBridge.Agents.JavaAgent { private Agent() { } }")]
     [InlineData("public class A : JvmBridge.Agents.JavaAgent {} public class B : JvmBridge.Agents.JavaAgent {}")]
+    [InlineData("public class Outer { protected class Agent : JvmBridge.Agents.JavaAgent {} }")]
+    [InlineData("file class Agent : JvmBridge.Agents.JavaAgent {}")]
     public void RejectsInvalidAgents(string source)
     {
         ImmutableArray<Diagnostic> diagnostics = Generate(source).Diagnostics;

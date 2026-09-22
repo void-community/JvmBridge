@@ -23,10 +23,15 @@ jobs:
             11.0.100-rc.1.26425.128
       - name: Restore binding generator
         run: dotnet tool restore
+      - name: Restore solution
+        run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests
-        run: python3 eng/check.py
+        run: |
+          dotnet msbuild build.proj -t:VerifyGenerated
+          dotnet build JvmBridge.slnx -c Release --no-restore
+          dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Compile portable Java fixtures with the pinned JDK
-        run: python3 eng/compile_fixtures.py
+        run: dotnet msbuild build.proj -t:CompileFixtures
       - name: Pack the consumer artifact
         env:
           PACKAGE_VERSION: ${{ inputs.version }}

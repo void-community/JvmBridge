@@ -21,6 +21,7 @@ public static unsafe class AgentRuntime
     public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0)
     {
         AgentContext? context = null;
+        nint registeredHandle = 0;
         try
         {
             if (entryPoint != 0)
@@ -28,6 +29,7 @@ public static unsafe class AgentRuntime
             context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached);
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
+            registeredHandle = context.RawHandle;
             context.Agent.Configure(context);
             var environment = (jvmtiInterface_1_**)context.RawHandle;
             jvmtiEventCallbacks callbacks = default;
@@ -53,7 +55,7 @@ public static unsafe class AgentRuntime
             {
                 AgentContext cleanupContext = context;
 
-                if (_contexts.TryRemove(context.RawHandle, out AgentContext? registeredContext))
+                if (registeredHandle != 0 && _contexts.TryRemove(registeredHandle, out AgentContext? registeredContext))
                     cleanupContext = registeredContext;
 
                 DisposeContext(cleanupContext);

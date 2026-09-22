@@ -2,6 +2,12 @@
   <Folder Name="/src/">
     <Project Path="src/JvmBridge/JvmBridge.csproj" />
     <Project Path="src/JvmBridge.Generator/JvmBridge.Generator.csproj" />
+    <Project Path="src/JvmBridge.Build/JvmBridge.Build.csproj" />
+    <Project Path="src/JvmBridge.Maintenance/JvmBridge.Maintenance.csproj" />
   </Folder>
-  <Folder Name="/tests/"><Project Path="tests/JvmBridge.Tests/JvmBridge.Tests.csproj" /></Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JvmBridge.Tests/JvmBridge.Tests.csproj" />
+    <Project Path="tests/JvmBridge.Build.Tests/JvmBridge.Build.Tests.csproj" />
+    <Project Path="tests/JvmBridge.IntegrationTests/JvmBridge.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

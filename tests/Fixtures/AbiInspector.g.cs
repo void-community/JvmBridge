@@ -278,6 +278,17 @@ internal static unsafe class AbiInspector
         values["offset.jvmtiHeapCallbacks.primitive_field_callback"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.primitive_field_callback)).ToInt64();
         values["offset.jvmtiHeapCallbacks.array_primitive_value_callback"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.array_primitive_value_callback)).ToInt64();
         values["offset.jvmtiHeapCallbacks.string_primitive_value_callback"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.string_primitive_value_callback)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved5"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved5)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved6"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved6)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved7"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved7)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved8"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved8)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved9"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved9)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved10"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved10)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved11"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved11)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved12"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved12)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved13"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved13)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved14"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved14)).ToInt64();
+        values["offset.jvmtiHeapCallbacks.reserved15"] = Marshal.OffsetOf<jvmtiHeapCallbacks>(nameof(jvmtiHeapCallbacks.reserved15)).ToInt64();
         values["size.jvmtiClassDefinition"] = sizeof(jvmtiClassDefinition);
         values["size.jvmtiMonitorUsage"] = sizeof(jvmtiMonitorUsage);
         values["size.jvmtiLineNumberEntry"] = sizeof(jvmtiLineNumberEntry);

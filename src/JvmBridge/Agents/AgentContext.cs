@@ -37,7 +37,12 @@ public sealed unsafe class AgentContext
         VirtualMachine = JavaVirtualMachine.Borrow(machine);
         _environment = (jvmtiInterface_1_**)VirtualMachine.GetToolingEnvironment();
         int version = 0;
-        Check((*_environment)->GetVersionNumber(_environment, &version), nameof(Version));
+        jvmtiError result = (*_environment)->GetVersionNumber(_environment, &version);
+        if (result != jvmtiError.JVMTI_ERROR_NONE)
+        {
+            Check((*_environment)->DisposeEnvironment(_environment), "Dispose failed initialization");
+            Check(result, nameof(Version));
+        }
         Version = version;
     }
 
