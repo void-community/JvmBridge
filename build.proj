@@ -4,7 +4,6 @@
     <RepositoryRoot>$(MSBuildThisFileDirectory)</RepositoryRoot>
     <BuildProject>$(RepositoryRoot)src/JvmBridge.Build/JvmBridge.Build.csproj</BuildProject>
     <BuildAssembly>$(RepositoryRoot)src/JvmBridge.Build/bin/$(Configuration)/net10.0/JvmBridge.Build.dll</BuildAssembly>
-    <ConsumerConfig>$(RepositoryRoot)artifacts/consumer.nuget.config</ConsumerConfig>
   </PropertyGroup>
   <UsingTask TaskName="JvmBridge.Build.RepositoryTask" AssemblyFile="$(BuildAssembly)" />
   <Target Name="BuildTasks">
@@ -25,10 +24,8 @@
   <Target Name="PublishConsumers">
     <Error Condition="'$(TargetRid)' == ''" Text="TargetRid is required." />
     <Error Condition="'$(PackageVersion)' == ''" Text="PackageVersion is required." />
-    <MakeDir Directories="$(RepositoryRoot)artifacts" />
-    <WriteLinesToFile File="$(ConsumerConfig)" Overwrite="true" Lines="&lt;configuration&gt;&lt;packageSources&gt;&lt;clear /&gt;&lt;add key='local' value='packages' /&gt;&lt;add key='nuget.org' value='https://api.nuget.org/v3/index.json' /&gt;&lt;/packageSources&gt;&lt;/configuration&gt;" />
     <PropertyGroup>
-      <ConsumerProperties>Configuration=$(Configuration);RuntimeIdentifier=$(TargetRid);SelfContained=true;PublishAot=true;JvmBridgeVersion=$(PackageVersion);RestoreConfigFile=$(ConsumerConfig)</ConsumerProperties>
+      <ConsumerProperties>Configuration=$(Configuration);RuntimeIdentifier=$(TargetRid);SelfContained=true;PublishAot=true;JvmBridgeVersion=$(PackageVersion)</ConsumerProperties>
       <ConsumerProperties Condition="'$(ROOTFS_DIR)' != ''">$(ConsumerProperties);SysRoot=$(ROOTFS_DIR);LinkerFlavor=lld;ObjCopyName=llvm-objcopy</ConsumerProperties>
     </PropertyGroup>
     <MSBuild Projects="$(RepositoryRoot)samples/HelloAgent/HelloAgent.csproj" Targets="Restore;Publish" Properties="$(ConsumerProperties);PublishDir=$(RepositoryRoot)artifacts/agent/$(TargetRid)/" />

@@ -1,7 +1,11 @@
 <Project>
-  <PropertyGroup><ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally></PropertyGroup>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">0.1.0</JvmBridgeVersion>
+  </PropertyGroup>
   <ItemGroup>
     <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.9.21.5138" />
+    <PackageVersion Include="JvmBridge" Version="$(JvmBridgeVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
     <PackageVersion Include="Nito.AsyncEx.Context" Version="5.1.2" />

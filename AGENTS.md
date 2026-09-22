@@ -8,7 +8,7 @@ JvmBridge is a generic JNI/JVMTI library and NativeAOT agent toolkit. Keep all p
 - `src/JvmBridge.Generator`: incremental C# generator shipped inside the same JvmBridge NuGet package.
 - `src/JvmBridge.Build`: MSBuild tasks for deterministic native declarations, ABI inspection, fixture compilation, and coverage validation; owns pinned inventories and unmodified headers.
 - `src/JvmBridge.Maintenance`: deliberate vendor-inventory and header updates, separate from normal builds.
-- `tests`: xUnit unit and native integration tests, generic Java fixtures, and the generated ABI inspector.
+- `tests`: xUnit unit and native integration tests and generic Java fixtures. The package's Roslyn generator emits the ABI inspector into the opted-in sample compilation.
 - `samples`: standalone consumers restored from the packed NuGet artifact, never project references.
 - `.github`: reusable CI, release-please, dependency maintenance, and repository templates.
 
@@ -31,13 +31,13 @@ Generated files preserve upstream names and generator formatting; these style ru
 
 ## Verification
 
-Install the .NET 11 RC1 SDK and .NET 10 runtime, then run `dotnet tool restore`, `dotnet restore JvmBridge.slnx --locked-mode`, `dotnet msbuild build.proj -t:VerifyGenerated`, and `dotnet test JvmBridge.slnx -c Release --no-restore` after source, generator, manifest, or build changes. These verify deterministic generation, lock coverage, documentation, build, and xUnit tests.
+Install the .NET 11 RC1 SDK and .NET 10 runtime, then run `dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json` and `dotnet msbuild build.proj -t:VerifyGenerated`. Pack a fresh version with `dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version=<VERSION>` before restoring the full solution with `dotnet restore JvmBridge.slnx --locked-mode -p:JvmBridgeVersion=<VERSION>`. Run `dotnet build JvmBridge.slnx -c Release --no-restore -p:JvmBridgeVersion=<VERSION>`, then `dotnet test JvmBridge.slnx -c Release --no-build --no-restore -p:JvmBridgeVersion=<VERSION>`. Both samples belong to the solution and inherit central package management and NetAgents. Sample restore locks live under obj per package version and RID; source and test dependency locks remain checked in.
 
 For native changes, pack a fresh package version, then run `dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid=<RID> -p:PackageVersion=<VERSION>`. Set `TARGET_RID` and run `dotnet test tests/JvmBridge.IntegrationTests -c Release` with the required native compiler (`NATIVE_COMPILER` overrides the default). This checks exports and ABI layouts and runs real JVM startup/attach/transform/Unicode/thread/reference/failure/shutdown tests. `JVM_JDK_HOME` and `JVM_JAVA_MAJOR` select an installed JDK for a focused run. Do not substitute project-reference tests for package-consumer tests. Record which platforms and Java versions actually executed.
 
 CI must account for every configured matrix cell. Missing or timed-out available cells are failures; unavailable cells require a specific reason. Never weaken tests, change a passing cell to unavailable, or skip source/build/workflow changes to get green checks. Long native builds and multi-JVM suites may take several minutes: wait for completion.
 
-Regenerate declarations, the ABI inspector, and inventory documentation with `dotnet msbuild build.proj -t:Generate`. `dotnet run --project src/JvmBridge.Maintenance -- update` deliberately changes pinned inputs and may download large JDKs; run generation afterward. Never replace a checksum failure with an unchecked download.
+Regenerate native declarations and inventory documentation with `dotnet msbuild build.proj -t:Generate`. The Roslyn generator creates ABI-inspector code at compile time when `JvmBridgeAbiInspector` is enabled; never check that generated output into source control. `dotnet run --project src/JvmBridge.Maintenance -- update` deliberately changes pinned inputs and may download large JDKs; run generation afterward. Never replace a checksum failure with an unchecked download.
 
 ## Commits and releases
 

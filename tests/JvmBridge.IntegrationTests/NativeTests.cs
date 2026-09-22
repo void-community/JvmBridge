@@ -93,7 +93,7 @@ public sealed class NativeTests
 
         ProcessRunner processes = new(repository);
         JdkArchiveManager archives = new(http);
-        JvmScenario scenario = new(repository, processes, new FixtureCompiler(repository, archives, processes), new AbiTool(repository));
+        JvmScenario scenario = new(repository, processes, new FixtureCompiler(repository, archives, processes), new NativeAbiVerifier(repository));
 
         try
         {

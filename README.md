@@ -95,14 +95,15 @@ Agent callbacks borrow their JNI environment. Local references must be disposed 
 
 ## Build and test
 
-Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. `global.json` sets a .NET 10.0.400 minimum and rolls forward to installed newer SDKs, including the RC used by CI for cross-publishing; pinned Alpine containers use .NET 10:
+Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. CI pins its SDK versions in the workflows; local builds use your installed SDK. Pack the library before restoring the solution, because the samples consume that package:
 
 ```sh
-dotnet tool restore
-dotnet restore JvmBridge.slnx --locked-mode
+dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
 dotnet msbuild build.proj -t:VerifyGenerated
-dotnet test JvmBridge.slnx -c Release --no-restore
 dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version=0.1.0-local.1
+dotnet restore JvmBridge.slnx --locked-mode -p:JvmBridgeVersion=0.1.0-local.1
+dotnet build JvmBridge.slnx -c Release --no-restore -p:JvmBridgeVersion=0.1.0-local.1
+dotnet test JvmBridge.slnx -c Release --no-build --no-restore -p:JvmBridgeVersion=0.1.0-local.1
 dotnet msbuild build.proj -t:PublishConsumers -p:TargetRid=linux-x64 -p:PackageVersion=0.1.0-local.1
 TARGET_RID=linux-x64 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
@@ -129,4 +130,6 @@ Generation verifies header checksums and uses a fixed Clang target and shim head
 
 Scheduled JDK maintenance discovers stable releases, pins archive checksums, regenerates bindings, and opens tested update PRs. Renovate maintains the SDK, packages, tools, and actions. Compatible updates may merge after protected checks pass. Public API changes and new platforms require review. Release-please owns versions, release notes, and tags.
 
-See [**contributing**](CONTRIBUTING.md), [**automation setup**](docs/automation.md), and [**agent instructions**](AGENTS.md). Original code is [**MIT licensed**](LICENSE); see [**upstream notices**](NOTICE.md) for header provenance.
+Both samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. The local feed is configured in their project files. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
+
+See [**automation setup**](docs/automation.md) and [**agent instructions**](AGENTS.md). Original code is [**MIT licensed**](LICENSE); see [**upstream notices**](NOTICE.md) for header provenance.

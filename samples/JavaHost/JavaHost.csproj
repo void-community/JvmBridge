@@ -3,9 +3,13 @@
     <OutputType>Exe</OutputType>
     <JvmBridgeHost>true</JvmBridgeHost>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">0.1.0</JvmBridgeVersion>
     <IsPackable>false</IsPackable>
+    <JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>
+    <RestoreAdditionalProjectSources>$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
+    <!-- Each package-consumer run has its own version and native target. -->
+    <NuGetLockFilePath>$(BaseIntermediateOutputPath)locks/$(JvmBridgeVersion)/$(TargetFramework)/$(RuntimeIdentifier)/packages.lock.json</NuGetLockFilePath>
   </PropertyGroup>
-  <ItemGroup><Compile Include="../../tests/Fixtures/AbiInspector.g.cs" Link="AbiInspector.g.cs" /><PackageReference Include="JvmBridge" Version="$(JvmBridgeVersion)" /></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="JvmBridge" />
+  </ItemGroup>
 </Project>

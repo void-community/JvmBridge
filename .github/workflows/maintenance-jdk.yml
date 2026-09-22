@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+      JvmBridgeVersion: 0.1.0-jdk-update.${{ github.run_id }}.${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -24,8 +25,8 @@ jobs:
           dotnet-version: |
             10.0.401
             11.0.100-rc.1.26425.128
-      - run: dotnet tool restore
-      - run: dotnet restore JvmBridge.slnx --locked-mode
+      - run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
+      - run: dotnet restore src/JvmBridge.Maintenance --locked-mode
       - name: Update pinned releases, bindings, and support inventory
         run: |
           dotnet run --project src/JvmBridge.Maintenance --no-restore -- update
@@ -33,7 +34,10 @@ jobs:
       - name: Verify regeneration and unit tests
         run: |
           dotnet msbuild build.proj -t:VerifyGenerated
-          dotnet test JvmBridge.slnx -c Release --no-restore
+          dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RestoreLockedMode=true
+          dotnet restore JvmBridge.slnx --locked-mode
+          dotnet build JvmBridge.slnx -c Release --no-restore
+          dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Save generated update for review
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -43,7 +47,6 @@ jobs:
             src/JvmBridge.Build/compatibility.json
             src/JvmBridge.Build/jdks.lock.json
             src/JvmBridge/Native/Generated/
-            tests/Fixtures/AbiInspector.g.cs
             docs/compatibility.md
       - name: Create update PR and trigger real JVM validation
         if: vars.AUTOMATION_PR_ENABLED == 'true'
@@ -54,7 +57,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           branch=automation/jdk-updates
           git checkout -B "$branch"
-          git add src/JvmBridge.Build src/JvmBridge/Native/Generated tests/Fixtures/AbiInspector.g.cs docs/compatibility.md
+          git add src/JvmBridge.Build src/JvmBridge/Native/Generated docs/compatibility.md
           git commit -m 'deps(jdk): ⬆️ refreshed generated JVM bindings and pinned runtimes' -m 'Observable behavior: updated the JVM compatibility inventory and generated declarations; runtime behavior is verified by the complete native-agent matrix.'
           git push --force-with-lease origin "$branch"
           if ! gh pr list --head "$branch" --json number --jq '.[0].number' | grep -q '[0-9]'; then

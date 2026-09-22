@@ -9,7 +9,7 @@ public sealed class AbiTests
     [Fact]
     public void AllowsOlderTablePrefixes()
     {
-        AbiTool.Verify(
+        NativeAbiVerifier.Verify(
             new Dictionary<string, long> { [key: "size.JNINativeInterface_"] = 16 },
             new Dictionary<string, long> { [key: "size.JNINativeInterface_"] = 24 }
         );
@@ -31,8 +31,8 @@ public sealed class AbiTests
             }
             """;
 
-        var records = AbiTool.ParseRecords(source);
-        Assert.Equal(["Invoke", "First", "Second"], [.. AbiTool.Fields(records[key: "Callbacks"])]);
+        var records = NativeAbiVerifier.ParseRecords(source);
+        Assert.Equal(["Invoke", "First", "Second"], [.. NativeAbiVerifier.Fields(records[key: "Callbacks"])]);
     }
 
     /// <summary>A managed build cannot substitute for a correct native layout.</summary>
@@ -40,7 +40,7 @@ public sealed class AbiTests
     public void RejectsWrongNativeOffset()
     {
         InvalidOperationException failure = Assert.Throws<InvalidOperationException>(
-            static () => AbiTool.Verify(
+            static () => NativeAbiVerifier.Verify(
                 new Dictionary<string, long> { [key: "offset.Callbacks.Invoke"] = 8 },
                 new Dictionary<string, long> { [key: "offset.Callbacks.Invoke"] = 16 }
             )

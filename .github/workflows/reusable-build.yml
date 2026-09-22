@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      JvmBridgeVersion: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -22,7 +24,9 @@ jobs:
             10.0.401
             11.0.100-rc.1.26425.128
       - name: Restore binding generator
-        run: dotnet tool restore
+        run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
+      - name: Pack the consumer artifact before restoring samples
+        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RestoreLockedMode=true
       - name: Restore solution
         run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests
@@ -32,10 +36,6 @@ jobs:
           dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Compile portable Java fixtures with the pinned JDK
         run: dotnet msbuild build.proj -t:CompileFixtures
-      - name: Pack the consumer artifact
-        env:
-          PACKAGE_VERSION: ${{ inputs.version }}
-        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$PACKAGE_VERSION"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: packages

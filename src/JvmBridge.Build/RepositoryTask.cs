@@ -59,7 +59,6 @@ public sealed class RepositoryTask : Microsoft.Build.Utilities.Task, ICancelable
         {
             bool check = Operation == "VerifyGenerated";
             await new BindingGenerator(repository, processes).GenerateAsync(check, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            new AbiTool(repository).GenerateInspector(check);
             reporter.Report(verify: false, check);
             CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
             JdkLock inventory = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]));

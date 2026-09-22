@@ -13,12 +13,12 @@ using JvmBridge.Build.Models;
 
 namespace JvmBridge.IntegrationTests;
 
-internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner processRunner, FixtureCompiler fixtures, AbiTool abiTool)
+internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner processRunner, FixtureCompiler fixtures, NativeAbiVerifier abiVerifier)
 {
     private readonly RepositoryContext _repository = repository;
     private readonly ProcessRunner _processRunner = processRunner;
     private readonly FixtureCompiler _fixtures = fixtures;
-    private readonly AbiTool _abiTool = abiTool;
+    private readonly NativeAbiVerifier _abiVerifier = abiVerifier;
 
     internal async Task<JsonObject> ExerciseAsync(string home, JdkEntry entry, string rid, string compiler, CancellationToken cancellationToken)
     {
@@ -83,7 +83,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         );
 
         Dictionary<string, long> native = await CompileProbeAsync(home, directory, compiler, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        AbiTool.Verify(native, managed);
+        NativeAbiVerifier.Verify(native, managed);
         string jvm = FindLibrary(home, OperatingSystem.IsWindows() ? "jvm.dll" : OperatingSystem.IsMacOS() ? "libjvm.dylib" : "libjvm.so");
 
         if (OperatingSystem.IsWindows())
@@ -374,7 +374,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
     private async Task<Dictionary<string, long>> CompileProbeAsync(string home, string directory, string compiler, CancellationToken cancellationToken)
     {
         string source = Path.Combine(directory, path2: "abi.c");
-        TextFile.Write(source, _abiTool.CreateProbeSource(Path.Combine(home, path2: "include")));
+        TextFile.Write(source, _abiVerifier.CreateProbeSource(Path.Combine(home, path2: "include")));
         string binary = Path.Combine(directory, OperatingSystem.IsWindows() ? "abi.exe" : "abi");
         string headerPlatform = OperatingSystem.IsWindows() ? "win32" : OperatingSystem.IsMacOS() ? "darwin" : "linux";
         string[] includes = [Path.Combine(home, path2: "include"), Path.Combine(home, path2: "include", headerPlatform)];

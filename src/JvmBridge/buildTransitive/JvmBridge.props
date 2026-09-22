@@ -4,5 +4,8 @@
     <NativeLib>Shared</NativeLib>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup><CompilerVisibleProperty Include="JvmBridgeAgent" /></ItemGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="JvmBridgeAgent" />
+    <CompilerVisibleProperty Include="JvmBridgeAbiInspector" />
+  </ItemGroup>
 </Project>

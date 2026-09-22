@@ -10,4 +10,8 @@
     <Project Path="tests/JvmBridge.Build.Tests/JvmBridge.Build.Tests.csproj" />
     <Project Path="tests/JvmBridge.IntegrationTests/JvmBridge.IntegrationTests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/HelloAgent/HelloAgent.csproj" />
+    <Project Path="samples/JavaHost/JavaHost.csproj" />
+  </Folder>
 </Solution>

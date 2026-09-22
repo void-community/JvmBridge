@@ -40,8 +40,8 @@ internal sealed class BindingGenerator(RepositoryContext repository, ProcessRunn
 
         command.AddRange(
             [
-            "-f", "src/JvmBridge.Build/headers/jni.h", "src/JvmBridge.Build/headers/jvmti.h",
-            "-I", "src/JvmBridge.Build/shim", "-I", "src/JvmBridge.Build/headers", "-I", "src/JvmBridge.Build/headers/linux",
+            "-f", "headers/jni.h", "headers/jvmti.h",
+            "-I", "shim", "-I", "headers", "-I", "headers/linux",
             "-x", "c", "-a", "--target=aarch64-unknown-linux-gnu",
             "-n", "JvmBridge.Native", "-o", temporaryOutput,
             "-c", "codegen=latest",
@@ -50,7 +50,13 @@ internal sealed class BindingGenerator(RepositoryContext repository, ProcessRunn
             "-r", "jlong=long", "-wcc", "*=Winapi"
         ]
         );
-        await _processRunner.RunCheckedAsync(command, timeout: TimeSpan.FromMinutes(minutes: 5), echo: true, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await _processRunner.RunCheckedAsync(
+            command,
+            timeout: TimeSpan.FromMinutes(minutes: 5),
+            workingDirectory: _repository.PathFromRoot(parts: ["src", "JvmBridge.Build"]),
+            echo: true,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
 
         string result = await File.ReadAllTextAsync(temporaryOutput, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         result = VariadicSlotRewriter.Rewrite(result);
