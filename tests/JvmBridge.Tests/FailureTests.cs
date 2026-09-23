@@ -47,6 +47,20 @@ public sealed unsafe class FailureTests
         Assert.Equal(expected: 123, local.Handle);
     }
 
+    /// <summary>Verifies that duplicating Java null returns an empty disposable local reference.</summary>
+    [Fact]
+    public void NullLocalReferenceRemainsEmpty()
+    {
+        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_* pointer = &table;
+
+        using JavaEnvironment environment = new((nint)(&pointer));
+
+        using JavaLocalReference empty = environment.NewLocalReference(value: 0);
+
+        Assert.Equal(expected: 0, empty.Handle);
+    }
+
     /// <summary>
     /// Verifies that null JNI method identifiers are rejected before a function-table call.
     /// </summary>

@@ -71,12 +71,26 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 ## Capabilities
 
 - **Generated native API:** JNI/JVMTI types, constants, function-table entries, and callback signatures from pinned OpenJDK headers. C# raw declarations live in `JvmBridge.Native` and preserve native identifiers.
-- **Runtime helpers:** JVM creation, thread attachment, UTF-16 string conversion, modified UTF-8 names/options, method calls, native registration, and owned local/global references.
-- **Agent lifecycle:** startup and late attachment, VM initialization/death, class preparation, class-file transformation, capability negotiation, and retransformation.
+- **Runtime helpers:** JVM creation, thread attachment, UTF-16 string conversion, modified UTF-8 names/options, checked field access, constructor and typed method calls, native registration, and owned local/global references.
+- **Agent lifecycle:** startup and late attachment, VM initialization/death, class preparation, copied JVMTI class/member metadata, capability negotiation, and retransformation.
 - **One package:** the runtime, source generator, and MSBuild integration ship together. Consumers do not need Clang or header files.
 - **Real validation:** CI publishes the example against the packed NuGet package and loads it into each available pinned JVM.
 
 Raw function pointers are intentionally unsafe escape hatches. Check version/capability/phase requirements before using them. Variadic and va_list entries are exposed as addresses; use typed argument-array `*A` calls from managed code. JvmBridge supplies class bytes and JVMTI transformation plumbing, not a general Java bytecode editor.
+
+In a live JVM callback, use a class reference from that callback or an explicitly owned reference to inspect members and invoke Java code:
+
+```csharp
+foreach (JavaFieldInfo field in context.GetDeclaredFields(type))
+    Console.WriteLine($"{field.Name}: {field.Descriptor}");
+
+nint fieldId = environment.GetField(type, "profile", "Ljava/lang/Object;");
+using JavaLocalReference profile = environment.GetObjectField(instance, fieldId);
+nint constructor = environment.GetMethod(type, "<init>", "()V");
+using JavaLocalReference created = environment.NewObject(type, constructor, ReadOnlySpan<JvmBridge.Native.jvalue>.Empty);
+```
+
+`GetDeclaredMethods` and `GetDeclaredFields` inspect prepared classes in the live JVMTI phase. They copy names, descriptors, modifiers and nullable generic signatures into managed records, and release JVMTI allocations even on failure. These records expose raw IDs, which do **not** retain their declaring class or loader: never cache an ID beyond its declaring class's lifetime, and keep classes from independent loaders distinct even when names and descriptors match. `GetSuperclass`, `GetObjectClass` and `AgentContext.GetClassLoader` return disposable local references; a bootstrap loader, root superclass or null object field has an empty reference (`Handle == 0`). Dispose nonempty locals before the callback or attachment scope ends. Missing members and Java-thrown exceptions use the checked `JavaException` path, which clears the pending JNI exception. Perform ordinary JNI calls only in phases where the JVM permits them, not during `Agent_OnLoad`.
 
 ## Compatibility
 
