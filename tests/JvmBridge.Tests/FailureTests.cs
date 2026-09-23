@@ -29,6 +29,19 @@ public sealed unsafe class FailureTests
         Assert.Equal(expected: 123, local.Handle);
     }
 
+    /// <summary>Verifies JVM lookup fails before JNI can allocate a weak global reference.</summary>
+    [Fact]
+    public void FailedMachineLookupDoesNotAllocateWeakReference()
+    {
+        JNINativeInterface_ table = new() { GetJavaVM = &FailMachine };
+        JNINativeInterface_* pointer = &table;
+
+        using JavaEnvironment environment = new((nint)(&pointer));
+
+        JniException failure = Assert.Throws<JniException>(() => environment.NewWeakGlobalReference(value: 123));
+        Assert.Equal(Methods.JNI_ERR, failure.ErrorCode);
+    }
+
     /// <summary>
     /// Verifies that a failed global-reference promotion leaves the local reference usable.
     /// </summary>

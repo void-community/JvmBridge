@@ -540,6 +540,20 @@ public sealed unsafe class JavaEnvironment : IDisposable
         return same;
     }
 
+    /// <summary>Creates an owned weak global reference that does not keep its referent alive.</summary>
+    /// <param name="value">A nonzero JNI reference valid in this environment.</param>
+    /// <returns>A weak reference to dispose while its JVM is alive.</returns>
+    public JavaWeakGlobalReference NewWeakGlobalReference(nint value)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(value);
+        JavaVirtualMachine machine = GetVirtualMachine();
+        _jobject* weak = Functions->NewWeakGlobalRef(_environment, (_jobject*)value);
+        ThrowIfException(nameof(NewWeakGlobalReference));
+        return weak == null
+            ? throw new InvalidOperationException("NewWeakGlobalRef returned a null JNI reference.")
+            : new JavaWeakGlobalReference(machine, (nint)weak);
+    }
+
     /// <summary>Creates an owned local reference from another JNI reference.</summary>
     /// <param name="value">The JNI reference to duplicate.</param>
     /// <returns>The owned local reference, empty when the supplied reference is Java null.</returns>
@@ -596,6 +610,11 @@ public sealed unsafe class JavaEnvironment : IDisposable
         Functions->DeleteGlobalRef(_environment, (_jobject*)value);
     }
 
+    internal void DeleteWeakGlobal(nint value)
+    {
+        Functions->DeleteWeakGlobalRef(_environment, (_jobject*)value);
+    }
+
     internal void DeleteLocal(nint value)
     {
         Functions->DeleteLocalRef(_environment, (_jobject*)value);
@@ -616,6 +635,13 @@ public sealed unsafe class JavaEnvironment : IDisposable
         return global == null
             ? throw new InvalidOperationException(message: "NewGlobalRef failed; the original local reference is still owned by the caller.")
             : new JavaGlobalReference(machine, (nint)global);
+    }
+
+    internal JavaLocalReference? TryPromoteWeak(nint value)
+    {
+        _jobject* local = Functions->NewLocalRef(_environment, (_jobject*)value);
+        ThrowIfException(nameof(TryPromoteWeak));
+        return local == null ? null : new JavaLocalReference(this, (nint)local);
     }
 
     private JavaLocalReference Own(_jobject* value, string operation)

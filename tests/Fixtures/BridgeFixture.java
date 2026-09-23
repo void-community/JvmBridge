@@ -12,6 +12,8 @@ public final class BridgeFixture {
     private static native void clearTargetLoader();
     private static native void inspectMembers(Class<?> type);
     private static native void inspectTwinTypes(Class<?> first, Class<?> second);
+    private static native void observeWeak(Object value);
+    private static native boolean weakCollected();
     private static String message() { return "ORIGINAL"; }
     public static void probe(Object client) { client.hashCode(); }
 
@@ -95,6 +97,28 @@ public final class BridgeFixture {
         return new StringBuilder("ORIG").append("INAL").toString();
     }
 
+    private static java.lang.ref.WeakReference<Object> startWeakProbe() {
+        Object value = new Object();
+        java.lang.ref.WeakReference<Object> probe = new java.lang.ref.WeakReference<>(value);
+        observeWeak(value);
+        return probe;
+    }
+
+    private static void checkWeakReference() throws Exception {
+        java.lang.ref.WeakReference<Object> probe = startWeakProbe();
+        for (int attempt = 0; attempt < 80; attempt++) {
+            if (probe.get() == null && weakCollected()) {
+                System.out.println("WEAK_REFERENCE_OK");
+                return;
+            }
+            System.gc();
+            byte[] pressure = new byte[256 * 1024];
+            pressure[0] = (byte)attempt;
+            Thread.sleep(20);
+        }
+        throw new AssertionError("Weak JNI reference retained its referent or failed to report collection");
+    }
+
     private static void checkLoaderIsolation() throws Exception {
         byte[] bytes = twinBytes();
         TwinLoader selected = new TwinLoader("file:/jvmbridge-selected.jar");
@@ -169,6 +193,7 @@ public final class BridgeFixture {
         }
         checkBootstrapLoader();
         checkLoaderIsolation();
+        checkWeakReference();
         for (int iteration = 0; iteration < 10000; iteration++) {
             try { Object value = null; value.hashCode(); throw new AssertionError("Missing NPE"); }
             catch (NullPointerException expected) { }

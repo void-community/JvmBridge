@@ -13,6 +13,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     private static BridgeAgent? s_agent;
     private static AgentContext? s_context;
     private readonly List<(JavaGlobalReference Loader, JavaGlobalReference Class)> _helpers = [];
+    private JavaWeakGlobalReference? _observedWeak;
     private JavaGlobalReference? _targetLoader;
 
     /// <inheritdoc/>
@@ -83,6 +84,8 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     /// <inheritdoc/>
     public override void OnUnload(AgentContext context)
     {
+        _observedWeak?.Dispose();
+        _observedWeak = null;
         _targetLoader?.Dispose();
         _targetLoader = null;
 
@@ -500,6 +503,74 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     }
 
     [UnmanagedCallersOnly]
+    private static void ObserveWeak(JNINativeInterface_** nativeEnvironment, _jobject* caller, _jobject* value)
+    {
+        try
+        {
+            if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                return;
+
+            using JavaEnvironment environment = new((nint)nativeEnvironment);
+
+            BridgeAgent agent = s_agent ?? throw new InvalidOperationException(message: "Agent is not initialized.");
+            JavaWeakGlobalReference weak = environment.NewWeakGlobalReference((nint)value);
+
+            try
+            {
+                using JavaLocalReference original = environment.NewLocalReference((nint)value);
+
+                using JavaGlobalReference global = original.ToGlobal();
+
+                JavaVirtualMachine machine = environment.GetVirtualMachine();
+                Exception? failure = null;
+
+                Thread worker = new(
+                    () =>
+                {
+                    try
+                    {
+                        using JavaThreadAttachment attachment = machine.AttachCurrentThread();
+
+                        JavaEnvironment currentEnvironment = attachment.Environment;
+
+                        using JavaLocalReference? promoted = weak.TryPromote(currentEnvironment);
+
+                        if (promoted is null)
+                            throw new InvalidOperationException(message: "Weak reference was collected while strongly reachable.");
+
+                        using JavaLocalReference duplicate = currentEnvironment.NewLocalReference(global.Handle);
+
+                        using JavaLocalReference different = currentEnvironment.NewString(value: "different");
+
+                        Require(currentEnvironment.IsSameObject(promoted.Handle, duplicate.Handle), message: "Separate handles lost Java identity.");
+                        Require(!currentEnvironment.IsSameObject(promoted.Handle, different.Handle), message: "Different objects share Java identity.");
+                        Require(currentEnvironment.IsSameObject(first: 0, second: 0), message: "Two Java nulls did not compare equal.");
+                        Require(!currentEnvironment.IsSameObject(promoted.Handle, second: 0), message: "A live object compared equal to Java null.");
+                    }
+                    catch (Exception exception) when (ContainLoggingFailure(exception)) { failure = exception; }
+                }
+                );
+
+                worker.Start();
+                worker.Join();
+
+                if (failure is not null)
+                    throw failure;
+
+                agent._observedWeak?.Dispose();
+                agent._observedWeak = weak;
+            }
+            catch
+            {
+                weak.Dispose();
+
+                throw;
+            }
+        }
+        catch (Exception exception) when (ContainLoggingFailure(exception)) { Log($"NATIVE_ERROR {exception.Message}"); }
+    }
+
+    [UnmanagedCallersOnly]
     private static void OnFrame(JNINativeInterface_** nativeEnvironment, _jobject* caller, _jobject* client)
     {
         try
@@ -558,6 +629,18 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
     private static void Register(JavaEnvironment environment, nint type)
     {
+        environment.RegisterNative(
+            type,
+            name: "observeWeak",
+            signature: "(Ljava/lang/Object;)V",
+            (nint)(delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, void>)&ObserveWeak
+        );
+        environment.RegisterNative(
+            type,
+            name: "weakCollected",
+            signature: "()Z",
+            (nint)(delegate* unmanaged<JNINativeInterface_**, _jobject*, byte>)&WeakCollected
+        );
         environment.RegisterNative(
             type,
             name: "roundTrip",
@@ -713,6 +796,30 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             Log($"NATIVE_ERROR {exception.Message}");
 
             return null;
+        }
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte WeakCollected(JNINativeInterface_** nativeEnvironment, _jobject* caller)
+    {
+        try
+        {
+            if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
+                return 0;
+
+            using JavaEnvironment environment = new((nint)nativeEnvironment);
+
+            JavaWeakGlobalReference weak = s_agent?._observedWeak ?? throw new InvalidOperationException(message: "No weak reference was observed.");
+
+            using JavaLocalReference? promoted = weak.TryPromote(environment);
+
+            return promoted is null ? (byte)1 : (byte)0;
+        }
+        catch (Exception exception) when (ContainLoggingFailure(exception))
+        {
+            Log($"NATIVE_ERROR {exception.Message}");
+
+            return 0;
         }
     }
 
