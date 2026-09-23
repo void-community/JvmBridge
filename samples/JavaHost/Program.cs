@@ -57,8 +57,15 @@ try
 
         throw new InvalidOperationException(message: "Java exception was not propagated.");
     }
-    catch (JavaException)
+    catch (JavaException exception)
     {
+        bool missingDiagnostics = exception.Operation != nameof(JavaEnvironment.FindClass)
+            || string.IsNullOrEmpty(exception.JavaTypeName)
+            || string.IsNullOrEmpty(exception.JavaStackTrace);
+
+        if (missingDiagnostics)
+            throw new InvalidOperationException(message: "Embedded JVM did not capture the Java lookup diagnostics.");
+
         using JavaLocalReference recovered = environment.NewString(value: "recovered");
 
         if (environment.GetString(recovered.Handle) != "recovered")

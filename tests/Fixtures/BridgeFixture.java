@@ -34,6 +34,13 @@ public final class BridgeFixture {
         private int inherited = 19;
     }
 
+    private static final class DiagnosticFailure extends RuntimeException {
+        @Override public String getMessage() { throw new IllegalStateException("message failed"); }
+        @Override public String toString() { throw new IllegalStateException("toString failed"); }
+        @Override public StackTraceElement[] getStackTrace() { throw new IllegalStateException("stack failed"); }
+        @Override public synchronized Throwable getCause() { throw new IllegalStateException("cause failed"); }
+    }
+
     private static final class MemberChild extends MemberBase {
         private Object profile;
         private boolean flag;
@@ -63,6 +70,8 @@ public final class BridgeFixture {
         private double doubleValue() { return -2.5; }
         private java.util.List<String> genericMethod() { return generic; }
         private void fail() { throw new IllegalArgumentException("expected"); }
+        private void failDetailed() { throw new IllegalStateException("é \uD83D\uDE00", new IllegalArgumentException("cause Ω")); }
+        private void failDiagnostic() { throw new DiagnosticFailure(); }
         private static boolean staticReady() { return true; }
         private static long staticValue() { return 100L; }
     }

@@ -595,14 +595,34 @@ public sealed unsafe class JavaEnvironment : IDisposable
         }
     }
 
-    /// <summary>Clears and reports a pending Java exception after a checked JNI operation.</summary>
+    /// <summary>Clears a pending Java exception and reports a best-effort managed diagnostic snapshot.</summary>
     /// <param name="operation">The managed operation name included in a thrown <see cref="JavaException"/>.</param>
     public void ThrowIfException(string operation)
     {
-        if (Functions->ExceptionCheck(_environment) == 0)
+        JNINativeInterface_* functions = Functions;
+        if (functions->ExceptionCheck(_environment) == 0)
             return;
-        Functions->ExceptionClear(_environment);
-        throw new JavaException(operation);
+        _jobject* throwable = functions->ExceptionOccurred == null ? null : functions->ExceptionOccurred(_environment);
+        functions->ExceptionClear(_environment);
+        string? typeName = null;
+        string? message = null;
+        string? stackTrace = null;
+        try
+        {
+            if (throwable != null)
+                (typeName, message, stackTrace) = JavaExceptionDiagnostics.Capture(_environment, functions, throwable);
+        }
+        catch (Exception exception) when (JavaExceptionDiagnostics.ContainCaptureFailure(exception))
+        {
+        }
+        finally
+        {
+            if (functions->ExceptionCheck(_environment) != 0)
+                functions->ExceptionClear(_environment);
+            if (throwable != null)
+                functions->DeleteLocalRef(_environment, throwable);
+        }
+        throw new JavaException(operation, typeName, message, stackTrace);
     }
 
     internal void DeleteGlobal(nint value)

@@ -219,6 +219,14 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         return result;
     }
 
+    private static JavaException CaptureJavaException(Action action)
+    {
+        try { action(); }
+        catch (JavaException exception) { return exception; }
+
+        throw new InvalidOperationException(message: "Expected a cleared Java exception.");
+    }
+
     [UnmanagedCallersOnly]
     private static void ClearTargetLoader(JNINativeInterface_** nativeEnvironment, _jobject* caller)
     {
@@ -439,6 +447,51 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             );
             ExpectJavaException(() => environment.CallVoid(created.Handle, environment.GetMethod(owner, name: "fail", signature: "()V"), []));
             ExpectJavaException(() => { using JavaLocalReference ignored = environment.NewObject(owner, constructor, [new jvalue { i = -1 }]); });
+            JavaException detailed = CaptureJavaException(() => environment.CallVoid(created.Handle, environment.GetMethod(owner, name: "failDetailed", signature: "()V"), []));
+            Require(detailed.Operation == nameof(JavaEnvironment.CallVoid), message: "Java call operation was lost");
+            Require(
+                detailed.JavaTypeName == "java.lang.IllegalStateException" && detailed.JavaMessage == "é 😀",
+                message: "Unicode Java diagnostics were lost"
+            );
+            Require(
+                detailed.JavaStackTrace?.Contains(value: "BridgeFixture$MemberChild.failDetailed(BridgeFixture.java:", StringComparison.Ordinal) == true,
+                message: "Java stack location was lost"
+            );
+            Require(
+                detailed.JavaStackTrace?.Contains(value: "Caused by: java.lang.IllegalArgumentException: cause Ω", StringComparison.Ordinal) == true,
+                message: "Java cause was lost"
+            );
+
+            JavaException lookup = CaptureJavaException(
+                () => { nint missingMethod = environment.GetMethod(owner, name: "absentDiagnostic", signature: "()V"); Require(missingMethod == 0, message: "Missing method unexpectedly resolved"); }
+            );
+
+            Require(
+                lookup.Operation == nameof(JavaEnvironment.GetMethod) && lookup.JavaTypeName == "java.lang.NoSuchMethodError",
+                message: "Java lookup diagnostics were lost"
+            );
+            JavaException construction = CaptureJavaException(() => { using JavaLocalReference ignored = environment.NewObject(owner, constructor, [new jvalue { i = -1 }]); });
+            Require(
+                construction.Operation == nameof(JavaEnvironment.NewObject) && construction.JavaTypeName == "java.lang.IllegalArgumentException" && construction.JavaMessage == "negative",
+                message: "Java construction diagnostics were lost"
+            );
+
+            nint brokenDiagnostics = environment.GetMethod(owner, name: "failDiagnostic", signature: "()V");
+
+            for (int repeat = 0; repeat < 100; repeat++)
+            {
+                JavaException failure = CaptureJavaException(() => environment.CallVoid(created.Handle, brokenDiagnostics, []));
+                Require(
+                    failure.Operation == nameof(JavaEnvironment.CallVoid) && failure.JavaTypeName == "BridgeFixture$DiagnosticFailure",
+                    message: "Failed diagnostic method masked the original throwable"
+                );
+                Require(failure.JavaMessage is null && failure.JavaStackTrace is not null, message: "Failed diagnostic method corrupted the snapshot");
+                Require(
+                    environment.CallLong(created.Handle, repeatMethod, []) == 1234567890123L,
+                    message: "JNI did not recover after diagnostic failure"
+                );
+            }
+
             Log(message: "MEMBER_INSPECTION_OK");
         }
         catch (Exception exception) when (ContainLoggingFailure(exception)) { Log($"NATIVE_ERROR {exception.Message}"); }

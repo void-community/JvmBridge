@@ -37,6 +37,9 @@ public sealed unsafe class RuntimeTests
         JavaException exception = Assert.Throws<JavaException>(() => environment.DefineClass(name: "example/Agent", loader: 0, [1]));
 
         Assert.Equal(nameof(JavaEnvironment.DefineClass), exception.Operation);
+        Assert.Null(exception.JavaTypeName);
+        Assert.Null(exception.JavaMessage);
+        Assert.Null(exception.JavaStackTrace);
         Assert.Equal(expected: 1, s_clearedExceptions);
         Assert.False(s_pendingDefinitionException);
         Assert.Equal(expected: 0, s_definedLoader);
@@ -134,6 +137,19 @@ public sealed unsafe class RuntimeTests
         delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long, long, long*, long*, int, void*, int> reference = callbacks.heap_reference_callback;
         delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long*, jvalue, jvmtiPrimitiveType, void*, int> primitive = callbacks.primitive_field_callback;
         Assert.True(reference == null && primitive == null);
+    }
+
+    /// <summary>Preserves the original operation-only constructor for existing callers.</summary>
+    [Fact]
+    public void JavaExceptionRetainsItsOperationOnlyConstructor()
+    {
+        JavaException exception = new(nameof(JavaEnvironment.FindClass));
+
+        Assert.Equal(nameof(JavaEnvironment.FindClass), exception.Operation);
+        Assert.Contains(nameof(JavaEnvironment.FindClass), exception.Message, StringComparison.Ordinal);
+        Assert.Null(exception.JavaTypeName);
+        Assert.Null(exception.JavaMessage);
+        Assert.Null(exception.JavaStackTrace);
     }
 
     /// <summary>
