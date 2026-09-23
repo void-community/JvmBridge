@@ -116,7 +116,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         ProcessResult hosted = await _processRunner.RunAsync(
             [host, jvm, destroy.ToString(System.Globalization.CultureInfo.InvariantCulture)],
             Path.Combine(directory, path2: "host.log"),
-            environment: new Dictionary<string, string?>(environment) { [key: "JVMBRIDGE_CAPTURE_TRACE"] = "1" },
+            environment: environment,
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 

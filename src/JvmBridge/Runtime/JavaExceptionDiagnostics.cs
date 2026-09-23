@@ -8,6 +8,7 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
 {
     private const int MaxCauses = 8;
     private const int MaxFrames = 64;
+    private const int MaxStackCharacters = 65536;
     private readonly JNINativeInterface_** _environment = environment;
     private readonly JNINativeInterface_* _functions = functions;
 
@@ -22,125 +23,153 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
         return true;
     }
 
-    internal static void Trace(string stage)
-    {
-        if (Environment.GetEnvironmentVariable("JVMBRIDGE_CAPTURE_TRACE") == "1")
-            Console.Error.WriteLine("JAVA_CAPTURE " + stage);
-    }
-
     private (string? TypeName, string? Message, string? StackTrace) Capture(_jobject* throwable)
     {
-        Span<nint> seen = stackalloc nint[MaxCauses];
-        seen[0] = (nint)throwable;
-        int count = 1;
-        StringBuilder stackTrace = new();
-        string? typeName = null;
-        string? message = null;
-
-        try
-        {
-            Trace("begin");
-            for (int index = 0; index < MaxCauses && index < count; index++)
-            {
-                _jobject* current = (_jobject*)seen[index];
-                Trace("type " + index);
-                string? currentType = GetTypeName(current);
-                Trace("message " + index);
-                string? currentMessage = CallString(current, "getMessage\0"u8, "()Ljava/lang/String;\0"u8);
-
-                if (index == 0)
-                {
-                    typeName = currentType;
-                    message = currentMessage;
-                }
-
-                if (index != 0)
-                    _ = stackTrace.Append("Caused by: ");
-                _ = stackTrace.Append(currentType ?? "<Java throwable>");
-                if (currentMessage is not null)
-                    _ = stackTrace.Append(": ").Append(currentMessage);
-                _ = stackTrace.AppendLine();
-
-                Trace("frames " + index);
-                AppendFrames(stackTrace, current);
-                Trace("cause " + index);
-                if (index == MaxCauses - 1)
-                    break;
-
-                _jobject* cause = CallObject(current, "getCause\0"u8, "()Ljava/lang/Throwable;\0"u8);
-                if (cause == null)
-                    break;
-
-                bool cycle = false;
-                for (int previous = 0; previous < count; previous++)
-                {
-                    if (_functions->IsSameObject(_environment, cause, (_jobject*)seen[previous]) != 0)
-                    {
-                        cycle = true;
-                        break;
-                    }
-                }
-
-                if (ClearSecondary() || cycle)
-                {
-                    _functions->DeleteLocalRef(_environment, cause);
-                    break;
-                }
-
-                seen[count++] = (nint)cause;
-            }
-        }
-        finally
-        {
-            Trace("cleanup");
-            _ = ClearSecondary();
-            for (int index = 1; index < count; index++)
-                _functions->DeleteLocalRef(_environment, (_jobject*)seen[index]);
-        }
-
-        Trace("complete");
-        return (typeName, message, stackTrace.Length == 0 ? null : stackTrace.ToString());
+        string? typeName = GetTypeName(throwable);
+        string? message = CallString(throwable, "getMessage\0"u8, "()Ljava/lang/String;\0"u8);
+        string? printed = PrintStackTrace(throwable);
+        string stackTrace = printed is null ? FormatHeader(typeName, message) : LimitStackTrace(printed);
+        return (typeName, message, stackTrace);
     }
 
-    private void AppendFrames(StringBuilder output, _jobject* throwable)
+    private string? PrintStackTrace(_jobject* throwable)
     {
-        _jobject* frames = CallObject(throwable, "getStackTrace\0"u8, "()[Ljava/lang/StackTraceElement;\0"u8);
-        if (frames == null)
-            return;
+        _jobject* stringWriterType = FindClass("java/io/StringWriter\0"u8);
+        if (stringWriterType == null)
+            return null;
 
         try
         {
-            int length = _functions->GetArrayLength(_environment, frames);
-            if (ClearSecondary())
-                return;
+            _jobject* stringWriter = NewObject(stringWriterType, "()V\0"u8, default);
+            if (stringWriter == null)
+                return null;
 
-            for (int index = 0; index < Math.Min(length, MaxFrames); index++)
+            try
             {
-                _jobject* frame = _functions->GetObjectArrayElement(_environment, frames, index);
-                if (ClearSecondary())
-                {
-                    if (frame != null)
-                        _functions->DeleteLocalRef(_environment, frame);
-                    continue;
-                }
-                if (frame == null)
-                    continue;
+                _jobject* printWriterType = FindClass("java/io/PrintWriter\0"u8);
+                if (printWriterType == null)
+                    return null;
 
                 try
                 {
-                    string? location = CallString(frame, "toString\0"u8, "()Ljava/lang/String;\0"u8);
-                    if (location is not null)
-                        _ = output.Append("\tat ").AppendLine(location);
+                    jvalue writer = new() { l = stringWriter };
+                    jvalue flush = new() { z = 1 };
+                    Span<jvalue> arguments = [writer, flush];
+                    _jobject* printWriter = NewObject(printWriterType, "(Ljava/io/Writer;Z)V\0"u8, arguments);
+                    if (printWriter == null)
+                        return null;
+
+                    try
+                    {
+                        if (!CallVoid(throwable, "printStackTrace\0"u8, "(Ljava/io/PrintWriter;)V\0"u8, printWriter))
+                            return null;
+                        return CallString(stringWriter, "toString\0"u8, "()Ljava/lang/String;\0"u8, MaxStackCharacters);
+                    }
+                    finally
+                    {
+                        _functions->DeleteLocalRef(_environment, printWriter);
+                    }
                 }
                 finally
                 {
-                    _functions->DeleteLocalRef(_environment, frame);
+                    _functions->DeleteLocalRef(_environment, printWriterType);
                 }
+            }
+            finally
+            {
+                _functions->DeleteLocalRef(_environment, stringWriter);
             }
         }
         finally
         {
-            _functions->DeleteLocalRef(_environment, frames);
+            _functions->DeleteLocalRef(_environment, stringWriterType);
+        }
+    }
+
+    private static string FormatHeader(string? typeName, string? message)
+    {
+        return message is null ? typeName ?? "<Java throwable>" : $"{typeName ?? "<Java throwable>"}: {message}";
+    }
+
+    private static string LimitStackTrace(string printed)
+    {
+        StringBuilder output = new();
+        int causes = 0;
+        int frames = 0;
+        foreach (ReadOnlySpan<char> line in printed.AsSpan().EnumerateLines())
+        {
+            if (line.StartsWith("Caused by: ", StringComparison.Ordinal))
+            {
+                if (++causes == MaxCauses)
+                    break;
+                frames = 0;
+            }
+            else if (line.TrimStart().StartsWith("at ", StringComparison.Ordinal) && ++frames > MaxFrames)
+                continue;
+
+            _ = output.Append(line).AppendLine();
+        }
+
+        return output.ToString();
+    }
+
+    private _jobject* FindClass(ReadOnlySpan<byte> name)
+    {
+        fixed (byte* encoded = name)
+        {
+            _jobject* result = _functions->FindClass(_environment, encoded);
+            if (!ClearSecondary())
+                return result;
+            if (result != null)
+                _functions->DeleteLocalRef(_environment, result);
+            return null;
+        }
+    }
+
+    private _jobject* NewObject(_jobject* type, ReadOnlySpan<byte> signature, ReadOnlySpan<jvalue> arguments)
+    {
+        _jmethodID* constructor = GetMethod(type, "<init>\0"u8, signature);
+        if (constructor == null)
+            return null;
+
+        jvalue emptyArgument = default;
+        fixed (jvalue* pinnedValues = arguments)
+        {
+            jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
+            _jobject* result = _functions->NewObjectA(_environment, type, constructor, values);
+            if (!ClearSecondary())
+                return result;
+            if (result != null)
+                _functions->DeleteLocalRef(_environment, result);
+            return null;
+        }
+    }
+
+    private bool CallVoid(_jobject* receiver, ReadOnlySpan<byte> name, ReadOnlySpan<byte> signature, _jobject* argument)
+    {
+        _jobject* type = _functions->GetObjectClass(_environment, receiver);
+        if (ClearSecondary())
+        {
+            if (type != null)
+                _functions->DeleteLocalRef(_environment, type);
+            return false;
+        }
+        if (type == null)
+            return false;
+
+        try
+        {
+            _jmethodID* method = GetMethod(type, name, signature);
+            if (method == null)
+                return false;
+
+            jvalue value = new() { l = argument };
+            _functions->CallVoidMethodA(_environment, receiver, method, &value);
+            return !ClearSecondary();
+        }
+        finally
+        {
+            _functions->DeleteLocalRef(_environment, type);
         }
     }
 
@@ -166,7 +195,7 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
         }
     }
 
-    private string? CallString(_jobject* receiver, ReadOnlySpan<byte> name, ReadOnlySpan<byte> signature)
+    private string? CallString(_jobject* receiver, ReadOnlySpan<byte> name, ReadOnlySpan<byte> signature, int maxCharacters = int.MaxValue)
     {
         _jobject* value = CallObject(receiver, name, signature);
         if (value == null)
@@ -187,7 +216,7 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
             try
             {
                 int length = _functions->GetStringLength(_environment, value);
-                return ClearSecondary() ? null : new string((char*)characters, 0, length);
+                return ClearSecondary() ? null : new string((char*)characters, 0, Math.Min(length, maxCharacters));
             }
             finally
             {
@@ -214,25 +243,31 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
 
         try
         {
-            fixed (byte* encodedName = name)
-            fixed (byte* encodedSignature = signature)
-            {
-                _jmethodID* method = _functions->GetMethodID(_environment, type, encodedName, encodedSignature);
-                if (ClearSecondary() || method == null)
-                    return null;
-
-                jvalue emptyArgument = default;
-                _jobject* result = _functions->CallObjectMethodA(_environment, receiver, method, &emptyArgument);
-                if (!ClearSecondary())
-                    return result;
-                if (result != null)
-                    _functions->DeleteLocalRef(_environment, result);
+            _jmethodID* method = GetMethod(type, name, signature);
+            if (method == null)
                 return null;
-            }
+
+            jvalue emptyArgument = default;
+            _jobject* result = _functions->CallObjectMethodA(_environment, receiver, method, &emptyArgument);
+            if (!ClearSecondary())
+                return result;
+            if (result != null)
+                _functions->DeleteLocalRef(_environment, result);
+            return null;
         }
         finally
         {
             _functions->DeleteLocalRef(_environment, type);
+        }
+    }
+
+    private _jmethodID* GetMethod(_jobject* type, ReadOnlySpan<byte> name, ReadOnlySpan<byte> signature)
+    {
+        fixed (byte* encodedName = name)
+        fixed (byte* encodedSignature = signature)
+        {
+            _jmethodID* method = _functions->GetMethodID(_environment, type, encodedName, encodedSignature);
+            return ClearSecondary() ? null : method;
         }
     }
 
