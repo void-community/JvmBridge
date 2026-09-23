@@ -112,7 +112,11 @@ jobs:
             platform=(--platform linux/arm/v7)
             emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
           fi
-          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT -e Version -e VersionTimestamp \
+          cells=""
+          if [[ "$CROSS_BUILT" == true ]]; then
+            cells="$(jq -r --arg rid "$TARGET_RID" '.jdks[] | select(.rid == $rid and .status == "available") | "\(.java):\(.implementation)"' src/JvmBridge.Build/jdks.lock.json | paste -sd ' ' -)"
+          fi
+          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT -e Version -e VersionTimestamp -e JVM_TEST_CELLS="$cells" \
             "$SDK_IMAGE" \
             sh -ec '
               if command -v apk >/dev/null; then
@@ -122,7 +126,12 @@ jobs:
                 apt-get install -y clang build-essential zlib1g-dev
               fi
               if [ "$CROSS_BUILT" = true ]; then
-                /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit.xml"
+                test -n "$JVM_TEST_CELLS"
+                for cell in $JVM_TEST_CELLS; do
+                  major="${cell%%:*}"
+                  implementation="${cell#*:}"
+                  JVM_JAVA_MAJOR="$major" JVM_IMPLEMENTATION="$implementation" /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit-$major-$implementation.xml"
+                done
               else
                 dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"
                 dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/host/$TARGET_RID"
