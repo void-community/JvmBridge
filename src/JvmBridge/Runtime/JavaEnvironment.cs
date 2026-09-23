@@ -602,8 +602,11 @@ public sealed unsafe class JavaEnvironment : IDisposable
         JNINativeInterface_* functions = Functions;
         if (functions->ExceptionCheck(_environment) == 0)
             return;
+        JavaExceptionDiagnostics.Trace("pending");
         _jobject* throwable = functions->ExceptionOccurred == null ? null : functions->ExceptionOccurred(_environment);
+        JavaExceptionDiagnostics.Trace("occurred");
         functions->ExceptionClear(_environment);
+        JavaExceptionDiagnostics.Trace("cleared");
         string? typeName = null;
         string? message = null;
         string? stackTrace = null;

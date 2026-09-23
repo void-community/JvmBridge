@@ -51,14 +51,20 @@ try
             throw new InvalidOperationException(message: "UTF-16 round trip failed.");
     }
 
+    WriteStatus(message: "HOST_UNICODE_OK");
+
     try
     {
+        WriteStatus(message: "HOST_LOOKUP_START");
+
         using JavaLocalReference missing = environment.FindClass(name: "jvmbridge/DefinitelyMissingClass");
 
         throw new InvalidOperationException(message: "Java exception was not propagated.");
     }
     catch (JavaException exception)
     {
+        WriteStatus(message: "HOST_LOOKUP_CAPTURED");
+
         bool missingDiagnostics = exception.Operation != nameof(JavaEnvironment.FindClass)
             || string.IsNullOrEmpty(exception.JavaTypeName)
             || string.IsNullOrEmpty(exception.JavaStackTrace);

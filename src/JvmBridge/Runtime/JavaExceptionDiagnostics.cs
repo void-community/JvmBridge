@@ -22,6 +22,12 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
         return true;
     }
 
+    internal static void Trace(string stage)
+    {
+        if (Environment.GetEnvironmentVariable("JVMBRIDGE_CAPTURE_TRACE") == "1")
+            Console.Error.WriteLine("JAVA_CAPTURE " + stage);
+    }
+
     private (string? TypeName, string? Message, string? StackTrace) Capture(_jobject* throwable)
     {
         Span<nint> seen = stackalloc nint[MaxCauses];
@@ -33,10 +39,13 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
 
         try
         {
+            Trace("begin");
             for (int index = 0; index < MaxCauses && index < count; index++)
             {
                 _jobject* current = (_jobject*)seen[index];
+                Trace("type " + index);
                 string? currentType = GetTypeName(current);
+                Trace("message " + index);
                 string? currentMessage = CallString(current, "getMessage\0"u8, "()Ljava/lang/String;\0"u8);
 
                 if (index == 0)
@@ -52,7 +61,9 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
                     _ = stackTrace.Append(": ").Append(currentMessage);
                 _ = stackTrace.AppendLine();
 
+                Trace("frames " + index);
                 AppendFrames(stackTrace, current);
+                Trace("cause " + index);
                 if (index == MaxCauses - 1)
                     break;
 
@@ -81,11 +92,13 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
         }
         finally
         {
+            Trace("cleanup");
             _ = ClearSecondary();
             for (int index = 1; index < count; index++)
                 _functions->DeleteLocalRef(_environment, (_jobject*)seen[index]);
         }
 
+        Trace("complete");
         return (typeName, message, stackTrace.Length == 0 ? null : stackTrace.ToString());
     }
 
