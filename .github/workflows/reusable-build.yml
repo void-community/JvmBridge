@@ -41,12 +41,12 @@ jobs:
           dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Compile portable Java fixtures with the pinned JDK
         run: dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures -p:RestoreLockedMode=true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: packages
           path: artifacts/packages
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: fixtures
           path: artifacts/fixtures
