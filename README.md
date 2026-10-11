@@ -115,7 +115,7 @@ To inject calls into an application without shipping native declarations in its 
 
 ## Build and test
 
-Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. CI pins its SDK versions in the workflows; local builds use your installed SDK. Pack the library before restoring the solution, because the samples consume that package:
+Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. CI pins its SDK versions in the workflows; local builds use your installed SDK. To verify the current source through the samples, pack the library and pass that version when restoring, building, and testing the solution:
 
 ```sh
 export VersionTimestamp="$(date -u '+%y %m %d %H %M %S')"
@@ -123,9 +123,9 @@ package_version="$(dotnet msbuild src/JvmBridge/JvmBridge.csproj -getProperty:Pa
 dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
 dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
 dotnet pack src/JvmBridge -c Release -o artifacts/packages
-dotnet restore JvmBridge.slnx --locked-mode
-dotnet build JvmBridge.slnx -c Release --no-restore
-dotnet test JvmBridge.slnx -c Release --no-build --no-restore
+dotnet restore JvmBridge.slnx --locked-mode -p:JvmBridgeVersion="$package_version"
+dotnet build JvmBridge.slnx -c Release --no-restore -p:JvmBridgeVersion="$package_version"
+dotnet test JvmBridge.slnx -c Release --no-build --no-restore -p:JvmBridgeVersion="$package_version"
 dotnet publish samples/HelloAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/agent/linux-x64
 dotnet publish samples/JavaHost -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -o artifacts/host/linux-x64
 TARGET_RID=linux-x64 dotnet test tests/JvmBridge.IntegrationTests -c Release
@@ -156,6 +156,6 @@ Scheduled JDK maintenance discovers stable releases, pins archive checksums, reg
 
 Every validated commit to `main` publishes its tested NuGet package using Trusted Publishing. Versions follow [**NetAgents' timestamp scheme**](https://github.com/caunt/NetAgents): `YY.M.D.B`, with a UTC time-of-day bucket from 1000 through 9999. CI freezes the timestamp once and uses the same version throughout packaging, testing, and publishing. There are no release PRs or tags; the publisher never rebuilds the package.
 
-Both samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. The local feed is configured in their project files. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
+Both samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. Ordinary restores use the published JvmBridge baseline in `Directory.Packages.props`; the local feed is added only when `artifacts/packages` exists. CI supplies `JvmBridgeVersion` to test its freshly packed artifact. Renovate ignores JvmBridge itself to prevent publishing a package from triggering another sample dependency update and publication; update the published baseline deliberately when the examples require newer APIs. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
 
 See [**automation setup**](docs/automation.md) and [**agent instructions**](AGENTS.md). Original code is [**MIT licensed**](LICENSE); see [**upstream notices**](NOTICE.md) for header provenance.

@@ -3,7 +3,7 @@
     <JvmBridgeAgent>true</JvmBridgeAgent>
     <PublishAot>true</PublishAot>
     <IsPackable>false</IsPackable>
-    <RestoreAdditionalProjectSources>$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
+    <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)../../artifacts/packages')">$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
     <!-- Each package-consumer run has its own version and native target. -->
     <NuGetLockFilePath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath.Replace('\', '/'))locks/$(JvmBridgeVersion)/$(TargetFramework)/$(RuntimeIdentifier)/packages.lock.json'))</NuGetLockFilePath>
   </PropertyGroup>

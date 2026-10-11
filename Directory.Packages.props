@@ -1,7 +1,8 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">$(Version)</JvmBridgeVersion>
+    <!-- Published sample baseline; CI supplies the freshly packed version explicitly. -->
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">26.10.5.2586</JvmBridgeVersion>
   </PropertyGroup>
   <ItemGroup>
     <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.9.22.6016" />
