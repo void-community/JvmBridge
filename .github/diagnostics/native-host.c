@@ -1,8 +1,11 @@
 #include <windows.h>
 #include <stdio.h>
+#include <string.h>
 #include <jni.h>
 
 typedef jint (JNICALL *create_vm)(JavaVM **, void **, void *);
+typedef int (__cdecl *install_probe)(HMODULE);
+typedef LONG (__cdecl *count_probes)(void);
 
 static int check(JNIEnv *env, const char *operation)
 {
@@ -35,6 +38,23 @@ int main(int argc, char **argv)
     JavaVM *vm = NULL;
     JNIEnv *env = NULL;
     if (create(&vm, (void **)&env, &configuration) != JNI_OK) return 5;
+
+    count_probes count = NULL;
+    if (argc == 3 && strcmp(argv[2], "c-stress") != 0) {
+        HMODULE probe = LoadLibraryA("artifacts\\diagnostics\\host\\safefetch-probe.dll");
+        if (!probe) return 17;
+        install_probe install = (install_probe)GetProcAddress(probe, "JvmBridgeDiagnosticInstall");
+        count = (count_probes)GetProcAddress(probe, "JvmBridgeDiagnosticCount");
+        if (!install || !count || !install(module)) return 18;
+        if (strcmp(argv[2], "negative-read") == 0 || strcmp(argv[2], "negative-write") == 0) {
+            volatile LONG *inaccessible = (volatile LONG *)VirtualAlloc(NULL, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
+            if (!inaccessible) return 19;
+            printf("UNRELATED_FAULT_CONTROL\n"); fflush(stdout);
+            if (strcmp(argv[2], "negative-write") == 0) *inaccessible = 1;
+            else printf("UNEXPECTED_READ=%ld\n", *inaccessible);
+            return 20;
+        }
+    }
 
     if (argc == 3) {
         if ((*env)->PushLocalFrame(env, 8192) != JNI_OK) return 14;
@@ -82,5 +102,7 @@ int main(int argc, char **argv)
     jobject refs[] = {trace, printer, printer_type, writer, writer_type, message, name, throwable_type, throwable};
     for (int i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) (*env)->DeleteLocalRef(env, refs[i]);
     printf("C_CAPTURE_OK\n"); fflush(stdout);
-    return (*vm)->DestroyJavaVM(vm);
+    int result = (*vm)->DestroyJavaVM(vm);
+    if (count) printf("SAFEFETCH_RECOVERED=%ld\n", count());
+    return result;
 }
