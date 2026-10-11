@@ -1,6 +1,11 @@
 name: Windows x86 crash diagnostics
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        default: debug
+        options: [debug, comparison]
 permissions:
   contents: read
   actions: read
@@ -12,6 +17,7 @@ jobs:
       PACKAGE_VERSION: 26.10.11.3357
       Version: 26.10.11.3357
       VersionTimestamp: 26 10 11 06 17 09
+      DIAGNOSTIC_MODE: ${{ inputs.mode || 'debug' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
@@ -39,7 +45,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native host publish failed' }
       - name: Reproduce and capture native crash
         shell: pwsh
-        run: .github/diagnostics/windows-x86.ps1
+        run: |
+          if ($env:DIAGNOSTIC_MODE -eq 'comparison') {
+            .github/diagnostics/compare-hosts.ps1
+          } else {
+            .github/diagnostics/windows-x86.ps1
+          }
       - name: Upload diagnostic evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
