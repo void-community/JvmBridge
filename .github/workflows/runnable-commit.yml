@@ -5,7 +5,7 @@ on:
       mode:
         type: choice
         default: debug
-        options: [debug, comparison]
+        options: [debug, comparison, recovery]
 permissions:
   contents: read
   actions: read
@@ -48,6 +48,8 @@ jobs:
         run: |
           if ($env:DIAGNOSTIC_MODE -eq 'comparison') {
             .github/diagnostics/compare-hosts.ps1
+          } elseif ($env:DIAGNOSTIC_MODE -eq 'recovery') {
+            .github/diagnostics/recovery.ps1
           } else {
             .github/diagnostics/windows-x86.ps1
           }

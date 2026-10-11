@@ -25,7 +25,7 @@ static jstring call_string(JNIEnv *env, jobject object, const char *name)
 
 int main(int argc, char **argv)
 {
-    if (argc != 2) return 2;
+    if (argc < 2 || argc > 3) return 2;
     HMODULE module = LoadLibraryA(argv[1]);
     if (!module) return 3;
     create_vm create = (create_vm)GetProcAddress(module, "JNI_CreateJavaVM");
@@ -35,6 +35,17 @@ int main(int argc, char **argv)
     JavaVM *vm = NULL;
     JNIEnv *env = NULL;
     if (create(&vm, (void **)&env, &configuration) != JNI_OK) return 5;
+
+    if (argc == 3) {
+        if ((*env)->PushLocalFrame(env, 8192) != JNI_OK) return 14;
+        for (int i = 0; i < 8000; i++) {
+            jclass local = (*env)->FindClass(env, "java/lang/Object");
+            if (check(env, "stress FindClass") || !local) return 15;
+            if ((*env)->GetObjectRefType(env, local) != JNILocalRefType) return 16;
+        }
+        (*env)->PopLocalFrame(env, NULL);
+        printf("C_STRESS_OK\n"); fflush(stdout);
+    }
 
     printf("C_LOOKUP_START\n"); fflush(stdout);
     (*env)->FindClass(env, "jvmbridge/DefinitelyMissingClass");

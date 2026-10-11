@@ -48,7 +48,8 @@ foreach ($major in @(14,18)) {
     for ($attempt = 1; $attempt -le 400; $attempt++) {
         $dump = Join-Path $dumpDirectory "java-$major-debug-$attempt.dmp"
         $log = Join-Path $diagnostics "java-$major-debug-$attempt.log"
-        $capture = ".echo SECOND_CHANCE_CRASH; .exr -1; .ecxr; r; kv; ~* kb; lm; u @eip-20 L30; .dump /ma $dump; q"
+        $debuggerDump = $dump.Replace('\', '/')
+        $capture = ".echo SECOND_CHANCE_CRASH; .exr -1; .ecxr; r; kv; !exchain; !address @ecx; !vprot @ecx; ~* kb; lm; u @eip-20 L30; .dump /ma $debuggerDump; q"
         $termination = ".if (poi(@esp+8) == 0xc0000005) { .echo CRASH_TERMINATION; $capture } .else { gc }"
         $commands = "sxn ld; sxd -c2 `"$capture`" av; sxd -c2 `"$capture`" 0xc0000409; sxd -c2 `"$capture`" 0xe0434352; bu ntdll!NtTerminateProcess `"$termination`"; g"
         & $debugger -hd -g -G -y (Join-Path $diagnostics 'host') -logo $log -c $commands $hostExecutable $jvm.FullName 0
