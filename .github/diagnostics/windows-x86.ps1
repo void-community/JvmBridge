@@ -33,7 +33,7 @@ foreach ($major in @(14,18)) {
     $java = Get-ChildItem $jdkDirectory -Filter java.exe -Recurse | Select-Object -First 1
     $env:PATH = $java.DirectoryName + ';' + $originalPath
     $failures = 0
-    for ($attempt = 1; $attempt -le 80 -and $failures -lt 3; $attempt++) {
+    for ($attempt = 1; $attempt -le 10 -and $failures -lt 3; $attempt++) {
         $stdout = Join-Path $diagnostics "java-$major-normal-$attempt.stdout.log"
         $stderr = Join-Path $diagnostics "java-$major-normal-$attempt.stderr.log"
         $process = Start-Process $hostExecutable -ArgumentList @($jvm.FullName, '0') -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
@@ -45,12 +45,13 @@ foreach ($major in @(14,18)) {
         Write-Host "Java $major ordinary attempt $attempt exit $code"
         if ($code -ne 0) { $failures++; Get-Content $stdout; Get-Content $stderr }
     }
-    for ($attempt = 1; $attempt -le 25; $attempt++) {
+    for ($attempt = 1; $attempt -le 400; $attempt++) {
         $dump = Join-Path $dumpDirectory "java-$major-debug-$attempt.dmp"
         $log = Join-Path $diagnostics "java-$major-debug-$attempt.log"
         $capture = ".echo SECOND_CHANCE_CRASH; .exr -1; .ecxr; r; kv; ~* kb; lm; u @eip-20 L30; .dump /ma $dump; q"
-        $commands = "sxd -c2 `"$capture`" av; sxd -c2 `"$capture`" 0xc0000409; sxd -c2 `"$capture`" 0xe0434352; g"
-        & $debugger -g -G -y (Join-Path $diagnostics 'host') -logo $log -c $commands $hostExecutable $jvm.FullName 0
+        $termination = ".if (poi(@esp+8) == 0xc0000005) { .echo CRASH_TERMINATION; $capture } .else { gc }"
+        $commands = "sxn ld; sxd -c2 `"$capture`" av; sxd -c2 `"$capture`" 0xc0000409; sxd -c2 `"$capture`" 0xe0434352; bu ntdll!NtTerminateProcess `"$termination`"; g"
+        & $debugger -hd -g -G -y (Join-Path $diagnostics 'host') -logo $log -c $commands $hostExecutable $jvm.FullName 0
         $records.Add([pscustomobject]@{ java=$major; mode='debug'; attempt=$attempt; exitCode=$LASTEXITCODE; dump=(Test-Path $dump) })
         if (Test-Path $dump) { break }
     }
