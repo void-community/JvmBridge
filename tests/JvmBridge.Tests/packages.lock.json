@@ -24,9 +24,9 @@
       },
       "NetAgents.Analyzers": {
         "type": "Direct",
-        "requested": "[26.9.22.6016, )",
-        "resolved": "26.9.22.6016",
-        "contentHash": "o4YXRzv1UWKJ5WGzKexdCriOusB+9Al4QjVRsiPEaV6Oe27rVPQf3gZlTRGter3V1iGZYZ0OxBfz/H52DHrGWQ=="
+        "requested": "[26.10.9.9207, )",
+        "resolved": "26.10.9.9207",
+        "contentHash": "oIfbdUh7jOrdaR0Mz6WyRv9Vo36yllh50ga5AWvQfDem9fbIoPHkKxCH8uOQWYbxmneDwzOLJHyRW4UJymKizw=="
       },
       "xunit.runner.visualstudio": {
         "type": "Direct",
