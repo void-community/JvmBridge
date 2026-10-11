@@ -127,6 +127,26 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (!hostedJvmMatchesBaseline)
             throw new InvalidOperationException(message: "Embedded JVM behavior differs from the native invocation baseline");
 
+        // Fresh processes vary heap layout on the builds that reproduced the
+        // intermittent SafeFetch crash, retaining every package-consumer check.
+        if (rid == "win-x86" && entry.Implementation == "hotspot" && entry.Java is 14 or 18)
+        {
+            for (int attempt = 1; attempt <= 200; attempt++)
+            {
+                ProcessResult repeated = await _processRunner.RunAsync(
+                    [host, jvm, destroy.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+                    Path.Combine(directory, $"host-repeat-{attempt}.log"),
+                    environment: environment,
+                    cancellationToken: cancellationToken
+                ).ConfigureAwait(continueOnCapturedContext: false);
+
+                bool repeatedJvmMatchesBaseline = repeated.Output.Contains(value: "HOST_LOOKUP_CAPTURED", StringComparison.Ordinal) && repeated.Output.Contains(value: "HOST_OK", StringComparison.Ordinal) && repeated.Output.Contains(destroyMarker, StringComparison.Ordinal);
+
+                if (!repeatedJvmMatchesBaseline)
+                    throw new InvalidOperationException($"Embedded JVM regression failed on attempt {attempt}.");
+            }
+        }
+
         ProcessResult plain = await _processRunner.RunAsync(
             [java, "-Xcheck:jni", "-cp", fixture, "BridgeFixture", "baseline"],
             Path.Combine(directory, path2: "java-baseline.log"),

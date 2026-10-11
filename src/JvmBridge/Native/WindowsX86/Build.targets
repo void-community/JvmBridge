@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <WindowsX86ToolchainRoot Condition="'$(WindowsX86ToolchainRoot)' == ''">/usr/i686-w64-mingw32</WindowsX86ToolchainRoot>
+  </PropertyGroup>
+  <Target Name="IncludeWindowsX86Compatibility">
+    <PropertyGroup>
+      <WindowsX86Source>$(MSBuildThisFileDirectory)SafeFetch.c</WindowsX86Source>
+      <WindowsX86Output>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'windows-x86'))</WindowsX86Output>
+    </PropertyGroup>
+    <MakeDir Directories="$(WindowsX86Output)" />
+    <Exec Condition="'$(OS)' != 'Windows_NT'" Command="clang --target=i686-w64-windows-gnu -isystem &quot;$(WindowsX86ToolchainRoot)/include&quot; -std=c11 -O2 -ffreestanding -fno-builtin -Wall -Wextra -Werror -c &quot;$(WindowsX86Source)&quot; -o &quot;$(WindowsX86Output)/SafeFetch.obj&quot;" />
+    <!-- The DLL has no stack-based SEH or CRT; all recovery uses its native VEH. -->
+    <Exec Condition="'$(OS)' != 'Windows_NT'" Command="ld.lld -m i386pe --shared --entry=DllMain@12 --no-seh --no-insert-timestamp --nxcompat --dynamicbase &quot;$(WindowsX86Output)/SafeFetch.obj&quot; &quot;$(WindowsX86ToolchainRoot)/lib/libkernel32.a&quot; -o &quot;$(WindowsX86Output)/JvmBridge.WindowsX86.dll&quot;" />
+    <Exec Condition="'$(OS)' == 'Windows_NT'" Command="cl /nologo /O2 /W4 /WX /MT /LD &quot;$(WindowsX86Source)&quot; /Fo:&quot;$(WindowsX86Output)/SafeFetch.obj&quot; /link /MACHINE:X86 /Brepro /DYNAMICBASE /NXCOMPAT /OUT:&quot;$(WindowsX86Output)/JvmBridge.WindowsX86.dll&quot;" />
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(WindowsX86Output)/JvmBridge.WindowsX86.dll" PackagePath="runtimes/win-x86/native" />
+    </ItemGroup>
+  </Target>
+</Project>

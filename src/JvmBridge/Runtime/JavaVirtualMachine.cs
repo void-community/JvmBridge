@@ -28,6 +28,7 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     {
         nint library = NativeJvmLibrary.Load(Path.GetFullPath(libraryPath));
         // A JVM library stays loaded for process lifetime; unloading it is not supported here.
+        WindowsX86JvmCompatibility.Install(library);
         var create = (delegate* unmanaged<JNIInvokeInterface_***, void**, JavaVMInitArgs*, int>)NativeLibrary.GetExport(library, "JNI_CreateJavaVM");
         List<nint> strings = new();
         try

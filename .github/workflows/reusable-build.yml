@@ -30,6 +30,8 @@ jobs:
             11.0.100-rc.1.26425.128
       - name: Restore binding generator
         run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
+      - name: Prepare Windows x86 package support compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev
       - name: Pack the consumer artifact before restoring samples
         run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
       - name: Restore solution
