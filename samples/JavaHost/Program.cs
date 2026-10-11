@@ -12,8 +12,10 @@ if (args.Length is < 1 or > 2)
     throw new ArgumentException(message: "Pass the absolute path to the JVM's native library.");
 
 JavaVirtualMachine machine = JavaVirtualMachine.Create(args[0], options: ["-Xcheck:jni"]);
-if (Environment.GetEnvironmentVariable("JVMBRIDGE_DIAGNOSTIC_RECOVERY") == "1")
+
+if (Environment.GetEnvironmentVariable(variable: "JVMBRIDGE_DIAGNOSTIC_RECOVERY") == "1")
     SafeFetchProbe.Install(args[0]);
+
 int expectedDestroyResult = args.Length == 2 ? int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : 0;
 
 int destroyResult = 0;
@@ -98,7 +100,8 @@ if (destroyResult != expectedDestroyResult)
     throw new InvalidOperationException(message: "Managed JVM shutdown differed from the native C baseline.");
 
 Console.WriteLine($"DESTROY_RESULT={destroyResult}");
-if (Environment.GetEnvironmentVariable("JVMBRIDGE_DIAGNOSTIC_RECOVERY") == "1")
+
+if (Environment.GetEnvironmentVariable(variable: "JVMBRIDGE_DIAGNOSTIC_RECOVERY") == "1")
     Console.WriteLine($"SAFEFETCH_RECOVERED={SafeFetchProbe.Count()}");
 
 if (destroyResult != 0)
@@ -108,23 +111,4 @@ if (destroyResult != 0)
 static void WriteStatus(string message)
 {
     Console.WriteLine(message);
-}
-
-internal static unsafe class SafeFetchProbe
-{
-    private static nint _library;
-
-    internal static void Install(string jvmPath)
-    {
-        _library = System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(AppContext.BaseDirectory, "safefetch-probe.dll"));
-        var install = (delegate* unmanaged[Cdecl]<nint, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(_library, "JvmBridgeDiagnosticInstall");
-        if (install(System.Runtime.InteropServices.NativeLibrary.Load(jvmPath)) == 0)
-            throw new InvalidOperationException("Could not install diagnostic recovery.");
-    }
-
-    internal static int Count()
-    {
-        var count = (delegate* unmanaged[Cdecl]<int>)System.Runtime.InteropServices.NativeLibrary.GetExport(_library, "JvmBridgeDiagnosticCount");
-        return count();
-    }
 }
