@@ -1,34 +1,50 @@
-name: Commit Workflow
+name: Windows x86 crash diagnostics
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: commit-${{ github.sha }}
-  cancel-in-progress: false
+  actions: read
 jobs:
-  version:
-    uses: ./.github/workflows/reusable-version.yml
-  build:
-    needs: version
-    uses: ./.github/workflows/reusable-build.yml
-    with:
-      version: ${{ needs.version.outputs.version }}
-      timestamp: ${{ needs.version.outputs.timestamp }}
-  test:
-    needs: [version, build]
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      version: ${{ needs.version.outputs.version }}
-      timestamp: ${{ needs.version.outputs.timestamp }}
-  publish:
-    if: github.repository == 'void-community/JvmBridge' && github.ref == 'refs/heads/main'
-    needs: [version, build, test]
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/publish-nuget.yml
-    with:
-      version: ${{ needs.version.outputs.version }}
+  diagnose:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      PACKAGE_VERSION: 26.10.11.3357
+      Version: 26.10.11.3357
+      VersionTimestamp: 26 10 11 06 17 09
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: |
+            10.0.401
+            11.0.100-rc.1.26425.128
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: packages
+          path: artifacts/packages
+          run-id: 38117551597
+          github-token: ${{ github.token }}
+      - name: Prepare x86 native compiler
+        shell: pwsh
+        run: |
+          $installation = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -property installationPath
+          cmd /c "`"$installation\VC\Auxiliary\Build\vcvarsall.bat`" x64_x86 && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+          }
+      - name: Publish original package consumer with symbols
+        shell: pwsh
+        run: |
+          dotnet publish samples/JavaHost -c Release -r win-x86 --self-contained -p:PublishAot=true -p:JvmBridgeVersion=$env:PACKAGE_VERSION -o artifacts/diagnostics/host
+          if ($LASTEXITCODE -ne 0) { throw 'Native host publish failed' }
+      - name: Reproduce and capture native crash
+        shell: pwsh
+        run: .github/diagnostics/windows-x86.ps1
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-x86-diagnostics
+          path: artifacts/diagnostics
+          if-no-files-found: error
+          retention-days: 7
