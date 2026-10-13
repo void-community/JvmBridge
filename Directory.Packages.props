@@ -5,7 +5,7 @@
     <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">26.10.5.2586</JvmBridgeVersion>
   </PropertyGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.10.9.9207" />
+    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.10.12.1864" />
     <PackageVersion Include="JvmBridge" Version="$(JvmBridgeVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <!-- 18.10 requires .NET 11; build support and the Alpine test hosts target .NET 10. -->
