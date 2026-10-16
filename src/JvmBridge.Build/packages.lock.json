@@ -23,9 +23,9 @@
       },
       "NetAgents.Analyzers": {
         "type": "Direct",
-        "requested": "[26.10.12.1864, )",
-        "resolved": "26.10.12.1864",
-        "contentHash": "uvkPM5vpFqGRDPPiPH1e5x/3Yr7ZpsED4CM1txUvpq9pAs7oJS9gXDp7GzgAEmh9Tc+D1Xc51p70KMblbYZ5ww=="
+        "requested": "[26.10.16.1606, )",
+        "resolved": "26.10.16.1606",
+        "contentHash": "0rhc6aOeMKWZCzZBxI24G/Wvzg/XLM7NlJmnYavIt4emVBFFvYWcQasyWZSztk2dfjvAyBrTzr80ndksRL0aIA=="
       },
       "Nito.AsyncEx.Context": {
         "type": "Direct",
