@@ -30,6 +30,83 @@ internal static class LauncherJar
 
     private static readonly DateTimeOffset Timestamp = new(year: 1980, month: 1, day: 1, hour: 0, minute: 0, second: 0, TimeSpan.Zero);
 
+    /// <summary>Puts libraries together for one jar: each runtime identifier once, and only the ones the launcher can detect. The same library given twice for a platform counts once, so jars that overlap can be combined.</summary>
+    /// <param name="libraries">The libraries, from the command line or from other jars.</param>
+    /// <returns>The libraries for the jar.</returns>
+    /// <exception cref="InvalidDataException">A runtime identifier is unknown or has two different libraries, or there is no library at all.</exception>
+    internal static IReadOnlyList<AgentLibrary> Combine(IEnumerable<AgentLibrary> libraries)
+    {
+        List<AgentLibrary> combined = [];
+
+        foreach (AgentLibrary library in libraries)
+        {
+            if (!KnownRids.Contains(library.Rid))
+            {
+                throw new ArgumentException(
+                    $"{library.Rid} is not a runtime identifier that the launcher detects. Known: {string.Join(separator: ", ", KnownRids)}.",
+                    nameof(libraries)
+                );
+            }
+
+            AgentLibrary? existing = combined.FirstOrDefault(candidate => candidate.Rid == library.Rid);
+
+            if (existing is null)
+            {
+                combined.Add(library);
+
+                continue;
+            }
+
+            bool same = existing.FileName == library.FileName && existing.Bytes.AsSpan().SequenceEqual(library.Bytes);
+
+            if (!same)
+                throw new InvalidDataException($"{library.Rid} is given more than once, with different libraries.");
+        }
+
+        return combined.Count == 0 ? throw new InvalidDataException(message: "There is no agent library to pack.") : combined;
+    }
+
+    /// <summary>Reads the libraries of a jar that <see cref="Write"/> wrote, to combine them with others.</summary>
+    /// <param name="jar">The path of the jar.</param>
+    /// <returns>The libraries in the jar.</returns>
+    /// <exception cref="InvalidDataException">The file is not such a jar.</exception>
+    internal static IReadOnlyList<AgentLibrary> Read(string jar)
+    {
+        using ZipArchive archive = ZipFile.OpenRead(jar);
+
+        string manifest = ReadText(archive, name: "META-INF/MANIFEST.MF") ?? throw new InvalidDataException($"{jar} has no manifest, so it is not a jar from jvmbridge pack.");
+        string prefix = "Premain-Class: ";
+        string? launcher = manifest.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r')).FirstOrDefault(line => line.StartsWith(prefix, StringComparison.Ordinal))?[prefix.Length..];
+
+        if (launcher is null || !launcher.StartsWith(value: "jvmbridge.L", StringComparison.Ordinal))
+            throw new InvalidDataException($"{jar} has no JvmBridge launcher, so it is not a jar from jvmbridge pack.");
+
+        string directory = launcher.Replace(oldChar: '.', newChar: '/') + "/";
+        string index = ReadText(archive, directory + "native.properties") ?? throw new InvalidDataException($"{jar} has no {directory}native.properties.");
+        List<AgentLibrary> libraries = [];
+
+        foreach (string line in index.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            int separator = line.IndexOf(value: '=', StringComparison.Ordinal);
+
+            if (separator <= 0)
+                throw new InvalidDataException($"{jar} has a malformed index line '{line}'.");
+
+            string rid = line[..separator];
+            string fileName = line[(separator + 1)..];
+            ZipArchiveEntry entry = archive.GetEntry($"{directory}native/{rid}/{fileName}") ?? throw new InvalidDataException($"{jar} lists {fileName} for {rid} but does not hold it.");
+
+            using MemoryStream bytes = new();
+
+            using (Stream stream = entry.Open())
+                stream.CopyTo(bytes);
+
+            libraries.Add(new AgentLibrary(rid, fileName, bytes.ToArray()));
+        }
+
+        return libraries;
+    }
+
     /// <summary>Reads the compiled launcher class that the tool carries, under its own name <c>jvmbridge/Launcher</c>.</summary>
     /// <returns>The class-file bytes.</returns>
     internal static byte[] ReadLauncher()
@@ -101,10 +178,8 @@ internal static class LauncherJar
 
         foreach (AgentLibrary library in ordered)
         {
-            string fileName = Path.GetFileName(library.Path);
-
-            index.Add($"{library.Rid}={fileName}\n");
-            Add(archive, $"{resources}native/{library.Rid}/{fileName}", File.ReadAllBytes(library.Path));
+            index.Add($"{library.Rid}={library.FileName}\n");
+            Add(archive, $"{resources}native/{library.Rid}/{library.FileName}", library.Bytes);
         }
 
         Add(archive, resources + "native.properties", Encoding.UTF8.GetBytes(string.Concat(index)));
@@ -129,10 +204,20 @@ internal static class LauncherJar
 
         foreach (AgentLibrary library in ordered)
         {
-            hash.AppendData(Encoding.UTF8.GetBytes(library.Rid + "=" + Path.GetFileName(library.Path) + "\n"));
-            hash.AppendData(File.ReadAllBytes(library.Path));
+            hash.AppendData(Encoding.UTF8.GetBytes(library.Rid + "=" + library.FileName + "\n"));
+            hash.AppendData(library.Bytes);
         }
 
         return Convert.ToHexStringLower(hash.GetHashAndReset())[..7];
+    }
+
+    private static string? ReadText(ZipArchive archive, string name)
+    {
+        if (archive.GetEntry(name) is not { } entry)
+            return null;
+
+        using StreamReader reader = new(entry.Open(), Encoding.UTF8);
+
+        return reader.ReadToEnd();
     }
 }

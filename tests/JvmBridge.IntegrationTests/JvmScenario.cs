@@ -562,7 +562,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
     )
     {
         string jar = Path.Combine(directory, path2: "hello.jar");
-        string launcher = LauncherJar.Write(jar, [new AgentLibrary(rid, agent)]);
+        string launcher = LauncherJar.Write(jar, [AgentLibrary.FromFile(rid, agent)]);
 
         ProcessResult launched = await _processRunner.RunAsync(
             [java, "-Xcheck:jni", "-javaagent:" + jar + "=delivery", "-cp", fixture, "BridgeFixture"],

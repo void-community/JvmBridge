@@ -7,6 +7,7 @@
     <InternalsVisibleTo Include="JvmBridge.Tool" />
     <InternalsVisibleTo Include="JvmBridge.Tool.Tests" />
     <InternalsVisibleTo Include="JvmBridge.IntegrationTests" />
+    <InternalsVisibleTo Include="JvmBridge.Tasks" />
     <!-- Launcher.java is the source of Launcher.class; a test compiles it with Java 8 and fails when the two differ. -->
     <None Include="Launcher/Launcher.java" />
     <EmbeddedResource Include="Launcher/Launcher.class" LogicalName="Launcher.class" />

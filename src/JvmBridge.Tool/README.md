@@ -28,11 +28,14 @@ Only patches registered in `Configure` are visible; patches an agent registers l
 
 ## `jvmbridge pack`
 
-Packs the published native libraries of an agent into one jar that `java -javaagent` starts on any of its platforms:
+Packs the published native libraries of an agent, and the jars of single platforms, into one jar that `java -javaagent` starts on any of its platforms:
 
 ```bash
 jvmbridge pack -o agent.jar --agent linux-x64=publish/linux-x64/MyAgent.so --agent win-x64=publish/win-x64/MyAgent.dll
+jvmbridge pack -o agent.jar --jar linux-x64/MyAgent.jar --jar linux-arm64/MyAgent.jar
 java -javaagent:agent.jar=log=debug -jar app.jar
 ```
 
-The jar carries a small launcher class that extracts the library of the running platform into a private temporary directory and loads it. The agent then starts as if it had been attached to the running JVM, with the text after `=` as its options. A JVM that finds no library for its platform stops at startup with a message that names the platforms the jar has.
+The jar carries a small launcher class that extracts the library of the running platform into a private directory under `java.io.tmpdir` and loads it; that directory must be writable. The agent then starts as if it had been attached to the running JVM, with the text after `=` as its options. A JVM that finds no library for its platform stops at startup with a message that names the platforms the jar has.
+
+A project that builds with the JvmBridge package can write these jars without the tool: `<JvmBridgeAgentJar>true</JvmBridgeAgentJar>` makes `dotnet publish` write a one-platform jar beside the library, and the `JvmBridgeMergeAgentJars` target combines such jars.

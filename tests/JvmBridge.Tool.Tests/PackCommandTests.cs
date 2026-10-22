@@ -22,6 +22,44 @@ public sealed class PackCommandTests
         Assert.Equal(expected: 52, (launcher[6] << 8) | launcher[7]);
     }
 
+    /// <summary>Jars of single platforms combine into one, which is what a CI matrix that publishes each platform on its own runner needs; the same library twice counts once.</summary>
+    [Fact]
+    public void CombinesTheJarsOfSinglePlatforms()
+    {
+        string folder = ToolFixtures.CreateFolder();
+
+        try
+        {
+            string linux = Path.Combine(folder, path2: "Agent.so");
+            string windows = Path.Combine(folder, path2: "Agent.dll");
+            string linuxJar = Path.Combine(folder, path2: "linux.jar");
+            string windowsJar = Path.Combine(folder, path2: "windows.jar");
+            string combined = Path.Combine(folder, path2: "all.jar");
+            string direct = Path.Combine(folder, path2: "direct.jar");
+
+            File.WriteAllText(linux, contents: "linux library");
+            File.WriteAllText(windows, contents: "windows library");
+
+            using StringWriter output = new();
+
+            using StringWriter error = new();
+
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + linux], [], linuxJar, output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["win-x64=" + windows], [], windowsJar, output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + linux], [linuxJar, windowsJar, linuxJar], combined, output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + linux, "win-x64=" + windows], [], direct, output, error));
+
+            Assert.Empty(error.ToString());
+            Assert.Equal(File.ReadAllBytes(direct), File.ReadAllBytes(combined));
+            Assert.Equal(["linux-x64", "win-x64"], LauncherJar.Read(combined).Select(static library => library.Rid));
+            Assert.Equal(expected: "windows library", System.Text.Encoding.UTF8.GetString(LauncherJar.Read(combined)[index: 1].Bytes));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     /// <summary>Different libraries get different launcher class names, so that two agent jars on one command line do not share the class of the first; the class is otherwise unchanged.</summary>
     [Fact]
     public void NamesTheLauncherAfterTheLibraries()
@@ -40,8 +78,8 @@ public sealed class PackCommandTests
 
             using StringWriter error = new();
 
-            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + library], Path.Combine(folder, path2: "one.jar"), output, error));
-            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + other], Path.Combine(folder, path2: "two.jar"), output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + library], [], Path.Combine(folder, path2: "one.jar"), output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + other], [], Path.Combine(folder, path2: "two.jar"), output, error));
 
             string[] names = [.. Regex.Matches(output.ToString(), pattern: "launcher (jvmbridge\\.L[0-9a-f]{7})").Select(static match => match.Groups[groupnum: 1].Value)];
 
@@ -74,8 +112,8 @@ public sealed class PackCommandTests
 
             using StringWriter error = new();
 
-            int status = PackCommand.Run(["win-x64=" + windows, "linux-x64=" + linux], jar, output, error);
-            int repeated = PackCommand.Run(["linux-x64=" + linux, "win-x64=" + windows], again, output, error);
+            int status = PackCommand.Run(["win-x64=" + windows, "linux-x64=" + linux], [], jar, output, error);
+            int repeated = PackCommand.Run(["linux-x64=" + linux, "win-x64=" + windows], [], again, output, error);
 
             Assert.Equal(expected: 0, status);
             Assert.Equal(expected: 0, repeated);
@@ -131,14 +169,62 @@ public sealed class PackCommandTests
 
             using StringWriter error = new();
 
-            Assert.Equal(expected: 1, PackCommand.Run([library], jar, output, error));
-            Assert.Equal(expected: 1, PackCommand.Run(["plan9-x64=" + library], jar, output, error));
-            Assert.Equal(expected: 1, PackCommand.Run(["linux-x64=" + Path.Combine(folder, path2: "nothing.so")], jar, output, error));
-            Assert.Equal(expected: 1, PackCommand.Run(["linux-x64=" + library, "linux-x64=" + library], jar, output, error));
-            Assert.Equal(expected: 1, PackCommand.Run([], jar, output, error));
+            Assert.Equal(expected: 1, PackCommand.Run([library], [], jar, output, error));
+            Assert.Equal(expected: 1, PackCommand.Run(["plan9-x64=" + library], [], jar, output, error));
+            Assert.Equal(expected: 1, PackCommand.Run(["linux-x64=" + Path.Combine(folder, path2: "nothing.so")], [], jar, output, error));
+            string other = Path.Combine(folder, path2: "Other.so");
+
+            File.WriteAllText(other, contents: "another library");
+
+            Assert.Equal(expected: 1, PackCommand.Run(["linux-x64=" + library, "linux-x64=" + other], [], jar, output, error));
+            Assert.Equal(expected: 1, PackCommand.Run([], [], jar, output, error));
             Assert.False(File.Exists(jar));
             Assert.Contains(expectedSubstring: "Known: linux-arm,", error.ToString(), StringComparison.Ordinal);
-            Assert.Contains(expectedSubstring: "given more than once", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains(expectedSubstring: "given more than once, with different libraries", error.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    /// <summary>A jar that is not a JvmBridge jar, a missing jar and two jars with different libraries for one platform are refused.</summary>
+    [Fact]
+    public void RefusesJarsThatDoNotCombine()
+    {
+        string folder = ToolFixtures.CreateFolder();
+
+        try
+        {
+            string library = Path.Combine(folder, path2: "Agent.so");
+            string other = Path.Combine(folder, path2: "Other.so");
+            string first = Path.Combine(folder, path2: "first.jar");
+            string second = Path.Combine(folder, path2: "second.jar");
+            string plain = Path.Combine(folder, path2: "plain.jar");
+            string content = Path.Combine(folder, path2: "content");
+
+            File.WriteAllText(library, contents: "library");
+            File.WriteAllText(other, contents: "another library");
+            new DirectoryInfo(content).Create();
+            File.WriteAllText(Path.Combine(content, path2: "readme.txt"), contents: "not an agent");
+            ZipFile.CreateFromDirectory(content, plain);
+
+            using StringWriter output = new();
+
+            using StringWriter error = new();
+
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + library], [], first, output, error));
+            Assert.Equal(expected: 0, PackCommand.Run(["linux-x64=" + other], [], second, output, error));
+            Assert.Equal(expected: 1, PackCommand.Run([], [first, second], Path.Combine(folder, path2: "conflict.jar"), output, error));
+            Assert.Equal(expected: 1, PackCommand.Run([], [plain], Path.Combine(folder, path2: "plain-out.jar"), output, error));
+            Assert.Equal(
+                expected: 1,
+                PackCommand.Run([], [Path.Combine(folder, path2: "nothing.jar")], Path.Combine(folder, path2: "missing-out.jar"), output, error)
+            );
+            Assert.Contains(expectedSubstring: "linux-x64 is given more than once, with different libraries", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains(expectedSubstring: "has no manifest", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains(expectedSubstring: "the jar does not exist", error.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain(expectedSubstring: "(Parameter", error.ToString(), StringComparison.Ordinal);
         }
         finally
         {

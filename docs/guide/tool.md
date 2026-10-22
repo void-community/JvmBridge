@@ -32,10 +32,11 @@ The offline JVM offers every capability and accepts every subscription; any othe
 
 ## `jvmbridge pack`
 
-Packs the published native libraries of an agent into one jar for `java -javaagent`; see [**From a jar with `-javaagent`**](attaching.md#from-a-jar-with--javaagent).
+Packs the published native libraries of an agent, and the libraries of other agent jars, into one jar for `java -javaagent`; see [**From a jar with `-javaagent`**](attaching.md#from-a-jar-with--javaagent).
 
 ```sh
 jvmbridge pack -o agent.jar --agent linux-x64=publish/linux-x64/MyAgent.so --agent win-x64=publish/win-x64/MyAgent.dll
+jvmbridge pack -o agent.jar --jar linux-x64/MyAgent.jar --jar linux-arm64/MyAgent.jar
 ```
 
-`--agent` takes `<rid>=<path>` and may be repeated; the runtime identifiers are `linux-x64`, `linux-arm64`, `linux-arm`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-x86`, `win-arm64`, `osx-x64` and `osx-arm64`. The jar is byte-for-byte the same for the same libraries.
+`--agent` takes `<rid>=<path>` and `--jar` the path of a jar that `jvmbridge pack` or a publish with `JvmBridgeAgentJar` wrote; both may be repeated and mixed. The runtime identifiers are `linux-x64`, `linux-arm64`, `linux-arm`, `linux-musl-x64`, `linux-musl-arm64`, `win-x64`, `win-x86`, `win-arm64`, `osx-x64` and `osx-arm64`. The same library twice for a platform counts once, and two different ones are refused. The jar is byte-for-byte the same for the same libraries, however they were given. A project that builds with the JvmBridge package can do the same without the tool, with the `JvmBridgeMergeAgentJars` target.
