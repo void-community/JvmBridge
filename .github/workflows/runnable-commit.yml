@@ -23,6 +23,12 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
       timestamp: ${{ needs.version.outputs.timestamp }}
+  footprint:
+    needs: [version, build]
+    uses: ./.github/workflows/reusable-footprint.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      timestamp: ${{ needs.version.outputs.timestamp }}
   publish:
     if: github.repository == 'void-community/JvmBridge' && github.ref == 'refs/heads/main'
     needs: [version, build, test]

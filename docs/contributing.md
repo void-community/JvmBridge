@@ -44,7 +44,7 @@ dotnet publish samples/FootprintAgent -c Release -r linux-arm64 --self-contained
 TARGET_RID=linux-arm64 JVMBRIDGE_FOOTPRINT=1 dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~FootprintTests
 ```
 
-Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's `footprint` job does the same on each native runner and fails only when the library grows more than 10 percent past `docs/footprint.baseline.json`. After a deliberate change in size, download the `footprint-*` artifacts of a green run and rewrite the baseline and the published table with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
+Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's footprint workflow does the same on each native runner and fails only when the library grows more than 10 percent past `docs/footprint.baseline.json`. It runs beside the tests, so a size regression is a red check on the commit and does not hold back publishing. After a deliberate change in size, download the `footprint-*` artifacts of a green run and rewrite the baseline and the published table with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
 
 ## Reproducible maintenance
 

@@ -22,6 +22,12 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
       timestamp: ${{ needs.version.outputs.timestamp }}
+  footprint:
+    needs: [version, build]
+    uses: ./.github/workflows/reusable-footprint.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      timestamp: ${{ needs.version.outputs.timestamp }}
   required:
     if: always()
     needs: [build, test]
