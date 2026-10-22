@@ -117,6 +117,32 @@ public sealed class PatcherAgent : JavaAgent
 
 Register patches and helpers from `Configure`. The runtime only calls a patch for its class name, applies it as the class loads, logs `patched ...` or `skipped ...: reason` through `AgentContext.Log`, and, when the agent attaches late and retransformation is available, retransforms the matching classes that are already loaded. `ClassLoaderTarget.Bootstrap` defines the helpers in the bootstrap loader at VM initialization (or at attach), so every loader sees them. OpenJ9's checked JNI treats defining a class with a null loader as fatal, so there the helpers go in a temporary jar on the bootstrap search path instead; on HotSpot that would disable class-data sharing for application classes. `ClassLoaderTarget.PatchedClassLoader` defines the helpers once in each loader that defines a patched class, before the first patched class from that loader, for helpers that must see application classes; it cannot serve classes of the bootstrap loader, which the log reports. `AgentContext.Log` writes lines prefixed with the agent's assembly name to standard error. It is safe in every callback and never throws. It writes the file descriptor directly because `Console` initializes terminal and globalization state, which aborts the process on a host without libicu; failures that the runtime contains are reported the same way.
 
+Helper classes can be written in Java or in C#. For Java, add `JavaSource` items to the agent project:
+
+```xml
+<ItemGroup>
+  <JavaSource Include="java/**/*.java" />
+</ItemGroup>
+```
+
+The build compiles them with `javac --release $(JavaRelease)` (8 unless you set `JavaRelease`) using the JDK in `JvmBridgeJdkHome` or `JAVA_HOME`, and fails with JVMB004 or JVMB005 when neither names a JDK (version 9 or later) that contains `javac`. The class files are embedded, and each top-level class becomes an `internal` `JavaClassDefinition` named after its package, with its inner and anonymous classes defined along with it: `context.DefineClass(JavaClasses.Legacyforgepatcher.Collections, ClassLoaderTarget.Bootstrap)` for `legacyforgepatcher/Collections.java`.
+
+For C#, mark a `static partial` class with `[JavaClass("pkg/Name")]` and its static methods with `[JavaMethod]`. The generator emits a Java class that declares them `native` (named like the C# method with a lower-case first letter, or by `[JavaMethod("name")]`), the unmanaged entry points that call your methods, and a `Definition` property that registers them when the class is defined:
+
+```csharp
+[JavaClass("legacyforgepatcher/Callbacks")]
+internal static partial class Callbacks
+{
+    [JavaMethod]
+    internal static string Greet(JavaEnvironment environment, string name) => "Hello, " + name;
+}
+
+// In Configure:
+context.DefineClass(Callbacks.Definition, ClassLoaderTarget.Bootstrap);
+```
+
+An optional first `JavaEnvironment` parameter receives the callback's JNI environment. Other parameters and the return type may be `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, or `nint` for a Java object (typed by `[JavaType("Ljava/util/List;")]`, otherwise `java/lang/Object`). An exception that a method throws is reported and contained, and the JVM receives a default value.
+
 In a live JVM callback, use a class reference from that callback or an explicitly owned reference to inspect members and invoke Java code:
 
 ```csharp

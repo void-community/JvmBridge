@@ -89,6 +89,11 @@ public static unsafe class AgentRuntime
         catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
+    /// <summary>Reports an exception that a native method contained, for use in an exception filter that returns a default value to the JVM.</summary>
+    /// <param name="exception">The exception to report.</param>
+    /// <returns>Always <see langword="true"/>, so the filter contains the exception.</returns>
+    public static bool ReportFailure(Exception exception) => ReportAndContain(exception);
+
     private static bool ReportAndContain(Exception exception)
     {
         StandardError.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}");

@@ -1,0 +1,239 @@
+using System.Collections.Immutable;
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+using JvmBridge.Agents;
+using JvmBridge.ClassFiles;
+using JvmBridge.Generator;
+using JvmBridge.Native;
+using JvmBridge.Runtime;
+
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+
+using Xunit;
+
+namespace JvmBridge.Tests;
+
+/// <summary>Verifies the Java class and unmanaged entry points generated for native helper classes.</summary>
+public sealed unsafe class NativeHelperGeneratorTests
+{
+    private const string Helpers = """
+        using System;
+        using JvmBridge.Agents;
+        using JvmBridge.Runtime;
+
+        namespace Sample;
+
+        [JavaClass("sample/Callbacks")]
+        public static partial class Callbacks
+        {
+            public static int Pings;
+
+            [JavaMethod]
+            public static int Twice(int value) => value * 2;
+
+            [JavaMethod("combine")]
+            public static long Combine(long left, int right, bool negate, char marker) => (negate ? -(left + right) : left + right) + marker;
+
+            [JavaMethod]
+            public static void Ping(JavaEnvironment environment) => Pings += environment is null ? 100 : 1;
+
+            [JavaMethod]
+            public static int Fails() => throw new InvalidOperationException("contained");
+
+            [JavaMethod]
+            public static nint Echo([JavaType("Ljava/util/List;")] nint value) => value;
+        }
+
+        public static class Probe
+        {
+            public static JavaClassDefinition Definition() => Callbacks.Definition;
+
+            public static int Pings() => Callbacks.Pings;
+        }
+        """;
+
+    private static readonly List<RegisteredNative> Registered = [];
+
+    /// <summary>The generated Java class declares each method as public static native with the descriptor derived from the C# signature.</summary>
+    [Fact]
+    public void DeclaresNativeMethodsWithDerivedDescriptors()
+    {
+        JavaClassFile file = JavaClassFile.Read(Load(Helpers).Definition().Bytes.Span);
+
+        Assert.Equal(expected: "sample/Callbacks", file.Name);
+        Assert.Equal(expected: "(I)I", file.GetMethod(name: "twice").Descriptor);
+        Assert.Equal(expected: "(JIZC)J", file.GetMethod(name: "combine").Descriptor);
+        Assert.Equal(expected: "()V", file.GetMethod(name: "ping").Descriptor);
+        Assert.Equal(expected: "(Ljava/util/List;)Ljava/lang/Object;", file.GetMethod(name: "echo").Descriptor);
+        Assert.All(file.Methods, static method => Assert.Equal(ClassFileWriter.PublicStaticNative, method.AccessFlags));
+    }
+
+    /// <summary>The default Java name is the C# name with a lower-case first letter, and an explicit name wins.</summary>
+    [Fact]
+    public void NamesJavaMethodsInJavaStyle()
+    {
+        string[] names = [.. JavaClassFile.Read(Load(Helpers).Definition().Bytes.Span).Methods.Select(static method => method.Name)];
+
+        Assert.Equal(["twice", "combine", "ping", "fails", "echo"], names);
+    }
+
+    /// <summary>Registration hands the JVM entry points that marshal arguments, call the C# method, and contain its failures.</summary>
+    [Fact]
+    public void RegistersEntryPointsThatMarshalAndContainFailures()
+    {
+        Registered.Clear();
+        ProbeAccess probe = Load(Helpers);
+        JNINativeInterface_ table = new() { RegisterNatives = &Register, ExceptionCheck = &NoException };
+        JNINativeInterface_* tablePointer = &table;
+        JNINativeInterface_** environment = &tablePointer;
+
+        using JavaEnvironment javaEnvironment = new((nint)environment);
+
+        probe.Definition().RegisterNatives?.Invoke(javaEnvironment, arg2: 1);
+
+        Assert.Equal(["twice", "combine", "ping", "fails", "echo"], Registered.Select(static native => native.Name));
+        Assert.Equal(expected: 42, CallTwice(environment, value: 21));
+        Assert.Equal(45L + 'A', CallCombine(environment, left: 40L, right: 5, negate: false));
+        Assert.Equal(-45L + 'A', CallCombine(environment, left: 40L, right: 5, negate: true));
+        CallPing(environment);
+        Assert.Equal(expected: 1, probe.Pings());
+        Assert.Equal(expected: 0, CallFails(environment));
+        Assert.Equal(expected: 7, CallEcho(environment, value: 7));
+        Assert.Equal(expected: "(Ljava/util/List;)Ljava/lang/Object;", Registered.Single(static native => native.Name == "echo").Signature);
+    }
+
+    /// <summary>Invalid helper classes and methods are reported with their own diagnostics.</summary>
+    [Theory]
+    [InlineData("[JavaClass(\"a/B\")] public partial class Bad { [JavaMethod] public static void M() { } }", "JVMB002")]
+    [InlineData("[JavaClass(\"a/B\")] public static class Bad { [JavaMethod] public static void M() { } }", "JVMB002")]
+    [InlineData("[JavaClass(\"a.B\")] public static partial class Bad { [JavaMethod] public static void M() { } }", "JVMB002")]
+    [InlineData("[JavaClass(\"a/B\")] public static partial class Bad { public static void M() { } }", "JVMB002")]
+    [InlineData("[JavaClass(\"a/B\")] public static partial class Bad { [JavaMethod] public static void M(object value) { } }", "JVMB003")]
+    [InlineData("[JavaClass(\"a/B\")] public static partial class Bad { [JavaMethod] public static void M(ref int value) { } }", "JVMB003")]
+    [InlineData("[JavaClass(\"a/B\")] public static partial class Bad { [JavaMethod] public static List<int> M() => null; }", "JVMB003")]
+    public void ReportsInvalidDeclarations(string declaration, string expected)
+    {
+        Diagnostic[] diagnostics = [.. Run("using System.Collections.Generic; using JvmBridge.Agents; " + declaration).Diagnostics];
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == expected);
+    }
+
+    private static int CallCombine(JNINativeInterface_** environment, long left, int right, bool negate)
+    {
+        _jobject* type = null;
+        byte flag = negate ? (byte)1 : (byte)0;
+        ushort marker = 'A';
+        delegate* unmanaged<JNINativeInterface_**, _jobject*, long, int, byte, ushort, long> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, long, int, byte, ushort, long>)Find(name: "combine");
+
+        return (int)function(environment, type, left, right, flag, marker);
+    }
+
+    private static nint CallEcho(JNINativeInterface_** environment, nint value)
+    {
+        _jobject* type = null;
+        delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jobject*> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jobject*>)Find(name: "echo");
+
+        return (nint)function(environment, type, (_jobject*)value);
+    }
+
+    private static int CallFails(JNINativeInterface_** environment)
+    {
+        _jobject* type = null;
+        delegate* unmanaged<JNINativeInterface_**, _jobject*, int> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, int>)Find(name: "fails");
+
+        return function(environment, type);
+    }
+
+    private static void CallPing(JNINativeInterface_** environment)
+    {
+        _jobject* type = null;
+        delegate* unmanaged<JNINativeInterface_**, _jobject*, void> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, void>)Find(name: "ping");
+
+        function(environment, type);
+    }
+
+    private static int CallTwice(JNINativeInterface_** environment, int value)
+    {
+        _jobject* type = null;
+        delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int>)Find(name: "twice");
+
+        return function(environment, type, value);
+    }
+
+    private static CSharpCompilation CreateCompilation(string source)
+    {
+        string runtimeDirectory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
+        List<MetadataReference> references = [.. Directory.EnumerateFiles(runtimeDirectory, searchPattern: "*.dll").Select(static path => MetadataReference.CreateFromFile(path))];
+        references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
+
+        return CSharpCompilation.Create(
+            "NativeHelpers" + Guid.NewGuid().ToString(format: "N"),
+            [CSharpSyntaxTree.ParseText(source)],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true)
+        );
+    }
+
+    private static nint Find(string name)
+    {
+        return Registered.Single(native => native.Name == name).Function;
+    }
+
+    private static ProbeAccess Load(string source)
+    {
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new NativeHelperGenerator().AsSourceGenerator());
+        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out ImmutableArray<Diagnostic> generatorDiagnostics);
+        Diagnostic[] errors = [.. generatorDiagnostics, .. output.GetDiagnostics()];
+        errors = [.. errors.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
+        SyntaxTree[] trees = [.. driver.GetRunResult().GeneratedTrees];
+        SyntaxTree generated = Assert.Single(trees);
+
+        Assert.Empty(errors);
+        Assert.Contains(expectedSubstring: "UnmanagedCallersOnly", generated.ToString(), StringComparison.Ordinal);
+
+        using MemoryStream stream = new();
+
+        Assert.True(output.Emit(stream).Success);
+        stream.Position = 0;
+        Assembly assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
+        Type probe = assembly.GetType(name: "Sample.Probe", throwOnError: true) ?? throw new InvalidOperationException(message: "Probe was not generated.");
+
+        return new ProbeAccess(
+            probe.GetMethod(name: "Definition")?.CreateDelegate<Func<JavaClassDefinition>>() ?? throw new InvalidOperationException(message: "Probe.Definition is missing."),
+            probe.GetMethod(name: "Pings")?.CreateDelegate<Func<int>>() ?? throw new InvalidOperationException(message: "Probe.Pings is missing.")
+        );
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte NoException(JNINativeInterface_** environment)
+    {
+        return 0;
+    }
+
+    [UnmanagedCallersOnly]
+    private static int Register(JNINativeInterface_** environment, _jobject* type, JNINativeMethod* methods, int count)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            string name = Marshal.PtrToStringUTF8((nint)methods[index].name) ?? string.Empty;
+            string signature = Marshal.PtrToStringUTF8((nint)methods[index].signature) ?? string.Empty;
+            Registered.Add(new RegisteredNative(name, signature, (nint)methods[index].fnPtr));
+        }
+
+        return 0;
+    }
+
+    private static GeneratorDriverRunResult Run(string source)
+    {
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new NativeHelperGenerator().AsSourceGenerator());
+        driver = driver.RunGenerators(CreateCompilation(source));
+
+        return driver.GetRunResult();
+    }
+
+    private sealed record ProbeAccess(Func<JavaClassDefinition> Definition, Func<int> Pings);
+
+    private sealed record RegisteredNative(string Name, string Signature, nint Function);
+}

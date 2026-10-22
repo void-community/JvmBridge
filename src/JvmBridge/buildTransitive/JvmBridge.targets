@@ -24,4 +24,72 @@
     <Error Condition="'$(OutputType)' != 'Library'" Text="JvmBridge agents must be class libraries (OutputType=Library)." />
     <Error Condition="'$(PublishAot)' != 'true' Or '$(NativeLib)' != 'Shared'" Text="JvmBridge agents require PublishAot=true and NativeLib=Shared." />
   </Target>
+  <!-- Java helper classes: JavaSource items are compiled with javac and exposed to C# as JavaClasses.<Package>.<Class>. -->
+  <PropertyGroup>
+    <JavaRelease Condition="'$(JavaRelease)' == ''">8</JavaRelease>
+  </PropertyGroup>
+  <UsingTask TaskName="JvmBridgeGenerateJavaClasses" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ClassesDirectory ParameterType="System.String" Required="true" />
+      <GeneratorAssembly ParameterType="System.String" Required="true" />
+      <OutputFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Reflection" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string root = Path.GetFullPath(ClassesDirectory);
+        List<KeyValuePair<string, byte[]>> classes = new List<KeyValuePair<string, byte[]>>();
+
+        foreach (string file in Directory.EnumerateFiles(root, "*.class", SearchOption.AllDirectories))
+        {
+            string name = Path.GetFileName(file);
+
+            if (name == "module-info.class" || name == "package-info.class")
+                continue;
+
+            classes.Add(new KeyValuePair<string, byte[]>(file.Substring(root.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), File.ReadAllBytes(file)));
+        }
+
+        Type writer = Assembly.LoadFrom(GeneratorAssembly).GetType("JvmBridge.Generator.JavaClassSourceWriter", true);
+        string source = (string)writer.GetMethod("Generate").Invoke(null, new object[] { classes });
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(OutputFile)));
+
+        if (!File.Exists(OutputFile) || File.ReadAllText(OutputFile) != source)
+            File.WriteAllText(OutputFile, source);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="_JvmBridgeCompileJava" Condition="'@(JavaSource)' != ''" Inputs="@(JavaSource);$(MSBuildProjectFullPath)" Outputs="$(IntermediateOutputPath)jvmbridge-java/javac.stamp">
+    <PropertyGroup>
+      <_JvmBridgeJavaDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'jvmbridge-java'))</_JvmBridgeJavaDirectory>
+      <_JvmBridgeJdk>$(JvmBridgeJdkHome)</_JvmBridgeJdk>
+      <_JvmBridgeJdk Condition="'$(_JvmBridgeJdk)' == ''">$(JAVA_HOME)</_JvmBridgeJdk>
+      <_JvmBridgeJavac Condition="'$(_JvmBridgeJdk)' != ''">$([MSBuild]::NormalizePath('$(_JvmBridgeJdk)', 'bin', 'javac'))</_JvmBridgeJavac>
+      <_JvmBridgeJavac Condition="'$(_JvmBridgeJavac)' != '' And '$(OS)' == 'Windows_NT'">$(_JvmBridgeJavac).exe</_JvmBridgeJavac>
+    </PropertyGroup>
+    <Error Condition="'$(_JvmBridgeJdk)' == ''" Code="JVMB004" Text="JavaSource items are compiled with javac, which needs a JDK (version 9 or later). Set JvmBridgeJdkHome, or JAVA_HOME, to a JDK directory." />
+    <Error Condition="!Exists('$(_JvmBridgeJavac)')" Code="JVMB005" Text="javac was not found at '$(_JvmBridgeJavac)'. Set JvmBridgeJdkHome to a JDK, not a JRE." />
+    <ItemGroup>
+      <_JvmBridgeJavaSource Include="@(JavaSource->'%(FullPath)')">
+        <Argument>&quot;$([System.String]::Copy('%(FullPath)').Replace('\', '/'))&quot;</Argument>
+      </_JvmBridgeJavaSource>
+    </ItemGroup>
+    <RemoveDir Directories="$(_JvmBridgeJavaDirectory)classes" />
+    <MakeDir Directories="$(_JvmBridgeJavaDirectory)classes" />
+    <WriteLinesToFile File="$(_JvmBridgeJavaDirectory)sources.txt" Lines="@(_JvmBridgeJavaSource->'%(Argument)')" Overwrite="true" />
+    <Exec Command="&quot;$(_JvmBridgeJavac)&quot; --release $(JavaRelease) -encoding UTF-8 -proc:none -Xlint:-options -d &quot;$(_JvmBridgeJavaDirectory)classes&quot; @&quot;$(_JvmBridgeJavaDirectory)sources.txt&quot;" />
+    <Touch Files="$(_JvmBridgeJavaDirectory)javac.stamp" AlwaysCreate="true" />
+  </Target>
+  <Target Name="_JvmBridgeGenerateJavaClasses" DependsOnTargets="_JvmBridgeCompileJava" BeforeTargets="BeforeCompile;CoreCompile" Condition="'@(JavaSource)' != ''">
+    <PropertyGroup>
+      <_JvmBridgeJavaDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'jvmbridge-java'))</_JvmBridgeJavaDirectory>
+    </PropertyGroup>
+    <JvmBridgeGenerateJavaClasses ClassesDirectory="$(_JvmBridgeJavaDirectory)classes" GeneratorAssembly="$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'analyzers', 'dotnet', 'cs', 'JvmBridge.Generator.dll'))" OutputFile="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs" />
+    <ItemGroup>
+      <Compile Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs" />
+      <FileWrites Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs;$(_JvmBridgeJavaDirectory)javac.stamp;$(_JvmBridgeJavaDirectory)sources.txt" />
+    </ItemGroup>
+  </Target>
 </Project>
