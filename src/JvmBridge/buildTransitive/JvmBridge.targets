@@ -6,6 +6,9 @@
     <!-- Agents run inside arbitrary JVM hosts, and slim images often lack libicu. Without it the
          runtime fails fast on first globalization use, which no agent code can contain. -->
     <InvariantGlobalization Condition="'$(InvariantGlobalization)' == ''">true</InvariantGlobalization>
+    <!-- SDK 11's optimized AOT publish skips the build's output copy, so a generated documentation
+         file is never placed in the output directory yet is still listed for publishing, which fails. -->
+    <UseOptimizedPublish Condition="'$(UseOptimizedPublish)' == ''">false</UseOptimizedPublish>
   </PropertyGroup>
   <!-- HotSpot's CPU feature probes are incompatible with CET shadow stacks in
        a Windows AMD64 host. This opt-in affects the host binary, not OS policy. -->
