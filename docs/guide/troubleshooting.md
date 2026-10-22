@@ -1,0 +1,19 @@
+# Troubleshooting
+
+Build errors carry a `JVMB` code; see the [**diagnostics catalogue**](../diagnostics.md). This page covers what happens at run time.
+
+| Symptom | Cause and fix |
+|---|---|
+| `dotnet publish` succeeds but there is no `.so`/`.dll`/`.dylib` | The project does not set `PublishAot` itself. The build fails with JVMB006 when it is missing; set `<PublishAot>true</PublishAot>` next to `JvmBridgeAgent`. |
+| The JVM prints `Could not find agent library` or cannot load it | Use the absolute path of a library published for the **JVM process's** operating system and architecture, not the machine that built it. A 64-bit JVM cannot load a 32-bit library. |
+| The process aborts on a slim image without libicu | Agents default to `InvariantGlobalization`, which avoids the ICU dependency. If you set it to `false`, the runtime fails fast on first globalization use. Keep it on, and log with `context.Log` rather than `Console`. |
+| Signals misbehave on HotSpot when the .NET runtime shares the process | Preload the JDK's signal-chaining library: `LD_PRELOAD="$JAVA_HOME/lib/libjsig.so"` on Linux, `DYLD_INSERT_LIBRARIES` with `libjsig.dylib` on macOS. Do not inject HotSpot's library into OpenJ9. |
+| Log shows `skipped <class>: <reason>` | A `ClassPatch` is all or nothing. The reason names the missing method, invocation or constant. Check the method descriptor against `javap -s`. |
+| A patch has no effect on a class that loaded before the agent | The agent was attached late without the retransformation capability (the log says `retransformation is unavailable, so classes that are already loaded stay unpatched`), or the edit needs a schema change that a retransformation cannot make. See [**Loading and attaching**](attaching.md). |
+| `could not define bootstrap helpers ... LinkageError ... duplicate class definition` | Two copies of the same agent are running in one JVM; the second finds the helpers already defined and skips. This is the expected, safe outcome. |
+| `An agent is already registered for this tooling environment` | One JVMTI environment was registered twice. The generated entry points never do this, so look for a hand-written or duplicated entry point (JVMB001). A second load of the same library gets its own environment and is not this error. |
+| HotSpot prints `Sharing is only supported for boot loader classes because bootstrap classpath has been appended` | Something appended a jar to the bootstrap search path. JvmBridge uses that route only on OpenJ9; on HotSpot it defines bootstrap helpers directly. |
+| OpenJ9 reports a fatal checked-JNI error about a null class loader | Defining a class with a null loader is fatal under `-Xcheck:jni` on OpenJ9. Use `ClassLoaderTarget.Bootstrap` (the runtime then uses a bootstrap jar there) or pass an explicit loader to `DefineClass`. |
+| Java 21 prints `A JVM TI agent has been loaded dynamically` | An attach into a running JVM; add `-XX:+EnableDynamicAgentLoading` to the target to silence it. |
+| A crash or corrupt value after a callback returns | A local reference was kept beyond the callback. Promote it to a global reference and dispose that while the JVM is alive. See [**Concepts**](concepts.md#references-and-ownership). |
+| Agent failures appear as `JvmBridge: <ExceptionType>: <message>` | The runtime contained an exception thrown by your override or native method and returned a default value to the JVM. Fix the exception; route these lines with `AgentLog.Sink` if you need them elsewhere. |
