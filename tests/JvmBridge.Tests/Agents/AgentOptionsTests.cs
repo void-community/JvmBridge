@@ -2,7 +2,7 @@ using JvmBridge.Agents;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.Agents;
 
 /// <summary>Verifies how agent option text is parsed.</summary>
 public sealed class AgentOptionsTests

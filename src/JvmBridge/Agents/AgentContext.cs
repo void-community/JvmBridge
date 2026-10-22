@@ -62,20 +62,54 @@ public sealed unsafe class AgentContext
 
     internal PatchEngine Patches => _patches;
 
-    /// <summary>Registers a declarative class patch. Call from <see cref="JavaAgent.Configure"/>. The runtime only calls the patch for its class, applies it as the class loads, reports what it did, and retransforms the class when the agent attaches late.</summary>
-    /// <param name="patch">The patch to register.</param>
+    /// <summary>
+    /// Registers a declarative class patch. The runtime applies it, in registration order, to the classes that load from now on and logs what it did. When the agent attaches late, and when a patch is registered after
+    /// <see cref="JavaAgent.Configure"/>, it also retransforms the matching classes that are already loaded, if retransformation is enabled; <see cref="PatchNow"/> reports what happened to each of those.
+    /// </summary>
+    /// <param name="patch">The patch to register. Registering the same instance again does nothing.</param>
     public void Patch(ClassPatch patch)
     {
         ArgumentNullException.ThrowIfNull(patch);
         EnsureAccessible();
 
-        if (EventsEnabled)
-            throw new InvalidOperationException("Register patches from Configure, before events are enabled.");
+        if (!EventsEnabled)
+        {
+            if (IsAttached && !CanRetransform)
+                _ = TryEnableRetransformation();
 
-        if (IsAttached && !CanRetransform)
-            _ = TryEnableRetransformation();
+            _patches.Add(patch);
+
+            return;
+        }
+
+        _ = _patches.Register(patch);
+    }
+
+    /// <summary>Registers a patch and retransforms the loaded classes it targets, then reports what happened to each. Needs the retransformation capability, which an attached agent has and a loaded agent requests with <see cref="TryEnableRetransformation"/> in <see cref="JavaAgent.Configure"/>.</summary>
+    /// <param name="patch">The patch to register.</param>
+    /// <returns>The classes that were retransformed and those that could not be, or why none was looked at.</returns>
+    public PatchReport PatchNow(ClassPatch patch)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        EnsureAccessible();
+
+        if (EventsEnabled)
+            return _patches.Register(patch);
 
         _patches.Add(patch);
+
+        return new PatchReport("events are not enabled yet; the patch is registered and applies as classes load", []);
+    }
+
+    /// <summary>Removes a registered patch and retransforms the loaded classes it targeted, so they are transformed again without it. Classes that load afterwards are no longer patched by it.</summary>
+    /// <param name="patch">The patch to remove, the same instance that was registered.</param>
+    /// <returns>The classes that were retransformed and those that could not be, or why none was looked at.</returns>
+    public PatchReport Unpatch(ClassPatch patch)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        EnsureAccessible();
+
+        return _patches.Withdraw(patch);
     }
 
     /// <summary>Declares a helper class to define in the JVM. Call from <see cref="JavaAgent.Configure"/>.</summary>
@@ -370,6 +404,57 @@ public sealed unsafe class AgentContext
             throw new NotSupportedException("Retransformation was not enabled before class hooks were registered.");
         _jobject* value = (_jobject*)type;
         Check((*_environment)->RetransformClasses(_environment, 1, &value), nameof(Retransform));
+    }
+
+    /// <summary>Requests retransformation of several classes at once, returning the JVMTI error name instead of throwing so that a caller can retry a smaller batch.</summary>
+    internal string? TryRetransform(nint[] types)
+    {
+        EnsureAccessible();
+
+        if (!CanRetransform)
+            return "retransformation was not enabled before class hooks were registered";
+
+        fixed (nint* values = types)
+        {
+            jvmtiError result = (*_environment)->RetransformClasses(_environment, types.Length, (_jobject**)values);
+
+            return result == jvmtiError.JVMTI_ERROR_NONE ? null : result.ToString();
+        }
+    }
+
+    /// <summary>Gets the JVMTI phase.</summary>
+    internal jvmtiPhase GetPhase()
+    {
+        EnsureAccessible();
+        jvmtiPhase phase = default;
+        Check((*_environment)->GetPhase(_environment, &phase), nameof(GetPhase));
+
+        return phase;
+    }
+
+    /// <summary>Gets the interfaces that a class directly implements or extends as local references, which the caller must delete. A class that is not prepared yields none.</summary>
+    internal nint[] GetImplementedInterfaces(JavaEnvironment environment, nint type)
+    {
+        EnsureAccessible();
+        int count = 0;
+        _jobject** interfaces = null;
+        jvmtiError result = (*_environment)->GetImplementedInterfaces(_environment, (_jobject*)type, &count, &interfaces);
+
+        if (result != jvmtiError.JVMTI_ERROR_NONE)
+        {
+            FreeUnchecked((nint)interfaces);
+
+            return [];
+        }
+
+        nint[] values = new nint[count];
+
+        for (int index = 0; index < count; index++)
+            values[index] = (nint)interfaces[index];
+
+        Free((nint)interfaces);
+
+        return values;
     }
 
     /// <summary>Gets raw class references for every class currently loaded by the JVM.</summary>

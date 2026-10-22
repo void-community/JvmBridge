@@ -21,6 +21,10 @@ public static unsafe class AgentRuntime
     /// <returns>The JNI success or failure result for the native entry point.</returns>
     public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0, string? agentName = null)
     {
+        // A library that is loaded again into a JVM where its agent already runs is a command for that agent, not a second agent.
+        if (attached && FindRunning(machine) is { } running)
+            return RunCommand(running, ModifiedUtf8.Decode((byte*)options));
+
         AgentContext? context = null;
         nint registeredHandle = 0;
         try
@@ -40,6 +44,9 @@ public static unsafe class AgentRuntime
             callbacks.ClassFileLoadHook = &ClassFileLoad;
             // SetEventCallbacks accepts a prefix; do not read Java 9+ callback slots on Java 8.
             int size = (int)Marshal.OffsetOf<jvmtiEventCallbacks>(nameof(jvmtiEventCallbacks.SampledObjectAlloc));
+            // An agent that attaches later is expected to patch classes that are already loaded, and the capability can only be added before events are enabled.
+            if (attached && !context.CanRetransform)
+                _ = context.TryEnableRetransformation();
             AgentContext.Check((*environment)->SetEventCallbacks(environment, &callbacks, size), "SetEventCallbacks");
             foreach (jvmtiEvent notification in new[] { jvmtiEvent.JVMTI_EVENT_VM_INIT, jvmtiEvent.JVMTI_EVENT_VM_DEATH, jvmtiEvent.JVMTI_EVENT_CLASS_PREPARE, jvmtiEvent.JVMTI_EVENT_CLASS_FILE_LOAD_HOOK })
                 AgentContext.Check(((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, jvmtiEventMode.JVMTI_ENABLE, notification, null), "SetEventNotificationMode");
@@ -75,6 +82,25 @@ public static unsafe class AgentRuntime
     {
         try { StopCore(machine); }
         catch (Exception exception) when (ReportAndContain(exception)) { return; }
+    }
+
+    private static AgentContext? FindRunning(nint machine)
+    {
+        return _contexts.Values.FirstOrDefault(candidate => candidate.VirtualMachine.Handle == machine);
+    }
+
+    private static int RunCommand(AgentContext context, string command)
+    {
+        try
+        {
+            context.Agent.OnCommand(context, command);
+
+            return Methods.JNI_OK;
+        }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return Methods.JNI_ERR;
+        }
     }
 
     private static void StartPatching(AgentContext context)
@@ -127,7 +153,7 @@ public static unsafe class AgentRuntime
                 if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
                     return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
-                context.Patches.DefineBootstrapHelpers(environment);
+                context.Patches.OnVmInit(environment);
                 context.Agent.OnVmInit(context, environment);
             }
         }

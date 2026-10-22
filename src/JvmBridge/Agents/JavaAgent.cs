@@ -17,6 +17,19 @@ public abstract class JavaAgent
     /// <param name="context">The active agent context.</param>
     public virtual void OnAttach(AgentContext context) => OnLoad(context);
 
+    /// <summary>
+    /// Handles another load of this library into a JVM where the agent already runs, which is how a running agent is told what to do: <c>jcmd &lt;pid&gt; JVMTI.agent_load /path/MyAgent.so &lt;command&gt;</c> (Java 9 and later)
+    /// or the Attach API's <c>loadAgentPath(path, command)</c>. The runtime does not start a second copy; it calls this on the running agent with the option text of the new load, on the JVM's attach listener thread.
+    /// An exception makes the attaching tool report a failed load. The default logs that the command was ignored.
+    /// </summary>
+    /// <param name="context">The running agent's context.</param>
+    /// <param name="command">The option text of the new load.</param>
+    public virtual void OnCommand(AgentContext context, string command)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Log("ignored a command because the agent does not handle commands: " + command);
+    }
+
     /// <summary>Handles JVM initialization when ordinary JNI operations first become available.</summary>
     /// <param name="context">The active agent context.</param>
     /// <param name="environment">The callback-local JNI environment.</param>

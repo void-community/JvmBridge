@@ -2,7 +2,7 @@ using JvmBridge.ClassFiles;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.ClassFiles;
 
 /// <summary>Verifies that edits keep every constant index and code offset, and change only what they claim to.</summary>
 public sealed class ClassFileEditorTests

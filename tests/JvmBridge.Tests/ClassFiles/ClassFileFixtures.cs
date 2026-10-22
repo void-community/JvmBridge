@@ -2,7 +2,7 @@ using System.Reflection;
 
 using JvmBridge.ClassFiles;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.ClassFiles;
 
 internal static class ClassFileFixtures
 {

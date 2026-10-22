@@ -5,7 +5,7 @@ using JvmBridge.Native;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.Agents;
 
 /// <summary>Verifies startup failures remain inside the managed native-entry boundary.</summary>
 public sealed unsafe class AgentFailureTests

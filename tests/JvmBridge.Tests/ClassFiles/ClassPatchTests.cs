@@ -3,7 +3,7 @@ using JvmBridge.ClassFiles;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.ClassFiles;
 
 /// <summary>Verifies declarative class patches without a JVM.</summary>
 public sealed class ClassPatchTests

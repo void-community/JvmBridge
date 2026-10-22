@@ -2,7 +2,7 @@ using JvmBridge.ClassFiles;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.ClassFiles;
 
 /// <summary>Verifies new classes produced by the class-file writer.</summary>
 public sealed class ClassFileWriterTests

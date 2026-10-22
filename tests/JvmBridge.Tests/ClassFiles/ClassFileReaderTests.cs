@@ -2,7 +2,7 @@ using JvmBridge.ClassFiles;
 
 using Xunit;
 
-namespace JvmBridge.Tests;
+namespace JvmBridge.Tests.ClassFiles;
 
 /// <summary>Verifies the read-only class-file model against a javac-compiled class.</summary>
 public sealed class ClassFileReaderTests
