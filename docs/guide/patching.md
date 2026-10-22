@@ -72,6 +72,40 @@ What a supertype test can see is limited by what the agent has seen:
 
 To test a patch without a JVM, `patch.Matches(classBytes, hierarchy)` says whether it targets a class, and a `ClassHierarchy` you fill by hand stands in for what the runtime knows.
 
+## Advice around a method
+
+`Before` and `After` put a call to your static method before and after a method, which is what a tracer, a timer or an access check needs:
+
+```csharp
+ClassPatch Advice = ClassPatch.For("com/acme/Service")
+    .Method("handle", "(Ljava/lang/String;I)Ljava/lang/String;")
+    .Before(JavaMethod.Static("acme/agent/Tracing", "enter", "(Ljava/lang/Object;Ljava/lang/String;I)V"))
+    .After(JavaMethod.Static("acme/agent/Tracing", "leave", "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;"));
+```
+
+The method needs its descriptor, because advice rewrites one method. The hooks are exact:
+
+| Hook | Descriptor |
+|---|---|
+| `Before` | `(Ljava/lang/Object;` the parameters of the method `)V` |
+| `After` | `(Ljava/lang/Object;` the result type if the method has one `)` the result type, or `V` |
+| `After(hook, includeArguments: true)` | `(Ljava/lang/Object;` the parameters, then the result type if there is one, `)` the result type, or `V` |
+
+The first parameter is the receiver, `null` for a static method; it may be declared as the class itself (`Lcom/acme/Service;`) instead of `Object`. A mismatch refuses the patch with the descriptor the hook needs. `After` returns the result, so it can replace what the method returns (`Tracing.leave` above returns the string it received, or another one). The classes that declare the hooks must be visible to the advised class, exactly as for `RedirectInvocation`: define them with `ClassLoaderTarget.Bootstrap`, or with `PatchedClassLoader` for classes of application loaders.
+
+How it works decides what advice can and cannot do. The code of the method moves, byte for byte, into a private synthetic method named `handle$jvmbridge$body`, and `handle` becomes a short stub that calls `Before`, the body and `After`. The method keeps its flags (`synchronized` included, so the hooks run inside the monitor), signature, annotations and exception list; the body keeps its stack map frames and line numbers. Consequences:
+
+- A stack trace shows `handle$jvmbridge$body` above `handle`, and `getDeclaredMethods()` lists the body method.
+- `After` does not run when the method throws, and a hook that throws stops the call: the exception reaches the caller.
+- A method that inspects its caller (`Reflection.getCallerClass`, `@CallerSensitive`) sees the stub as its caller, so do not advise those.
+- Constructors and static initializers, native and abstract methods, bridge and synthetic methods, methods of interfaces and methods with more than 255 local variable slots are refused, each with its own `PatchSkipCategory` on the `ClassPatchResult`.
+- Advice runs after every other edit of every patch, so a redirect or a constant replacement scoped to the method still sees its original code, in the body.
+- A method is advised once: a second patch that advises it is refused with `AlreadyAdvised`. Give `Before` and `After` of one method to one patch.
+
+**Advice applies when the class is defined.** Adding a method to a class that the JVM has loaded is forbidden, so a class that loaded before the agent cannot be advised, and the log says `the class is loaded already and was not advised when it was defined`. Agents that start with `-agentpath` see every class they care about as it defines; an agent that attaches late, or starts from a `-javaagent` jar, only advises classes that load afterwards. Keep advice in a `ClassPatch` of its own: a patch is all or nothing, so one class that cannot be advised refuses the edits that came with it.
+
+A class that was advised when it was defined keeps its methods for as long as it lives. Retransforming it (for any reason, even another agent's) advises it the same way again, and `Unpatch` of the advice turns its stubs into plain calls of the bodies; `PatchNow` puts the hooks back. The body methods stay in the class either way.
+
 ## Changing patches while the JVM runs
 
 `Patch` works at any time, not only in `Configure`. Registered after `Configure`, a patch applies to the classes that load from then on and, when retransformation is available, to the matching classes that are already loaded. `PatchNow` does the same and returns a `PatchReport`; `Unpatch` removes a patch and retransforms the classes it had patched, so the JVM transforms them again without it.

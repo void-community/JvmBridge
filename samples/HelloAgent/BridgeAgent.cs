@@ -93,17 +93,20 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     /// <inheritdoc/>
     public override void OnCommand(AgentContext context, string command)
     {
-        PatchReport report = command switch
+        IReadOnlyList<PatchReport> reports = command switch
         {
-            "unpatch" => context.Unpatch(PatchDemo.Target),
-            "patch" => context.PatchNow(PatchDemo.Target),
+            "unpatch" => PatchDemo.Unpatch(context),
+            "patch" => PatchDemo.PatchNow(context),
             _ => throw new InvalidOperationException("Unknown command " + command)
         };
 
-        Log($"COMMAND {command}: {report}");
+        foreach (PatchReport report in reports)
+        {
+            Log($"COMMAND {command}: {report}");
 
-        if (report.NotRetransformedReason is not null || report.Failed > 0)
-            throw new InvalidOperationException("The command " + command + " did not retransform every class: " + report);
+            if (report.NotRetransformedReason is not null || report.Failed > 0)
+                throw new InvalidOperationException("The command " + command + " did not retransform every class: " + report);
+        }
     }
 
     /// <inheritdoc/>

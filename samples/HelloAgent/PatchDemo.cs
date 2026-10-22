@@ -31,9 +31,27 @@ internal static class PatchDemo
             BootstrapHelper
         );
 
+    // Advice around three methods: a static one and an instance one get an After hook that changes the result, and a static one gets a Before hook that records its argument. Advised loads after the agent; AdvisedEarly loads before a late attach, which is too late for advice.
+    internal static readonly ClassPatch Advice = ClassPatch.For(className: "BridgeFixture$Advised")
+        .Method(name: "add", descriptor: "(II)I")
+        .After(JavaMethod.Static(AdviceHooks, name: "afterAdd", descriptor: "(Ljava/lang/Object;I)I"))
+        .Method(name: "twice", descriptor: "(I)I")
+        .After(JavaMethod.Static(AdviceHooks, name: "afterTwice", descriptor: "(Ljava/lang/Object;I)I"))
+        .Method(name: "greet", descriptor: "(Ljava/lang/String;)Ljava/lang/String;")
+        .Before(JavaMethod.Static(AdviceHooks, name: "beforeGreet", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V"));
+
+    internal static readonly ClassPatch AdviceEarly = ClassPatch.For(className: "BridgeFixture$AdvisedEarly")
+        .Method(name: "add", descriptor: "(II)I")
+        .After(JavaMethod.Static(AdviceHooks, name: "afterAdd", descriptor: "(Ljava/lang/Object;I)I"));
+
+    private const string AdviceHooks = "jvmbridge/sample/AdviceHooks";
+
     private const string BootstrapHelper = "jvmbridge/sample/BootstrapPatchHelpers";
 
     private const string LoaderHelper = "jvmbridge/sample/LoaderPatchHelpers";
+
+    /// <summary>Registers the demo patches that a command controls again and retransforms the loaded classes they target.</summary>
+    internal static IReadOnlyList<PatchReport> PatchNow(AgentContext context) => [context.PatchNow(Target), context.PatchNow(Advice), context.PatchNow(AdviceEarly)];
 
     internal static void Register(AgentContext context)
     {
@@ -44,6 +62,36 @@ internal static class PatchDemo
         context.Patch(Tagged);
         context.Patch(Selected);
         context.Patch(JavaBase);
+        context.DefineClass(CreateAdviceHooks(), ClassLoaderTarget.Bootstrap);
+        context.Patch(Advice);
+        context.Patch(AdviceEarly);
+    }
+
+    /// <summary>Removes every demo patch that a command controls and retransforms the loaded classes they target.</summary>
+    internal static IReadOnlyList<PatchReport> Unpatch(AgentContext context) => [context.Unpatch(Target), context.Unpatch(Advice), context.Unpatch(AdviceEarly)];
+
+    // The hooks of the advice: afterAdd(Object self, int result) { return result + 1000; }, afterTwice(Object self, int result) { return result + 1; } and beforeGreet(Object self, String name) { System.setProperty("advice.before", name); }.
+    private static JavaClassDefinition CreateAdviceHooks()
+    {
+        ClassFileWriter writer = new(AdviceHooks);
+        int setProperty = writer.AddMethodReference(owner: "java/lang/System", name: "setProperty", descriptor: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
+        int key = writer.AddString(value: "advice.before");
+
+        // iload_1; sipush 1000; iadd; ireturn
+        byte[] afterAdd = [0x1b, 0x11, 0x03, 0xe8, 0x60, 0xac];
+
+        // iload_1; iconst_1; iadd; ireturn
+        byte[] afterTwice = [0x1b, 0x04, 0x60, 0xac];
+
+        // ldc key; aload_1; invokestatic System.setProperty; pop; return
+        byte[] beforeGreet = [0x12, (byte)key, 0x2b, 0xb8, (byte)(setProperty >> 8), (byte)setProperty, 0x57, 0xb1];
+
+        return JavaClassDefinition.FromBytes(
+            writer.AddMethod(name: "afterAdd", descriptor: "(Ljava/lang/Object;I)I", maxStack: 2, maxLocals: 2, afterAdd)
+                .AddMethod(name: "afterTwice", descriptor: "(Ljava/lang/Object;I)I", maxStack: 2, maxLocals: 2, afterTwice)
+                .AddMethod(name: "beforeGreet", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V", maxStack: 2, maxLocals: 2, beforeGreet)
+                .ToArray()
+        );
     }
 
     // static int length(String value) { return 1000 + value.length(); }

@@ -53,6 +53,15 @@ public final class BridgeFixture {
 
     public static final class Redefinable { public static String value() { return "before"; } }
 
+    // Methods that the agent puts advice around. Advised loads after the agent, so it is advised when it is defined; AdvisedEarly loads before a late attach, which is too late.
+    public static final class Advised {
+        public static int add(int a, int b) { return a + b; }
+        public int twice(int a) { return a * 2; }
+        public static String greet(String name) { return "hi " + name; }
+    }
+
+    public static final class AdvisedEarly { public static int add(int a, int b) { return a + b; } }
+
     private static final class PatchLoader extends ClassLoader {
         PatchLoader() { super(null); }
 
@@ -255,9 +264,13 @@ public final class BridgeFixture {
     private static void controlPatches() throws Exception {
         awaitController("UNPATCH_READY");
         if (!unpatched()) throw new AssertionError("Removing the patch did not restore PatchTarget");
+        if (!adviceInactive()) throw new AssertionError("Removing the advice did not stop it");
+        if (!declaredMethods(Advised.class).contains("add$jvmbridge$body")) throw new AssertionError("Advised lost its body methods when the advice was removed");
         System.out.println("UNPATCH_OK");
         awaitController("REPATCH_READY");
         if (!patched()) throw new AssertionError("Registering the patch again did not patch PatchTarget");
+        if (!adviceActive()) throw new AssertionError("Registering the advice again did not advise Advised");
+        if (!declaredMethods(Advised.class).contains("add$jvmbridge$body")) throw new AssertionError("Advised lost its body methods");
         System.out.println("REPATCH_OK");
     }
 
@@ -270,6 +283,37 @@ public final class BridgeFixture {
         if (!"bark".equals(dog) || !"bark".equals(puppy) || !"tagged-patched".equals(tagged) || !"selected-patched".equals(selected))
             throw new AssertionError("Matching patches did not apply: " + dog + " " + puppy + " " + tagged + " " + selected);
         System.out.println("MATCHER_PATCH_OK");
+    }
+
+    private static boolean adviceActive() {
+        System.clearProperty("advice.before");
+        return Advised.add(1, 2) == 1003 && new Advised().twice(5) == 11 && "hi bob".equals(Advised.greet("bob")) && "bob".equals(System.getProperty("advice.before"));
+    }
+
+    private static boolean adviceInactive() {
+        System.clearProperty("advice.before");
+        return Advised.add(1, 2) == 3 && new Advised().twice(5) == 10 && "hi bob".equals(Advised.greet("bob")) && System.getProperty("advice.before") == null;
+    }
+
+    private static java.util.List<String> declaredMethods(Class<?> type) {
+        java.util.List<String> names = new java.util.ArrayList<String>();
+        for (java.lang.reflect.Method method : type.getDeclaredMethods()) names.add(method.getName());
+        java.util.Collections.sort(names);
+        return names;
+    }
+
+    // Advice moves the code of a method into a synthetic body method. A loaded class cannot gain methods, so it must keep them when it is retransformed or when its advice is removed.
+    private static void checkAdvice(boolean attached, boolean retransformable) {
+        if (!adviceActive()) throw new AssertionError("Advice was not applied");
+        java.util.List<String> methods = declaredMethods(Advised.class);
+        if (!methods.contains("add$jvmbridge$body") || !methods.contains("twice$jvmbridge$body")) throw new AssertionError("The advised methods have no body methods: " + methods);
+        if (retransformable) {
+            if (!retransform(Advised.class)) throw new AssertionError("Advised could not be retransformed");
+            if (!adviceActive()) throw new AssertionError("Advice was lost when the class was retransformed");
+            if (!methods.equals(declaredMethods(Advised.class))) throw new AssertionError("Retransformation changed the methods of Advised");
+        }
+        if (attached && AdvisedEarly.add(1, 2) != 3) throw new AssertionError("Advice was added to a class that was loaded before the agent");
+        System.out.println("ADVICE_OK");
     }
 
     // StringJoiner is a class of java.base. The agent redirects its null checks to a helper in the bootstrap loader, so the null delimiter is no longer refused by name.
@@ -397,6 +441,7 @@ public final class BridgeFixture {
         boolean attach = arguments.length > 0 && arguments[0].equals("attach");
         if (attach) {
             if (PatchTarget.length("touch") != 5) throw new AssertionError("PatchTarget was patched before the agent attached");
+            if (AdvisedEarly.add(1, 2) != 3) throw new AssertionError("AdvisedEarly was advised before the agent attached");
             if (!"woof".equals(new Dog().speak())) throw new AssertionError("Dog was patched before the agent attached");
             System.out.println("READY");
             System.out.flush();
@@ -428,6 +473,7 @@ public final class BridgeFixture {
         checkPatches(attach, retransformable);
         if (!attach || retransformable) checkMatchers();
         if (!attach || retransformable) checkJavaBase();
+        if (!attach || retransformable) checkAdvice(attach, retransformable);
         if (attach && retransformable) controlPatches();
         checkBootstrapLoader();
         checkLoaderIsolation();

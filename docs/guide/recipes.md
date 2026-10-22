@@ -84,7 +84,53 @@ context.Log(AgentLogLevel.Debug, "inspected " + name);
 if (context.ParsedOptions.IsEnabled("trace-classes")) { /* extra work */ }
 ```
 
-## Patch a class of the JDK
+## Time a method or log its arguments
+
+```csharp
+private static readonly ClassPatch Timing = ClassPatch.For("com/acme/Service")
+    .Method("handle", "(Ljava/lang/String;I)Ljava/lang/String;")
+    .Before(JavaMethod.Static("acme/agent/Timing", "begin", "(Ljava/lang/Object;Ljava/lang/String;I)V"))
+    .After(JavaMethod.Static("acme/agent/Timing", "end", "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;"));
+```
+
+```java
+// acme/agent/Timing.java, a JavaSource item defined with ClassLoaderTarget.Bootstrap
+public final class Timing {
+    private static final ThreadLocal<long[]> STARTED = new ThreadLocal<long[]>();
+
+    public static void begin(Object self, String name, int attempt) {
+        System.err.println("handle(" + name + ", " + attempt + ")");
+        STARTED.set(new long[] {System.nanoTime()});
+    }
+
+    public static String end(Object self, String result) {
+        System.err.println("handle took " + (System.nanoTime() - STARTED.get()[0]) / 1000 + " us");
+        return result;
+    }
+}
+```
+
+`After` does not run when the method throws, so a timer that must see failures keeps its state in a thread-local that the next `Before` overwrites, as above. Hooks run on the thread that calls the method, inside any monitor the method holds, so keep them short and never call the advised method from them.
+
+## Hook a constructor
+
+Advice does not cover constructors: the JVM verifies the code before and after `super(...)` in a way that a forwarding stub cannot satisfy, and the code of a constructor cannot move into a method of its own. What works instead:
+
+- Advise the **factory** that application code calls, if there is one (`Service.create(...)`, `Builder.build()`): its `After` hook receives the new object as the result and may return another one.
+- Advise the **first method** the object is used through, and have the hook do its work once per object (keep a `WeakHashMap` or an `IdentityHashMap` of the objects it has seen).
+- To run code when a class first loads, advise nothing: use `OnClassPrepare` or the `ClassLoad` event, see [**JVM events**](events.md).
+
+## Replace what a method returns
+
+```csharp
+ClassPatch.For("com/acme/Pricing")
+    .Method("discount", "(I)I")
+    .After(JavaMethod.Static("acme/agent/Pricing", "cap", "(Ljava/lang/Object;I)I"));
+```
+
+`cap(Object self, int result)` returns the value the caller sees. To decide from the arguments too, pass `includeArguments: true` and declare them: `cap(Object self, int amount, int result)`.
+
+## Patch a class of the JDK (Java 9 and later)
 
 Classes of `java.base` are patched like any other; the one rule is where the helper lives. A patched `java.base` class can call a helper that the agent defines in the **bootstrap** loader, and cannot call one defined in an application loader.
 
@@ -113,7 +159,7 @@ Agents are separate: each load of a library gets its own JVMTI environment, and 
 
 - **Other agents' transformations.** JVMTI chains the class-file hooks of the agents, so each sees the bytes the previous one produced (agents that cannot retransform are called before those that can, the rest in load order). Your patches see bytes another agent has already changed, and the reverse. Patch narrowly (a method, a constant) so that another agent's edit to the same class does not make yours skip, and read the `ClassPatchResult` log lines when they do.
 - **Retransformation.** When any agent retransforms a class, every agent's transformer runs again on the original bytes. An agent whose patches are deterministic gets the same result again, which is what `ClassPatch` provides.
-- **Two copies of one agent.** Loading the same library twice (`-agentpath:/a/MyAgent.so -agentpath:/b/MyAgent.so`) starts two runtimes. Both load and unload, and the second reports `LinkageError ... duplicate class definition` for the helper classes that the first defined in the same loader and skips them; the process still exits normally. Loading the same file again after the agent runs is a command, not a second agent, see [**Telling a running agent what to do**](attaching.md#telling-a-running-agent-what-to-do).
+- **Two copies of one agent.** Loading the same library twice (`-agentpath:/a/MyAgent.so -agentpath:/b/MyAgent.so`) starts two runtimes. Both load and unload and the process exits normally. On HotSpot the second reports `LinkageError ... duplicate class definition` for the helper classes that the first defined in the same loader, and skips them; OpenJ9 puts bootstrap helpers in jars on the bootstrap search path, where two copies do not conflict. Loading the same file again after the agent runs is a command, not a second agent, see [**Telling a running agent what to do**](attaching.md#telling-a-running-agent-what-to-do).
 - **Jars.** `-javaagent` jars from `jvmbridge pack` each carry a launcher of their own, so any number of them can be named. Naming the same jar twice starts its agent once.
 
 The integration tests run the two-copies case and the same-jar-twice case on every JVM of the CI matrix.
