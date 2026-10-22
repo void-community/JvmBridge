@@ -6,4 +6,4 @@ Test helpers for [JvmBridge](https://github.com/void-community/JvmBridge) agents
 - `jdk.CompileAsync("Fixtures/**/*.java")` compiles Java sources with the JDK and returns the class path.
 - `jdk.RunAsync("pkg.Main", classPath, agent: PublishedAgent.Find("MyAgent"))` runs a class, optionally with the agent, and returns the exit code and combined output.
 - `PublishedAgent.Find(name)` finds a published agent for the current runtime identifier in `artifacts/agent/<rid>` (or `JVMBRIDGE_AGENT_DIRECTORY`) and skips the test when it has not been published.
-- `ClassFileAssert.Calls` and `DoesNotCall` assert on patched class bytes without a JVM.
+- `ClassFileAssert.Calls` and `DoesNotCall` assert on patched class bytes without a JVM. Pass a `descriptor` to match the whole member reference, not only the owner and name.

@@ -25,6 +25,29 @@ public sealed class HelperTests
         Assert.Contains(expectedSubstring: "still calls java/lang/Math.abs", unexpected?.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>A descriptor makes the whole member reference match, so a call of the same name with another descriptor does not satisfy it.</summary>
+    [Fact]
+    public void AssertsOnTheDescriptorOfACall()
+    {
+        ClassFileWriter writer = new(name: "pkg/Subject");
+        int integerAbs = writer.AddMethodReference(owner: "java/lang/Math", name: "abs", descriptor: "(I)I");
+        int longAbs = writer.AddMethodReference(owner: "java/lang/Math", name: "abs", descriptor: "(J)J");
+
+        // iload_0; invokestatic abs(I)I; pop; lconst_0; invokestatic abs(J)J; pop2; return
+        byte[] code = [0x1a, 0xb8, (byte)(integerAbs >> 8), (byte)integerAbs, 0x57, 0x09, 0xb8, (byte)(longAbs >> 8), (byte)longAbs, 0x58, 0xb1];
+        byte[] bytes = writer.AddMethod(name: "run", descriptor: "(I)V", maxStack: 2, maxLocals: 1, code).ToArray();
+
+        ClassFileAssert.Calls(bytes, method: "run", owner: "java/lang/Math", name: "abs", descriptor: "(I)I");
+        ClassFileAssert.Calls(bytes, method: "run", owner: "java/lang/Math", name: "abs", descriptor: "(J)J");
+        ClassFileAssert.DoesNotCall(bytes, method: "run", owner: "java/lang/Math", name: "abs", descriptor: "(D)D");
+        Exception? wrong = Record.Exception(() => ClassFileAssert.Calls(bytes, method: "run", owner: "java/lang/Math", name: "abs", descriptor: "(F)F"));
+        Exception? present = Record.Exception(() => ClassFileAssert.DoesNotCall(bytes, method: "run", owner: "java/lang/Math", name: "abs", descriptor: "(J)J"));
+
+        Assert.Contains(expectedSubstring: "does not call java/lang/Math.abs(F)F", wrong?.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "java/lang/Math.abs(I)I, java/lang/Math.abs(J)J", wrong?.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "still calls java/lang/Math.abs(J)J", present?.Message, StringComparison.Ordinal);
+    }
+
     /// <summary>The reason a test is skipped for an unpublished agent names the agent and says how to publish it.</summary>
     [Fact]
     public void ExplainsHowToPublishAnAgent()

@@ -12,12 +12,13 @@ public static class ClassFileAssert
     /// <param name="method">The name of the method that should contain the call.</param>
     /// <param name="owner">The internal name of the class the call references, for example <c>java/util/Collections</c>.</param>
     /// <param name="name">The called method's name.</param>
-    public static void Calls(byte[] classBytes, string method, string owner, string name)
+    /// <param name="descriptor">The called method's descriptor, or <see langword="null"/> to accept any. When given, the call's whole member reference must match.</param>
+    public static void Calls(byte[] classBytes, string method, string owner, string name, string? descriptor = null)
     {
-        string[] calls = CallsIn(classBytes, method);
+        MemberReference[] calls = CallsIn(classBytes, method);
 
-        if (!calls.Contains(owner + "." + name, StringComparer.Ordinal))
-            Assert.Fail($"{method} does not call {owner}.{name}. It calls: {(calls.Length == 0 ? "nothing" : string.Join(separator: ", ", calls))}.");
+        if (!calls.Any(call => Matches(call, owner, name, descriptor)))
+            Assert.Fail($"{method} does not call {owner}.{name}{descriptor}. It calls: {Describe(calls)}.");
     }
 
     /// <summary>Asserts that a method does not contain a call of another method.</summary>
@@ -25,13 +26,14 @@ public static class ClassFileAssert
     /// <param name="method">The name of the method that should not contain the call.</param>
     /// <param name="owner">The internal name of the class the call references.</param>
     /// <param name="name">The called method's name.</param>
-    public static void DoesNotCall(byte[] classBytes, string method, string owner, string name)
+    /// <param name="descriptor">The called method's descriptor, or <see langword="null"/> to reject any. When given, only a call with this exact descriptor fails the assertion.</param>
+    public static void DoesNotCall(byte[] classBytes, string method, string owner, string name, string? descriptor = null)
     {
-        if (CallsIn(classBytes, method).Contains(owner + "." + name, StringComparer.Ordinal))
-            Assert.Fail($"{method} still calls {owner}.{name}.");
+        if (CallsIn(classBytes, method).Any(call => Matches(call, owner, name, descriptor)))
+            Assert.Fail($"{method} still calls {owner}.{name}{descriptor}.");
     }
 
-    private static string[] CallsIn(byte[] classBytes, string method)
+    private static MemberReference[] CallsIn(byte[] classBytes, string method)
     {
         ArgumentNullException.ThrowIfNull(classBytes);
         JavaClassFile file = JavaClassFile.Read(classBytes);
@@ -43,7 +45,16 @@ public static class ClassFileAssert
             .. code.Instructions
                 .Where(instruction => instruction.ConstantIndex is not null && instruction.Opcode is >= 0xb6 and <= 0xb9)
                 .Select(instruction => file.GetMemberReference(instruction.ConstantIndex ?? 0))
-                .Select(reference => reference.Owner + "." + reference.Name)
         ];
+    }
+
+    private static string Describe(MemberReference[] calls)
+    {
+        return calls.Length == 0 ? "nothing" : string.Join(separator: ", ", calls.Select(static call => call.Owner + "." + call.Name + call.Descriptor));
+    }
+
+    private static bool Matches(MemberReference call, string owner, string name, string? descriptor)
+    {
+        return call.Owner == owner && call.Name == name && (descriptor is null || call.Descriptor == descriptor);
     }
 }
