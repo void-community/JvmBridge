@@ -18,7 +18,14 @@ internal static class Program
         resolve.SetAction((result, cancellationToken) => resolver.ResolveAsync(cancellationToken));
         Command update = new(name: "update", description: "Refresh JDK inventories and header provenance; then run the Generate MSBuild target.");
         update.SetAction((result, cancellationToken) => updater.UpdateAsync(cancellationToken));
+        Argument<string> measurements = new(name: "directory") { Description = "A directory that contains the hotspot-*.json files of the footprint-* CI artifacts." };
+        Command footprint = new(name: "footprint", description: "Rewrite docs/footprint.md and docs/footprint.baseline.json from CI footprint measurements.");
+        footprint.Arguments.Add(measurements);
+        footprint.SetAction(
+            result => new FootprintReporter(repository).Update(result.GetValue(measurements) ?? throw new InvalidOperationException(message: "A measurements directory is required."))
+        );
         root.Subcommands.Add(resolve);
+        root.Subcommands.Add(footprint);
         root.Subcommands.Add(update);
 
         return await root.Parse(arguments).InvokeAsync().ConfigureAwait(continueOnCapturedContext: false);

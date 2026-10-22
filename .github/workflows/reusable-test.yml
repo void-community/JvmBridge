@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-26.04
     outputs:
       targets: ${{ steps.matrix.outputs.targets }}
+      footprint: ${{ steps.matrix.outputs.footprint }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -24,6 +25,8 @@ jobs:
       - id: matrix
         run: |
           echo "targets=$(jq -c '{include: [.targets[] | select(.agent or .build)]}' src/JvmBridge.Build/compatibility.json)" >> "$GITHUB_OUTPUT"
+          # Footprint is measured on the native runners only: not in containers, under emulation or on x86.
+          echo "footprint=$(jq -c '{include: [.targets[] | select(.agent and (.container | not) and (.crossContainer | not) and (.emulated | not) and .rid != "win-x86")]}' src/JvmBridge.Build/compatibility.json)" >> "$GITHUB_OUTPUT"
   agent:
     needs: matrix
     strategy:
@@ -154,6 +157,58 @@ jobs:
             artifacts/agent/
             artifacts/host/
           if-no-files-found: error
+  # Not part of the coverage gate below: it measures what an agent costs, and fails only when the library outgrows docs/footprint.baseline.json by more than its budget.
+  footprint:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.footprint) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      PACKAGE_VERSION: ${{ inputs.version }}
+      TARGET_RID: ${{ matrix.rid }}
+      Version: ${{ inputs.version }}
+      VersionTimestamp: ${{ inputs.timestamp }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: |
+            10.0.401
+            11.0.100-rc.1.26425.128
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: packages
+          path: artifacts/packages
+      - name: Prepare Linux native toolchain
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y clang build-essential zlib1g-dev
+      - name: Prepare Windows native toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installation = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -property installationPath
+          $architecture = if ($env:TARGET_RID -eq 'win-arm64') { 'arm64' } else { 'x64' }
+          cmd /c "`"$installation\VC\Auxiliary\Build\vcvarsall.bat`" $architecture && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+          }
+      - name: Publish the minimal agent and measure its footprint
+        shell: bash
+        env:
+          JVMBRIDGE_FOOTPRINT: '1'
+        run: |
+          dotnet publish samples/FootprintAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/footprint-agent/$TARGET_RID"
+          dotnet test tests/JvmBridge.IntegrationTests -c Release -p:Platform=AnyCPU --filter FullyQualifiedName~FootprintTests
+      - name: Upload footprint measurements
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: footprint-${{ matrix.rid }}
+          path: artifacts/footprint/
+          if-no-files-found: ignore
   coverage:
     if: always()
     needs: agent
