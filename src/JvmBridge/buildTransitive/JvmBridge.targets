@@ -3,6 +3,9 @@
     <PublishAot>true</PublishAot>
     <NativeLib>Shared</NativeLib>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Agents run inside arbitrary JVM hosts, and slim images often lack libicu. Without it the
+         runtime fails fast on first globalization use, which no agent code can contain. -->
+    <InvariantGlobalization Condition="'$(InvariantGlobalization)' == ''">true</InvariantGlobalization>
   </PropertyGroup>
   <!-- HotSpot's CPU feature probes are incompatible with CET shadow stacks in
        a Windows AMD64 host. This opt-in affects the host binary, not OS policy. -->
