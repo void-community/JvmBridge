@@ -24,6 +24,13 @@ internal static class PatchDemo
     internal static readonly ClassPatch Selected = ClassPatch.ForMatching(static name => name.EndsWith(value: "$Selected", StringComparison.Ordinal), description: "classes named Selected")
         .ReplaceConstant(oldValue: "selected-original", newValue: "selected-patched");
 
+    // A class of java.base (a named module) patched to call the helper in the bootstrap loader: StringJoiner's null checks no longer check.
+    internal static readonly ClassPatch JavaBase = ClassPatch.For(className: "java/util/StringJoiner")
+        .RedirectInvocation(
+            JavaMethod.Static(owner: "java/util/Objects", name: "requireNonNull", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;"),
+            BootstrapHelper
+        );
+
     private const string BootstrapHelper = "jvmbridge/sample/BootstrapPatchHelpers";
 
     private const string LoaderHelper = "jvmbridge/sample/LoaderPatchHelpers";
@@ -36,6 +43,7 @@ internal static class PatchDemo
         context.Patch(Animals);
         context.Patch(Tagged);
         context.Patch(Selected);
+        context.Patch(JavaBase);
     }
 
     // static int length(String value) { return 1000 + value.length(); }
@@ -47,7 +55,20 @@ internal static class PatchDemo
         // sipush 1000; aload_0; invokevirtual String.length; iadd; ireturn
         byte[] code = [0x11, 0x03, 0xe8, 0x2a, 0xb6, (byte)(length >> 8), (byte)length, 0x60, 0xac];
 
-        return JavaClassDefinition.FromBytes(writer.AddMethod(name: "length", descriptor: "(Ljava/lang/String;)I", maxStack: 2, maxLocals: 1, code).ToArray());
+        // static Object requireNonNull(Object value, String message) { return value; }
+        byte[] passThrough = [0x2a, 0xb0];
+
+        return JavaClassDefinition.FromBytes(
+            writer.AddMethod(name: "length", descriptor: "(Ljava/lang/String;)I", maxStack: 2, maxLocals: 1, code)
+                .AddMethod(
+                    name: "requireNonNull",
+                    descriptor: "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;",
+                    maxStack: 1,
+                    maxLocals: 2,
+                    passThrough
+                )
+                .ToArray()
+        );
     }
 
     // static void sort(List list, Comparator comparator) { Collections.reverse(list); }

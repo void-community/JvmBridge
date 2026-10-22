@@ -272,6 +272,16 @@ public final class BridgeFixture {
         System.out.println("MATCHER_PATCH_OK");
     }
 
+    // StringJoiner is a class of java.base. The agent redirects its null checks to a helper in the bootstrap loader, so the null delimiter is no longer refused by name.
+    private static void checkJavaBase() {
+        String message;
+        try { new java.util.StringJoiner(null); message = "no exception"; }
+        catch (NullPointerException failure) { message = String.valueOf(failure.getMessage()); }
+        catch (Throwable failure) { message = failure.toString(); }
+        if ("The delimiter must not be null".equals(message) || message.contains("Error")) throw new AssertionError("java.base was not patched: " + message);
+        System.out.println("JAVA_BASE_PATCH_OK");
+    }
+
     // The helpers of jvmbridge.sample.Interop are defined by the agent in the bootstrap loader, so the fixture reaches them by reflection.
     private static Object interop(String name, Class<?>[] types, Object... arguments) throws Exception {
         Class<?> type = Class.forName("jvmbridge.sample.Interop", true, null);
@@ -417,6 +427,7 @@ public final class BridgeFixture {
         }
         checkPatches(attach, retransformable);
         if (!attach || retransformable) checkMatchers();
+        if (!attach || retransformable) checkJavaBase();
         if (attach && retransformable) controlPatches();
         checkBootstrapLoader();
         checkLoaderIsolation();

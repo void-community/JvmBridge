@@ -21,7 +21,7 @@ Any exception that escapes one of your overrides is reported and contained; it n
 A patched class often needs a helper class to call. `ClassLoaderTarget` decides where the helper is defined:
 
 - **`Bootstrap`** defines it at VM initialization (or at attach) so every loader sees it. HotSpot defines it directly. OpenJ9's checked JNI treats defining a class with a null loader as fatal, so there the helpers go into a temporary jar on the bootstrap search path instead.
-- **`PatchedClassLoader`** defines it once in each loader that defines a patched class, before that loader's first patched class, for helpers that must see application classes. It cannot serve classes of the bootstrap loader, which the log reports.
+- **`PatchedClassLoader`** defines it once in each loader that defines a patched class that mentions the helper, before that loader's first such class, for helpers that must see application classes. It cannot serve classes of the bootstrap loader: a patched class of the bootstrap loader that mentions such a helper is left unpatched and the log says so, while one that does not (a `java.base` class redirected to a `Bootstrap` helper, say) is patched as usual.
 
 Appending to the bootstrap search path makes HotSpot print a class-data-sharing notice, which is why HotSpot uses the direct route.
 

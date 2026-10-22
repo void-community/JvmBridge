@@ -98,7 +98,7 @@ internal sealed class PatchEngine(AgentContext context)
         if (current is null)
             return null;
 
-        string? failure = DefineLoaderHelpers(callback);
+        string? failure = DefineLoaderHelpers(callback, current);
 
         if (failure is null)
             return current;
@@ -381,9 +381,10 @@ internal sealed class PatchEngine(AgentContext context)
         }
     }
 
-    private string? DefineLoaderHelpers(ClassTransformContext callback)
+    private string? DefineLoaderHelpers(ClassTransformContext callback, byte[] patched)
     {
-        HelperState[] needed = [.. _helpers.Where(helper => helper.Target == ClassLoaderTarget.PatchedClassLoader)];
+        // A helper is defined for the classes that mention it, so a class of java.base can be patched by an agent that also has loader helpers for application classes.
+        HelperState[] needed = [.. _helpers.Where(helper => helper.Target == ClassLoaderTarget.PatchedClassLoader && Mentions(patched, helper.Definition.Name))];
 
         if (needed.Length == 0)
             return null;
@@ -403,6 +404,11 @@ internal sealed class PatchEngine(AgentContext context)
         }
 
         return null;
+    }
+
+    private static bool Mentions(byte[] classBytes, string name)
+    {
+        return classBytes.AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(name)) >= 0;
     }
 
     /// <summary>Defines a helper and its nested classes in a loader unless it already is, returning the reason when that fails.</summary>

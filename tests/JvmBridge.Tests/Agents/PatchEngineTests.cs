@@ -54,6 +54,47 @@ public sealed class PatchEngineTests
         Assert.DoesNotContain(expected: "two", skipped);
     }
 
+    /// <summary>A patched class needs only the loader helpers it mentions: one that mentions none is patched even where no helper can be defined (the bootstrap loader, here a missing JNI), one that mentions a helper is skipped with the reason.</summary>
+    [Fact]
+    public void BootstrapClassesNeedOnlyTheHelpersTheyMention()
+    {
+        ConcurrentQueue<LogLine> lines = [];
+        AgentLogSink previous = AgentLog.Sink;
+
+        try
+        {
+            AgentLog.Sink = (level, source, message) => lines.Enqueue(new LogLine(level, source, message));
+
+            using FakeJvm jvm = new();
+
+            AgentContext context = jvm.CreateContext(name: "bootstrap");
+            JavaClassDefinition helper = JavaClassDefinition.FromBytes(new ClassFileWriter(name: "jvmbridge/test/LoaderHelper").ToArray());
+
+            context.DefineClass(helper, ClassLoaderTarget.PatchedClassLoader);
+            context.Patches.Add(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "bye"));
+
+            byte[]? independent = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+
+            AgentContext mentioning = jvm.CreateContext(name: "mentioning");
+
+            mentioning.DefineClass(helper, ClassLoaderTarget.PatchedClassLoader);
+            mentioning.Patches.Add(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "jvmbridge/test/LoaderHelper"));
+
+            byte[]? dependent = Transform(mentioning, name: "fixture/Sample", ClassFileFixtures.Sample);
+
+            Assert.Contains(expected: "bye", Strings(independent));
+            Assert.Null(dependent);
+            Assert.Contains(
+                lines,
+                line => line.Message.Contains(value: "skipped fixture/Sample: helper jvmbridge/test/LoaderHelper", StringComparison.Ordinal)
+            );
+        }
+        finally
+        {
+            AgentLog.Sink = previous;
+        }
+    }
+
     /// <summary>Classes that no patch targets are left alone, and the supertypes of classes are only learned when a patch asks for them.</summary>
     [Fact]
     public void LearnsSupertypesOnlyWhenAPatchNeedsThem()
