@@ -114,6 +114,32 @@ public sealed unsafe class AgentContext
         return true;
     }
 
+    /// <summary>Gets whether the JVM is OpenJ9 (or IBM J9), whose checked JNI rejects defining a class with a null loader.</summary>
+    internal bool IsOpenJ9 => GetSystemProperty("java.vm.name") is { } name && name.Contains("J9", StringComparison.Ordinal);
+
+    internal string? GetSystemProperty(string property)
+    {
+        EnsureAccessible();
+        byte* value = null;
+
+        fixed (byte* encoded = ModifiedUtf8.Encode(property))
+        {
+            jvmtiError result = (*_environment)->GetSystemProperty(_environment, encoded, &value);
+
+            if (result != jvmtiError.JVMTI_ERROR_NONE)
+            {
+                FreeUnchecked((nint)value);
+
+                return null;
+            }
+        }
+
+        string text = ModifiedUtf8.Decode(value);
+        Free((nint)value);
+
+        return text;
+    }
+
     internal void AddToBootstrapSearch(string path)
     {
         EnsureAccessible();

@@ -63,33 +63,12 @@ internal sealed class PatchEngine(AgentContext context)
         if (pending.Length == 0)
             return;
 
-        List<JavaClassDefinition> classes = [.. pending.SelectMany(helper => helper.Definition.GetDefinitionOrder())];
-        string? jar = null;
+        // Defining with a null loader keeps the JVM's class-data sharing for application classes, which an appended bootstrap path turns off.
+        // OpenJ9's checked JNI treats a null loader as fatal, so there the helpers go in a jar on the bootstrap search path instead.
+        string? failure = context.IsOpenJ9 ? DefineInBootstrapSearchPath(environment, pending) : DefineInBootstrapLoader(environment, pending);
 
-        try
-        {
-            jar = BootstrapJar.Create(classes);
-            context.AddToBootstrapSearch(jar);
-            _bootstrapJars.Add(jar);
-
-            // Loading each class now registers its native methods before any code can call it.
-            foreach (JavaClassDefinition definition in classes)
-            {
-                using JavaLocalReference type = environment.FindClass(definition.Name);
-
-                definition.RegisterNatives?.Invoke(environment, type.Handle);
-            }
-
-            foreach (HelperState helper in pending)
-                helper.MarkDefinedInBootstrap();
-        }
-        catch (Exception exception) when (exception is JavaException or JniException or IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            context.Log($"could not define bootstrap helpers: {Describe(exception)}");
-
-            if (jar is not null && !_bootstrapJars.Contains(jar))
-                BootstrapJar.Delete(jar);
-        }
+        if (failure is not null)
+            context.Log($"could not define bootstrap helpers: {failure}");
     }
 
     /// <summary>Deletes the temporary jars of bootstrap helpers when the agent unloads.</summary>
@@ -141,6 +120,63 @@ internal sealed class PatchEngine(AgentContext context)
         {
             foreach (nint type in classes)
                 environment.DeleteLocal(type);
+        }
+    }
+
+    private static string? DefineInBootstrapLoader(JavaEnvironment environment, HelperState[] pending)
+    {
+        foreach (HelperState helper in pending)
+        {
+            try
+            {
+                foreach (JavaClassDefinition definition in helper.Definition.GetDefinitionOrder())
+                {
+                    using JavaLocalReference type = environment.DefineClass(definition.Name, loader: 0, definition.Bytes.Span);
+
+                    definition.RegisterNatives?.Invoke(environment, type.Handle);
+                }
+            }
+            catch (Exception exception) when (exception is JavaException or JniException)
+            {
+                return $"{helper.Definition.Name}: {Describe(exception)}";
+            }
+
+            helper.MarkDefinedInBootstrap();
+        }
+
+        return null;
+    }
+
+    private string? DefineInBootstrapSearchPath(JavaEnvironment environment, HelperState[] pending)
+    {
+        List<JavaClassDefinition> classes = [.. pending.SelectMany(helper => helper.Definition.GetDefinitionOrder())];
+        string? jar = null;
+
+        try
+        {
+            jar = BootstrapJar.Create(classes);
+            context.AddToBootstrapSearch(jar);
+            _bootstrapJars.Add(jar);
+
+            // Loading each class now registers its native methods before any code can call it.
+            foreach (JavaClassDefinition definition in classes)
+            {
+                using JavaLocalReference type = environment.FindClass(definition.Name);
+
+                definition.RegisterNatives?.Invoke(environment, type.Handle);
+            }
+
+            foreach (HelperState helper in pending)
+                helper.MarkDefinedInBootstrap();
+
+            return null;
+        }
+        catch (Exception exception) when (exception is JavaException or JniException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            if (jar is not null && !_bootstrapJars.Contains(jar))
+                BootstrapJar.Delete(jar);
+
+            return Describe(exception);
         }
     }
 
