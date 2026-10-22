@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>JvmBridge.Logging</PackageId>
+    <Description>Microsoft.Extensions.Logging adapters for JvmBridge agents: an ILogger that writes to the agent's log, and a redirect of the agent's log into an ILogger.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JvmBridge.Logging.Tests" />
+    <ProjectReference Include="../JvmBridge/JvmBridge.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.13" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
