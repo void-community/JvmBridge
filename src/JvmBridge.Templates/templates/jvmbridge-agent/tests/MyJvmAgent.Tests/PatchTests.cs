@@ -6,7 +6,7 @@ using Xunit;
 
 namespace MyJvmAgent.Tests;
 
-/// <summary>Checks the patch on class bytes, then in a JVM with the published agent.</summary>
+/// <summary>Checks the patch on class bytes, then in a JVM with the published agent: its native library through -agentpath and its jar through -javaagent.</summary>
 public sealed class PatchTests
 {
     /// <summary>The patch redirects the call and says what it changed, without a JVM running the result.</summary>
@@ -40,6 +40,22 @@ public sealed class PatchTests
         JavaRun with = await jdk.RunAsync("example.Target", classPath, agent, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("RESULT=[a, b, c]", without.Output, StringComparison.Ordinal);
+        Assert.Contains("RESULT=[c, b, a]", with.Output, StringComparison.Ordinal);
+        Assert.Contains("patched example/Target", with.Output, StringComparison.Ordinal);
+        Assert.Equal(expected: 0, with.ExitCode);
+    }
+
+    /// <summary>The same check through the jar that the publish writes beside the library, which a JVM loads with -javaagent. The test is skipped until the agent is published for this platform.</summary>
+    [Theory]
+    [JdkData(8, 17, 21)]
+    public async Task AgentJarChangesTheBehaviorInAJvmAsync(Jdk jdk)
+    {
+        ArgumentNullException.ThrowIfNull(jdk);
+        PublishedAgent agent = PublishedAgent.FindJar("MyJvmAgent");
+        string classPath = await jdk.CompileAsync("Fixtures/example/*.java", cancellationToken: TestContext.Current.CancellationToken);
+
+        JavaRun with = await jdk.RunAsync("example.Target", classPath, agent, cancellationToken: TestContext.Current.CancellationToken);
+
         Assert.Contains("RESULT=[c, b, a]", with.Output, StringComparison.Ordinal);
         Assert.Contains("patched example/Target", with.Output, StringComparison.Ordinal);
         Assert.Equal(expected: 0, with.ExitCode);

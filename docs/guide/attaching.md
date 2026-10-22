@@ -20,15 +20,39 @@ Every JVM the environment variable reaches loads the agent, including build tool
 
 ## From a jar with `-javaagent`
 
-`java -javaagent:agent.jar=options` is the form that build tools, containers and application servers already know how to pass. [**`jvmbridge pack`**](tool.md) builds such a jar from the published libraries of your agent, one per platform:
+`java -javaagent:agent.jar=options` is the form that build tools, containers and application servers already know how to pass. The jar holds the published library of each platform it supports and a small launcher. There are three ways to get one, and they all write the same jar:
+
+- **One platform, at publish.** Set `<JvmBridgeAgentJar>true</JvmBridgeAgentJar>` in the agent project (the `jvmbridge-agent` template does) and `dotnet publish` writes `MyAgent.jar` beside `MyAgent.so`, `.dll` or `.dylib`, holding that library.
+- **Several platforms, after a CI matrix.** Each runner publishes its platform with the property above; one job then downloads the jars and combines them with the `JvmBridgeMergeAgentJars` target of the JvmBridge package. Nothing else needs installing or pinning, because the target comes with the package the project already references:
+
+  ```sh
+  dotnet msbuild MyAgent.csproj -restore -t:JvmBridgeMergeAgentJars -p:JvmBridgeAgentJars="agents/*/MyAgent.jar" -p:JvmBridgeAgentJarOutput=MyAgent.jar
+  ```
+
+  `JvmBridgeAgentJars` takes paths and wildcards relative to the project; on a command line, which splits `-p` values at semicolons, separate several with `%3B` (`-p:JvmBridgeAgentJars="a/*.jar%3Bb/*.jar"`). The same library twice for a platform counts once; two different libraries for one platform are an error (JVMB014). The template's `ci.yml` does exactly this in its release job.
+- **By hand.** [**`jvmbridge pack`**](tool.md) packs libraries (`--agent <rid>=<path>`) and the jars of single platforms (`--jar <path>`) in any mix:
+
+  ```sh
+  dotnet tool install --global JvmBridge.Tool
+  jvmbridge pack -o agent.jar --agent linux-x64=publish/linux-x64/MyAgent.so --jar win-x64/MyAgent.jar
+  ```
+
+Start it with:
 
 ```sh
-dotnet tool install --global JvmBridge.Tool
-jvmbridge pack -o agent.jar --agent linux-x64=publish/linux-x64/MyAgent.so --agent win-x64=publish/win-x64/MyAgent.dll
 java -javaagent:agent.jar=log=debug -jar application.jar
 ```
 
-The jar carries a small Java launcher, compiled for Java 8, that the JVM runs as `premain`. It extracts the library of the platform it runs on into a private temporary directory, loads it with `System.load`, and the library starts your agent from `JNI_OnLoad`. The text after `=` becomes `context.Options`. On Linux and macOS the extracted file is deleted as soon as it is loaded, so even a crashing JVM leaves nothing behind; where the operating system refuses to delete a loaded library (Windows), the launcher removes it when the JVM exits. A JVM on a platform that the jar has no library for stops at startup with a message that lists the platforms the jar has.
+The jar carries a small Java launcher, compiled for Java 8, that the JVM runs as `premain`. It extracts the library of the platform it runs on into a new private directory under `java.io.tmpdir` (`/tmp/jvmbridge-<random>` on Linux by default), loads it with `System.load`, and the library starts your agent from `JNI_OnLoad`. The text after `=` becomes `context.Options`. On Linux and macOS the extracted file is deleted as soon as it is loaded, so even a crashing JVM leaves nothing behind; where the operating system refuses to delete a loaded library (Windows), the launcher removes it when the JVM exits. A JVM on a platform that the jar has no library for stops at startup with a message that lists the platforms the jar has.
+
+The temporary directory must be writable. When it is missing or read-only, as on a container with a read-only root file system, the JVM stops at startup with exit code 134:
+
+```text
+Caused by: java.lang.IllegalStateException: JvmBridge could not extract its agent library: java.nio.file.AccessDeniedException: /tmp/jvmbridge-2001056210534869447
+FATAL ERROR in native method: processing of -javaagent failed
+```
+
+(`NoSuchFileException` when the directory does not exist.) Point the JVM at a writable directory with `-Djava.io.tmpdir=/path/to/writable`, which moves the JVM's other temporary files there too; HotSpot 8 and 17 behave this way, and with a writable `java.io.tmpdir` the agent starts and leaves nothing in it. A directory mounted `noexec` forbids loading libraries from it and needs the same workaround; that case was not tested.
 
 The route was run against HotSpot 8, 17 and 21 on linux-arm64: the whole BridgeFixture harness of the HelloAgent sample passes through a jar, and `JAVA_TOOL_OPTIONS=-javaagent:agent.jar` loads the agent in the same way. The CI matrix runs the same jar scenario on every other platform and JVM.
 

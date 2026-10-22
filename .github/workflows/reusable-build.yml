@@ -43,8 +43,9 @@ jobs:
           cat artifacts/release-notes.txt
       - name: Restore binding generator
         run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
-      - name: Prepare Windows x86 package support compiler
-        run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev
+      # clang and lld build the Windows x86 support of the package; clang and zlib also let the template test publish its agent with NativeAOT.
+      - name: Prepare the native toolchains
+        run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev zlib1g-dev
       - name: Pack the consumer artifact before restoring samples
         run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
       - name: Pack the companion packages and the template that the build tests instantiate

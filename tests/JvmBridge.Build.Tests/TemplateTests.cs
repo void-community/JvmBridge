@@ -9,7 +9,7 @@ namespace JvmBridge.Build.Tests;
 public sealed class TemplateTests
 {
     /// <summary>
-    /// The template's source name must never collide with an MSBuild property, and the generated agent and tests build and pass against the packed packages on a machine with no JDK, which the template's JvmBridgeProvisionJdk covers. The JVM tests skip because no agent is published here.
+    /// The template's source name must never collide with an MSBuild property, and the generated agent and tests build and pass against the packed packages on a machine with no JDK, which the template's JvmBridgeProvisionJdk covers. The agent is published for this machine, its jar is combined the way the template's release job does it, and the JVM tests run through the library and the jar.
     /// </summary>
     [Fact]
     public async Task GeneratedProjectsKeepTheirPropertiesAndBuildAsync()
@@ -66,6 +66,37 @@ public sealed class TemplateTests
         Assert.DoesNotContain(expectedSubstring: "MyJvmAgent", string.Concat(agent, tests, source), StringComparison.Ordinal);
 
         List<string> restore = ["-p:RestoreAdditionalProjectSources=" + packages];
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string published = Path.Combine(project, path2: "artifacts", path3: "agent", rid);
+
+        // The agent is published for this machine, so the JVM tests run instead of skipping: through the library and through the jar that JvmBridgeAgentJar writes beside it.
+        ProcessResult publish = await runner.RunAsync(
+            ["dotnet", "publish", Path.Combine(project, path2: "Demo.csproj"), "-c", "Release", "-r", rid, "--self-contained", "-o", published, .. restore],
+            logPath: null,
+            environment: environment,
+            workingDirectory: project,
+            expectedExitCode: null,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(publish.ExitCode == 0, publish.Output);
+        Assert.True(File.Exists(Path.Combine(published, path2: "Demo.jar")), publish.Output);
+
+        // The release job of the template combines the jars of the platforms with the package's target; one jar combines into the same jar.
+        ProcessResult merge = await runner.RunAsync(
+            ["dotnet", "msbuild", Path.Combine(project, path2: "Demo.csproj"), "-restore", "-t:JvmBridgeMergeAgentJars", "-p:JvmBridgeAgentJars=artifacts/agent/*/Demo.jar", "-p:JvmBridgeAgentJarOutput=Demo.jar", .. restore],
+            logPath: null,
+            environment: environment,
+            workingDirectory: project,
+            expectedExitCode: null,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(merge.ExitCode == 0, merge.Output);
+        Assert.Equal(
+            await File.ReadAllBytesAsync(Path.Combine(published, path2: "Demo.jar"), TestContext.Current.CancellationToken),
+            await File.ReadAllBytesAsync(Path.Combine(project, path2: "Demo.jar"), TestContext.Current.CancellationToken)
+        );
 
         ProcessResult build = await runner.RunAsync(
             ["dotnet", "build", Path.Combine(project, path2: "tests", path3: "Demo.Tests", path4: "Demo.Tests.csproj"), "-c", "Release", .. restore],
@@ -89,7 +120,7 @@ public sealed class TemplateTests
 
         Assert.True(build.ExitCode == 0, build.Output);
         Assert.True(test.ExitCode == 0, test.Output);
-        Assert.Contains(expectedSubstring: "Passed:     1, Skipped:     3", test.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "Passed:     7, Skipped:     0", test.Output, StringComparison.Ordinal);
     }
 
     private static string PackedVersion(RepositoryContext repository)

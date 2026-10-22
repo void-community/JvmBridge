@@ -23,12 +23,12 @@ Create a .NET 10 class library and reference JvmBridge:
     <PublishAot>true</PublishAot>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="JvmBridge" Version="26.10.22.2272" />
+    <PackageReference Include="JvmBridge" Version="<version>" />
   </ItemGroup>
 </Project>
 ```
 
-`dotnet add package JvmBridge` adds the latest version; pin the one you test against. `PublishAot` is explicit because the SDK decides on NativeAOT while it evaluates the project, before the package's build assets can act on `JvmBridgeAgent`, so the package cannot imply it. Leaving it out fails the build with JVMB006; without that check `dotnet publish` would succeed and produce only managed assemblies, and no native library.
+`dotnet add package JvmBridge` writes this line with the latest version from [**nuget.org**](https://www.nuget.org/packages/JvmBridge); pin the one you test against. `PublishAot` is explicit because the SDK decides on NativeAOT while it evaluates the project, before the package's build assets can act on `JvmBridgeAgent`, so the package cannot imply it. Leaving it out fails the build with JVMB006; without that check `dotnet publish` would succeed and produce only managed assemblies, and no native library.
 
 ```csharp
 using JvmBridge.Agents;

@@ -28,9 +28,9 @@ jobs:
       - name: Prepare the NativeAOT toolchain
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev
-      - name: Publish the agent
+      - name: Publish the agent library and its jar
         run: dotnet publish MyJvmAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained -o artifacts/agent/${{ matrix.rid }}
-      # Runs the patch tests, then the JVM tests against the agent on every JDK they list.
+      # Runs the patch tests, then the JVM tests against the agent on every JDK they list, through -agentpath and through the jar.
       - name: Test
         run: dotnet test tests/MyJvmAgent.Tests -c Release
       - uses: actions/upload-artifact@v4
@@ -47,11 +47,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
       - uses: actions/download-artifact@v4
         with:
           pattern: agent-*
           path: agents
-      - name: Create the release with an archive per platform
+      # Each platform's publish wrote a jar for that platform. The JvmBridge package of the project combines them into one, so there is no tool to install or keep in step with the package.
+      - name: Combine the jars of the platforms into one
+        run: dotnet msbuild MyJvmAgent.csproj -restore -t:JvmBridgeMergeAgentJars -p:JvmBridgeAgentJars="agents/agent-*/MyJvmAgent.jar" -p:JvmBridgeAgentJarOutput=MyJvmAgent.jar
+      - name: Create the release with the jar and an archive per platform
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -59,4 +66,4 @@ jobs:
             rid="${directory#agents/agent-}"
             (cd "$directory" && zip -r "../../MyJvmAgent-$rid.zip" .)
           done
-          gh release create "${{ github.ref_name }}" MyJvmAgent-*.zip --repo "${{ github.repository }}" --generate-notes
+          gh release create "${{ github.ref_name }}" MyJvmAgent.jar MyJvmAgent-*.zip --repo "${{ github.repository }}" --generate-notes
