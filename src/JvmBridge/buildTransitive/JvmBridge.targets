@@ -1,4 +1,9 @@
 <Project>
+  <!-- The SDK decides on NativeAOT while it evaluates the project, so only a PublishAot that the project set itself makes a publish native.
+       Remember that value before this file sets PublishAot below, so the build can say when it is missing. -->
+  <PropertyGroup Condition="'$(JvmBridgeAgent)' == 'true'">
+    <_JvmBridgeProjectPublishAot>$(PublishAot)</_JvmBridgeProjectPublishAot>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(JvmBridgeAgent)' == 'true'">
     <PublishAot>true</PublishAot>
     <NativeLib>Shared</NativeLib>
@@ -22,7 +27,7 @@
   </ItemGroup>
   <Target Name="ValidateJvmBridgeAgent" BeforeTargets="CoreCompile" Condition="'$(JvmBridgeAgent)' == 'true'">
     <Error Condition="'$(OutputType)' != 'Library'" Text="JvmBridge agents must be class libraries (OutputType=Library)." />
-    <Error Condition="'$(PublishAot)' != 'true' Or '$(NativeLib)' != 'Shared'" Text="JvmBridge agents require PublishAot=true and NativeLib=Shared." />
+    <Error Condition="'$(_JvmBridgeProjectPublishAot)' != 'true'" Code="JVMB006" Text="JvmBridge agents must set PublishAot to true in the project, next to JvmBridgeAgent. The .NET SDK decides on NativeAOT while it evaluates the project, before this package can act on JvmBridgeAgent, so without it dotnet publish succeeds but produces only managed assemblies and no native library." />
   </Target>
   <!-- Java helper classes: JavaSource items are compiled with javac and exposed to C# as JavaClasses.<Package>.<Class>. -->
   <PropertyGroup>

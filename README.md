@@ -28,7 +28,7 @@ Create a .NET 10 class library and reference JvmBridge:
 </Project>
 ```
 
-`dotnet add package JvmBridge` adds the latest version; pin the one you test against. `PublishAot` is explicit because the SDK evaluates native runtime-pack requirements before package build targets.
+`dotnet add package JvmBridge` adds the latest version; pin the one you test against. `PublishAot` is explicit because the SDK decides on NativeAOT while it evaluates the project, before the package's build assets can act on `JvmBridgeAgent`, so the package cannot imply it. Leaving it out fails the build with JVMB006; without that check `dotnet publish` would succeed and produce only managed assemblies, and no native library.
 
 ```csharp
 using JvmBridge.Agents;

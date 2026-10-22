@@ -105,7 +105,7 @@ public sealed class JavaSourceTests
         Assert.Equal(expected: "pkg/Helper|1|cafebabe|other/tools/Utility|pkg/Natives", run.Output.Trim());
     }
 
-    private static async Task<ProcessResult> BuildAsync(string project, string? jdk)
+    internal static async Task<ProcessResult> BuildAsync(string project, string? jdk, IReadOnlyList<string>? properties = null)
     {
         RepositoryContext repository = RepositoryContext.Discover();
         string packages = Path.Combine(repository.Artifacts, path2: "packages");
@@ -126,7 +126,23 @@ public sealed class JavaSourceTests
         if (jdk is not null)
             command.Add("-p:JvmBridgeJdkHome=" + jdk);
 
+        foreach (string property in properties ?? [])
+            command.Add("-p:" + property);
+
         return await new ProcessRunner(repository).RunAsync(command, logPath: null, environment: environment, expectedExitCode: null, workingDirectory: project).ConfigureAwait(continueOnCapturedContext: false);
+    }
+
+    internal static string PackedVersion()
+    {
+        string packages = Path.Combine(RepositoryContext.Discover().Artifacts, path2: "packages");
+
+        string package = Directory.Exists(packages)
+            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg").Where(IsMainPackage).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? string.Empty
+            : string.Empty;
+
+        return package.Length == 0
+            ? throw new InvalidOperationException(message: "Pack the JvmBridge package into artifacts/packages first: dotnet pack src/JvmBridge -c Release -o artifacts/packages.")
+            : Path.GetFileNameWithoutExtension(package)["JvmBridge.".Length..];
     }
 
     private static TemporaryDirectory CreateProject(string version)
@@ -170,18 +186,5 @@ public sealed class JavaSourceTests
 
         // JvmBridge.Testing and JvmBridge.Templates are packed beside it, and the symbols package shares its prefix.
         return versioned && name.EndsWith(value: ".nupkg", StringComparison.Ordinal) && !name.EndsWith(value: ".snupkg", StringComparison.Ordinal);
-    }
-
-    private static string PackedVersion()
-    {
-        string packages = Path.Combine(RepositoryContext.Discover().Artifacts, path2: "packages");
-
-        string package = Directory.Exists(packages)
-            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg").Where(IsMainPackage).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? string.Empty
-            : string.Empty;
-
-        return package.Length == 0
-            ? throw new InvalidOperationException(message: "Pack the JvmBridge package into artifacts/packages first: dotnet pack src/JvmBridge -c Release -o artifacts/packages.")
-            : Path.GetFileNameWithoutExtension(package)["JvmBridge.".Length..];
     }
 }
