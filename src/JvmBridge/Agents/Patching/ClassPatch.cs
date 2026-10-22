@@ -10,13 +10,15 @@ public sealed class ClassPatch
     private readonly ClassMatcher _matcher;
     private readonly PatchStep[] _steps;
     private readonly MethodScope? _scope;
+    private readonly AdviceStep[] _advice;
 
-    private ClassPatch(ClassMatcher matcher, PatchStep[] steps, MethodScope? scope)
+    private ClassPatch(ClassMatcher matcher, PatchStep[] steps, MethodScope? scope, AdviceStep[] advice)
     {
         _matcher = matcher;
         ClassName = matcher.ExactName ?? matcher.Description;
         _steps = steps;
         _scope = scope;
+        _advice = advice;
     }
 
     /// <summary>Gets the internal name of the class this patch applies to, or for a patch that matches several classes a description of what it matches, such as <c>package com/acme</c>.</summary>
@@ -34,7 +36,7 @@ public sealed class ClassPatch
         if (className.Contains('.'))
             throw new ArgumentException("Use the internal class name with slashes, for example cpw/mods/fml/relauncher/CoreModManager.", nameof(className));
 
-        return new ClassPatch(ClassMatcher.Exact(className), [], scope: null);
+        return new ClassPatch(ClassMatcher.Exact(className), [], scope: null, advice: []);
     }
 
     /// <summary>Starts a patch for the classes of a package.</summary>
@@ -46,7 +48,7 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(package);
         RequireInternalName(package, nameof(package));
 
-        return new ClassPatch(ClassMatcher.Package(package.TrimEnd('/'), includeSubpackages), [], scope: null);
+        return new ClassPatch(ClassMatcher.Package(package.TrimEnd('/'), includeSubpackages), [], scope: null, advice: []);
     }
 
     /// <summary>Starts a patch for the classes whose internal name a filter accepts. The filter runs for every class that loads, so keep it cheap.</summary>
@@ -58,7 +60,7 @@ public sealed class ClassPatch
         ArgumentNullException.ThrowIfNull(nameFilter);
         ArgumentException.ThrowIfNullOrEmpty(description);
 
-        return new ClassPatch(ClassMatcher.Filter(nameFilter, description), [], scope: null);
+        return new ClassPatch(ClassMatcher.Filter(nameFilter, description), [], scope: null, advice: []);
     }
 
     /// <summary>
@@ -72,7 +74,7 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(superType);
         RequireInternalName(superType, nameof(superType));
 
-        return new ClassPatch(ClassMatcher.Any().SubclassOf(superType), [], scope: null);
+        return new ClassPatch(ClassMatcher.Any().SubclassOf(superType), [], scope: null, advice: []);
     }
 
     /// <summary>
@@ -86,7 +88,7 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(annotationType);
         RequireInternalName(annotationType, nameof(annotationType));
 
-        return new ClassPatch(ClassMatcher.Any().AnnotatedWith(annotationType), [], scope: null);
+        return new ClassPatch(ClassMatcher.Any().AnnotatedWith(annotationType), [], scope: null, advice: []);
     }
 
     /// <summary>Narrows the patch to classes that also carry a class-level annotation. The edits and method scope are kept.</summary>
@@ -97,7 +99,7 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(annotationType);
         RequireInternalName(annotationType, nameof(annotationType));
 
-        return new ClassPatch(_matcher.AnnotatedWith(annotationType), _steps, _scope);
+        return new ClassPatch(_matcher.AnnotatedWith(annotationType), _steps, _scope, _advice);
     }
 
     /// <summary>Narrows the patch to classes that also extend or implement a type. The edits and method scope are kept.</summary>
@@ -108,7 +110,7 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(superType);
         RequireInternalName(superType, nameof(superType));
 
-        return new ClassPatch(_matcher.SubclassOf(superType), _steps, _scope);
+        return new ClassPatch(_matcher.SubclassOf(superType), _steps, _scope, _advice);
     }
 
     /// <summary>Gets whether this patch targets a class, evaluating the class name, the supertypes and the class-level annotations as far as the bytes and the hierarchy tell.</summary>
@@ -128,12 +130,12 @@ public sealed class ClassPatch
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
-        return new ClassPatch(_matcher, _steps, new MethodScope(name, descriptor));
+        return new ClassPatch(_matcher, _steps, new MethodScope(name, descriptor), _advice);
     }
 
     /// <summary>Ends the scope set by <see cref="Method"/>, so following edits apply to the whole class.</summary>
     /// <returns>A new patch.</returns>
-    public ClassPatch AnyMethod() => new(_matcher, _steps, scope: null);
+    public ClassPatch AnyMethod() => new(_matcher, _steps, scope: null, _advice);
 
     /// <summary>Redirects calls of a method to a static method of another class at the same length. A virtual or interface receiver becomes the first parameter.</summary>
     /// <param name="from">The call to redirect; kind, owner, name and descriptor must match.</param>
@@ -250,12 +252,68 @@ public sealed class ClassPatch
         });
     }
 
+    /// <summary>
+    /// Calls a static method before the scoped method runs, with the receiver (<see langword="null"/> for a static method) and the arguments of the call. The hook has the descriptor <c>(Ljava/lang/Object;</c> and the parameters of the method <c>)V</c>; its first
+    /// parameter may be the declaring class instead of <c>Object</c>. Scope the patch with <see cref="Method"/> and a descriptor first. The method's code moves into a private synthetic method and the method becomes a short stub, so the patch must apply when
+    /// the class is first defined: it cannot advise a class that was loaded before the agent, and the log says so. Constructors, static initializers, native, abstract, bridge and interface methods are not supported. A hook that throws prevents the method from running.
+    /// </summary>
+    /// <param name="hook">The hook, described with <see cref="JavaMethod.Static"/>. The class that declares it must be visible to the advised class, as for <see cref="RedirectInvocation"/>.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch Before(JavaMethod hook)
+    {
+        MethodScope scope = RequireAdviceScope(nameof(Before));
+        AdviceStep? existing = _advice.FirstOrDefault(step => step.Matches(scope));
+
+        if (existing?.Hooks.Before is not null)
+            throw new InvalidOperationException($"{scope} already has a Before hook.");
+
+        AdviceHooks hooks = existing is null ? new AdviceHooks(hook, After: null, IncludeArguments: false) : existing.Hooks with { Before = hook };
+
+        return WithAdvice(scope, hooks);
+    }
+
+    /// <summary>
+    /// Calls a static method after the scoped method returns, with the receiver (<see langword="null"/> for a static method) and, when <paramref name="includeArguments"/> is set, the arguments of the call, then the result of a method that has one. The hook
+    /// returns what the advised method returns, so it can replace the result: its descriptor is <c>(Ljava/lang/Object;</c>, the parameters if included, the result type, <c>)</c> and the result type; for a <see langword="void"/> method it ends in <c>)V</c> with no result
+    /// parameter. The first parameter may be the declaring class instead of <c>Object</c>. The hook does not run when the method throws. See <see cref="Before"/> for how the method changes and what is not supported.
+    /// </summary>
+    /// <param name="hook">The hook, described with <see cref="JavaMethod.Static"/>.</param>
+    /// <param name="includeArguments">Whether the hook receives the arguments of the call after the receiver.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch After(JavaMethod hook, bool includeArguments = false)
+    {
+        MethodScope scope = RequireAdviceScope(nameof(After));
+        AdviceStep? existing = _advice.FirstOrDefault(step => step.Matches(scope));
+
+        if (existing?.Hooks.After is not null)
+            throw new InvalidOperationException($"{scope} already has an After hook.");
+
+        AdviceHooks hooks = existing is null ? new AdviceHooks(Before: null, hook, includeArguments) : existing.Hooks with { After = hook, IncludeArguments = includeArguments };
+
+        return WithAdvice(scope, hooks);
+    }
+
     /// <summary>Applies the patch to class-file bytes without a JVM.</summary>
     /// <param name="classBytes">The class-file bytes.</param>
     /// <returns>The patched bytes with a count of what changed, or the reason the class was left unchanged.</returns>
     public ClassPatchResult Apply(ReadOnlySpan<byte> classBytes)
     {
-        if (_steps.Length == 0)
+        return Run(classBytes, Phases.Edits | Phases.Advice, new AdviceContext(isRetransformation: false, recorded: null));
+    }
+
+    internal bool HasAdvice => _advice.Length > 0;
+
+    internal bool HasEdits => _steps.Length > 0;
+
+    /// <summary>Runs the edits of the patch, without its advice, which the engine applies to every class after all edits so that edits see the original code.</summary>
+    internal ClassPatchResult ApplyEdits(ReadOnlySpan<byte> classBytes) => Run(classBytes, Phases.Edits, advice: null);
+
+    /// <summary>Runs the advice of the patch.</summary>
+    internal ClassPatchResult ApplyAdvice(ReadOnlySpan<byte> classBytes, AdviceContext advice) => Run(classBytes, Phases.Advice, advice);
+
+    private ClassPatchResult Run(ReadOnlySpan<byte> classBytes, Phases phases, AdviceContext? advice)
+    {
+        if (_steps.Length == 0 && _advice.Length == 0)
             return Skipped(ClassName, "the patch has no edits");
 
         ClassFileEditor editor;
@@ -271,21 +329,51 @@ public sealed class ClassPatch
         List<string> details = [];
         int[] counts = new int[4];
 
-        foreach (PatchStep step in _steps)
+        if (phases.HasFlag(Phases.Edits))
         {
-            StepOutcome outcome;
+            foreach (PatchStep step in _steps)
+            {
+                StepOutcome outcome;
 
-            try { outcome = step.Run(editor); }
-            catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { return Skipped(className, $"an edit failed: {exception.Message}"); }
+                try { outcome = step.Run(editor); }
+                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { return Skipped(className, $"an edit failed: {exception.Message}"); }
 
-            if (outcome.SkippedReason is { } reason)
-                return Skipped(className, reason);
+                if (outcome.SkippedReason is { } reason)
+                    return Skipped(className, reason);
 
-            counts[(int)step.Kind] += outcome.Changes;
-            details.Add(outcome.Detail);
+                counts[(int)step.Kind] += outcome.Changes;
+                details.Add(outcome.Detail);
+            }
         }
 
-        return new ClassPatchResult(className, editor.ToArray(), skippedReason: null, details, counts[(int)PatchKind.Invocation], counts[(int)PatchKind.Constant], counts[(int)PatchKind.Access], counts[(int)PatchKind.Edit]);
+        List<string> advised = [];
+
+        if (phases.HasFlag(Phases.Advice) && advice is not null)
+        {
+            foreach (AdviceStep step in _advice)
+            {
+                string key = MethodAdvisor.Key(step.Name, step.Descriptor);
+
+                if (advice.IsRetransformation && advice.Recorded?.Contains(key) != true)
+                    return Skipped(className, $"{key}: the class is loaded already and was not advised when it was defined, so advice would add a method, which the JVM forbids", PatchSkipCategory.SchemaChangeOnRetransform);
+
+                AdviceSkip? skip;
+
+                try { skip = MethodAdvisor.Advise(editor, step.Name, step.Descriptor, step.Hooks); }
+                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { return Skipped(className, $"advice failed: {exception.Message}"); }
+
+                if (skip is { } problem)
+                    return Skipped(className, problem.Reason, problem.Category);
+
+                advised.Add(key);
+                details.Add($"{key}: {step.Hooks.Describe()} advice added");
+            }
+        }
+
+        foreach (string key in advised)
+            _ = (advice?.Applied.Add(key));
+
+        return new ClassPatchResult(className, editor.ToArray(), skippedReason: null, details, counts[(int)PatchKind.Invocation], counts[(int)PatchKind.Constant], counts[(int)PatchKind.Access], counts[(int)PatchKind.Edit], advised.Count);
     }
 
     private static string Prefix(MethodScope? scope) => scope is null ? string.Empty : $"{scope}: ";
@@ -297,7 +385,8 @@ public sealed class ClassPatch
         return found ? null : $"method {scope} not found";
     }
 
-    private static ClassPatchResult Skipped(string className, string reason) => new(className, bytes: null, reason, [], redirectedInvocations: 0, replacedConstants: 0, changedAccessFlags: 0, appliedEdits: 0);
+    private static ClassPatchResult Skipped(string className, string reason, PatchSkipCategory category = PatchSkipCategory.Other)
+        => new(className, bytes: null, reason, [], redirectedInvocations: 0, replacedConstants: 0, changedAccessFlags: 0, appliedEdits: 0, advisedMethods: 0, category);
 
     private ClassPatch ReplacingConstant(string description, Func<ClassFileEditor, int> replace)
     {
@@ -323,7 +412,23 @@ public sealed class ClassPatch
             throw new InvalidOperationException($"{operation} applies to the whole class; call AnyMethod() after Method() first.");
     }
 
-    private ClassPatch With(PatchKind kind, Func<ClassFileEditor, StepOutcome> run) => new(_matcher, [.. _steps, new PatchStep(kind, run)], _scope);
+    private MethodScope RequireAdviceScope(string operation)
+    {
+        if (_scope is not { Descriptor: not null } scope)
+            throw new InvalidOperationException($"{operation} needs a method and its descriptor: call Method(name, descriptor) first.");
+
+        return scope;
+    }
+
+    private ClassPatch WithAdvice(MethodScope scope, AdviceHooks hooks)
+    {
+        AdviceStep step = new(scope.Name, scope.Descriptor ?? string.Empty, hooks);
+        AdviceStep[] advice = [.. _advice.Where(existing => !existing.Matches(scope)), step];
+
+        return new ClassPatch(_matcher, _steps, _scope, advice);
+    }
+
+    private ClassPatch With(PatchKind kind, Func<ClassFileEditor, StepOutcome> run) => new(_matcher, [.. _steps, new PatchStep(kind, run)], _scope, _advice);
 
     private enum PatchKind
     {
@@ -331,6 +436,18 @@ public sealed class ClassPatch
         Constant,
         Access,
         Edit,
+    }
+
+    [Flags]
+    private enum Phases
+    {
+        Edits = 1,
+        Advice = 2,
+    }
+
+    private sealed record AdviceStep(string Name, string Descriptor, AdviceHooks Hooks)
+    {
+        internal bool Matches(MethodScope scope) => Name == scope.Name && Descriptor == scope.Descriptor;
     }
 
     private sealed record MethodScope(string Name, string? Descriptor)

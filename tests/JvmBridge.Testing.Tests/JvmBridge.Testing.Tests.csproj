@@ -12,5 +12,6 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../../src/JvmBridge.Testing/JvmBridge.Testing.csproj" />
     <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="AdviceFixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

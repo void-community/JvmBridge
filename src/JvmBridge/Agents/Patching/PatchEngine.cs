@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
+
 using JvmBridge.ClassFiles;
 using JvmBridge.Native;
 using JvmBridge.Runtime;
@@ -14,6 +17,7 @@ internal sealed class PatchEngine(AgentContext context)
     private readonly ClassHierarchy _hierarchy = new();
     private readonly List<HelperState> _helpers = [];
     private readonly List<string> _bootstrapJars = [];
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, IReadOnlySet<string>>> _advised = new(StringComparer.Ordinal);
     private PatchSet _set = PatchSet.Empty;
     private long _sequence;
 
@@ -65,12 +69,20 @@ internal sealed class PatchEngine(AgentContext context)
         return removed ? RetransformTargets([patch]) : new PatchReport("the patch was not registered", []);
     }
 
-    /// <summary>Applies the patches that target a class, in registration order, and makes sure the helpers it needs exist in the defining loader, leaving the class unchanged when that fails.</summary>
+    /// <summary>
+    /// Applies the patches that target a class, in registration order, and makes sure the helpers it needs exist in the defining loader, leaving the class unchanged when that fails. Advice comes after every other edit of every patch, so edits see the original code of a
+    /// method. A loaded class cannot gain methods, so a class that was advised when it was defined is advised again, with the same methods, whenever it is retransformed.
+    /// </summary>
     internal byte[]? Transform(ClassFile file, ClassTransformContext callback)
     {
         PatchSet set = Volatile.Read(ref _set);
 
-        if (set.Count == 0 || file.Name is not { } name)
+        if (file.Name is not { } name)
+            return null;
+
+        IReadOnlySet<string>? recorded = file.IsRetransformation ? FindAdvised(name, file.Bytes) : null;
+
+        if (set.Count == 0 && recorded is null)
             return null;
 
         ClassHeader? header = null;
@@ -78,11 +90,12 @@ internal sealed class PatchEngine(AgentContext context)
         if (set.NeedsHierarchy && ClassHeader.TryRead(file.Bytes, set.NeedsAnnotations, out header))
             _hierarchy.Record(header);
 
-        IReadOnlyList<ClassPatch> candidates = set.Candidates(name);
+        IReadOnlyList<ClassPatch> candidates = set.Count == 0 ? [] : set.Candidates(name);
 
-        if (candidates.Count == 0)
+        if (candidates.Count == 0 && recorded is null)
             return null;
 
+        List<ClassPatch> matched = [];
         byte[]? current = null;
 
         foreach (ClassPatch patch in candidates)
@@ -90,13 +103,24 @@ internal sealed class PatchEngine(AgentContext context)
             if (patch.Matcher.NeedsHeader && !MatchesHeader(patch.Matcher, file.Bytes, ref header))
                 continue;
 
-            ClassPatchResult result = patch.Apply(current is null ? file.Bytes : current);
+            matched.Add(patch);
 
-            Report(patch, result);
+            if (!patch.HasEdits && patch.HasAdvice)
+                continue;
 
-            if (result.Bytes is { } changed)
-                current = changed;
+            current = Apply(patch, patch.ApplyEdits(current is null ? file.Bytes : current), current);
         }
+
+        AdviceContext advice = new(file.IsRetransformation, recorded);
+
+        foreach (ClassPatch patch in matched.Where(candidate => candidate.HasAdvice))
+            current = Apply(patch, patch.ApplyAdvice(current is null ? file.Bytes : current, advice), current);
+
+        if (recorded is not null)
+            current = Neutralize(name, current is null ? file.Bytes : current, recorded, advice) ?? current;
+
+        if (!file.IsRetransformation && advice.Applied.Count > 0)
+            Remember(name, file.Bytes, advice.Applied);
 
         if (current is null)
             return null;
@@ -171,6 +195,53 @@ internal sealed class PatchEngine(AgentContext context)
             return false;
 
         return matcher.Matches(header, _hierarchy);
+    }
+
+    private byte[]? Apply(ClassPatch patch, ClassPatchResult result, byte[]? current)
+    {
+        Report(patch, result);
+
+        return result.Bytes ?? current;
+    }
+
+    private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
+
+    private IReadOnlySet<string>? FindAdvised(string name, ReadOnlySpan<byte> bytes)
+    {
+        if (!_advised.TryGetValue(name, out ConcurrentDictionary<string, IReadOnlySet<string>>? known))
+            return null;
+
+        return known.TryGetValue(Hash(bytes), out IReadOnlySet<string>? methods) ? methods : null;
+    }
+
+    private void Remember(string name, ReadOnlySpan<byte> bytes, HashSet<string> methods)
+    {
+        _advised.GetOrAdd(name, static _ => new ConcurrentDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal))[Hash(bytes)] = methods;
+    }
+
+    /// <summary>Gives the methods that were advised when the class was defined, and have no advice now, a stub that only calls their body, so the class keeps the methods it was defined with.</summary>
+    private byte[]? Neutralize(string name, ReadOnlySpan<byte> bytes, IReadOnlySet<string> recorded, AdviceContext advice)
+    {
+        string[] missing = [.. recorded.Where(key => !advice.Applied.Contains(key))];
+
+        if (missing.Length == 0)
+            return null;
+
+        ClassFileEditor editor = new(bytes);
+
+        foreach (string key in missing)
+        {
+            int parenthesis = key.IndexOf(value: '(', StringComparison.Ordinal);
+
+            if (MethodAdvisor.Neutralize(editor, key[..parenthesis], key[parenthesis..]) is { } skip)
+            {
+                context.Log(AgentLogLevel.Error, $"could not keep {key} of {name} advised without hooks: {skip.Reason}");
+
+                return null;
+            }
+        }
+
+        return editor.ToArray();
     }
 
     private void Report(ClassPatch patch, ClassPatchResult result)

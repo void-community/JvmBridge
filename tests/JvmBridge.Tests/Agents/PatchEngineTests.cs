@@ -14,6 +14,10 @@ public sealed class PatchEngineTests
 {
     private static byte[] Annotated => ClassFileFixtures.Read(resource: "ClassFiles.Annotated.class");
 
+    private static JavaMethod Hook => JavaMethod.Static(owner: "pkg/Hooks", name: "before", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V");
+
+    private static ClassPatch LengthAdvice => ClassPatch.For(className: "fixture/Sample").Method(name: "length", descriptor: "(Ljava/lang/String;)I").Before(Hook).After(JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: "(Ljava/lang/Object;I)I"));
+
     /// <summary>Registering a patch twice keeps one copy, so its edits run once per class.</summary>
     [Fact]
     public void ARegisteredPatchStaysOnce()
@@ -30,6 +34,61 @@ public sealed class PatchEngineTests
 
         Assert.NotNull(result);
         Assert.Equal(expected: 1, runs);
+    }
+
+    /// <summary>Advice cannot be added to a class that is loaded already: the patch is refused with the reason, the class stays as it is, and advice that was there at definition goes on working.</summary>
+    [Fact]
+    public void AdviceCannotBeAddedToLoadedClasses()
+    {
+        ConcurrentQueue<LogLine> lines = [];
+        AgentLogSink previous = AgentLog.Sink;
+
+        try
+        {
+            AgentLog.Sink = (level, source, message) => lines.Enqueue(new LogLine(level, source, message));
+
+            using FakeJvm jvm = new();
+
+            AgentContext late = jvm.CreateContext(name: "late");
+
+            late.Patches.Add(LengthAdvice);
+            byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+            AgentContext added = jvm.CreateContext(name: "added");
+
+            added.Patches.Add(LengthAdvice);
+            byte[]? defined = Transform(added, name: "fixture/Sample", ClassFileFixtures.Sample);
+            ClassPatch size = ClassPatch.For(className: "fixture/Sample").Method(name: "size", descriptor: "(Ljava/util/List;)I").Before(Hook);
+
+            added.Patches.Add(size);
+            byte[]? retransformed = Transform(added, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+            Assert.Null(loadedBefore);
+            Assert.Equal(MethodNames(defined), MethodNames(retransformed));
+            Assert.DoesNotContain(expected: "size$jvmbridge$body", MethodNames(retransformed));
+            Assert.Equal(expected: 2, lines.Count(line => line.Message.Contains(value: "loaded already and was not advised", StringComparison.Ordinal)));
+        }
+        finally
+        {
+            AgentLog.Sink = previous;
+        }
+    }
+
+    /// <summary>A class that was advised when it was defined is advised the same way when it is retransformed, because a loaded class cannot gain or lose methods.</summary>
+    [Fact]
+    public void AdvisedClassesKeepTheirMethodsWhenRetransformed()
+    {
+        using FakeJvm jvm = new();
+
+        AgentContext context = jvm.CreateContext(name: "advice");
+
+        context.Patches.Add(LengthAdvice);
+        byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+        byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+        Assert.Equal(MethodNames(defined), MethodNames(retransformed));
+        Assert.Contains(expected: "length$jvmbridge$body", MethodNames(retransformed));
+        Assert.Equal(defined, retransformed);
     }
 
     /// <summary>Patches apply in the order they were registered, whether they name a class or match classes, and each sees the previous one's output.</summary>
@@ -159,6 +218,36 @@ public sealed class PatchEngineTests
         }
     }
 
+    /// <summary>When the advice is removed the class keeps its body method, and the method becomes a stub that only calls it.</summary>
+    [Fact]
+    public void RemovedAdviceLeavesAForwardingStub()
+    {
+        using FakeJvm jvm = new();
+
+        AgentContext context = jvm.CreateContext(name: "removal");
+
+        ClassPatch advice = LengthAdvice;
+
+        context.Patches.Add(advice);
+        byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+        PatchReport report = context.Patches.Withdraw(advice);
+        byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+        Assert.NotNull(report.NotRetransformedReason);
+        Assert.Equal(MethodNames(defined), MethodNames(retransformed));
+        Assert.Equal(
+            expected: """
+              method public static length(Ljava/lang/String;)I
+                max_stack=1 max_locals=1
+                  0: aload_0
+                  1: invokestatic #__ // Method fixture/Sample.length$jvmbridge$body:(Ljava/lang/String;)I
+                  4: ireturn
+
+            """,
+            System.Text.RegularExpressions.Regex.Replace(ClassFileDisassembler.Disassemble(retransformed ?? [], method: "length"), pattern: "#\\d+", replacement: "#__")
+        );
+    }
+
     /// <summary>A removed patch no longer applies, removing it twice says it was not registered, and a patch that was never registered is a no-op.</summary>
     [Fact]
     public void RemovedPatchesStopApplying()
@@ -200,6 +289,13 @@ public sealed class PatchEngineTests
         Assert.Contains(expected: "late", Strings(Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample)));
     }
 
+    private static string[] MethodNames(byte[]? bytes)
+    {
+        Assert.NotNull(bytes);
+
+        return [.. JavaClassFile.Read(bytes).Methods.Select(static method => method.Name).Order(StringComparer.Ordinal)];
+    }
+
     private static string[] Strings(byte[]? bytes)
     {
         Assert.NotNull(bytes);
@@ -207,9 +303,9 @@ public sealed class PatchEngineTests
         return JavaClassFile.Read(bytes).GetStrings();
     }
 
-    private static byte[]? Transform(AgentContext context, string name, byte[] bytes)
+    private static byte[]? Transform(AgentContext context, string name, byte[] bytes, bool isRetransformation = false)
     {
-        ClassFile file = new(name, isRetransformation: false, bytes);
+        ClassFile file = new(name, isRetransformation, bytes);
         ClassTransformContext callback = new(environment: null, loader: 0, protectionDomain: 0, classBeingRedefined: 0, canUseJni: false);
 
         return context.Patches.Transform(file, callback);

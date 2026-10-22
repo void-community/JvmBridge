@@ -46,6 +46,12 @@ public sealed class JavaClassFile
 
     internal int ConstantPoolEnd { get; private set; }
 
+    /// <summary>Gets the offset of the <c>methods_count</c> field.</summary>
+    internal int MethodsCountOffset { get; private set; }
+
+    /// <summary>Gets the offset just after the last method.</summary>
+    internal int MethodsEnd { get; private set; }
+
     internal int AccessFlagsOffset { get; private set; }
 
     /// <summary>Reads a class file, rejecting truncated input, trailing bytes, unknown constant tags and malformed code.</summary>
@@ -168,10 +174,14 @@ public sealed class JavaClassFile
 
     private ClassMember[] ReadMembers(ref ClassReader reader, bool isMethod)
     {
+        if (isMethod)
+            MethodsCountOffset = reader.Position;
         ClassMember[] members = new ClassMember[reader.ReadUInt16()];
         for (int index = 0; index < members.Length; index++)
         {
             int accessOffset = reader.Position;
+            int codeStart = -1;
+            int codeEnd = -1;
             int access = reader.ReadUInt16();
             string name = GetUtf8(reader.ReadUInt16());
             string descriptor = GetUtf8(reader.ReadUInt16());
@@ -179,6 +189,7 @@ public sealed class JavaClassFile
             int attributes = reader.ReadUInt16();
             for (int attribute = 0; attribute < attributes; attribute++)
             {
+                int attributeStart = reader.Position;
                 string attributeName = GetUtf8(reader.ReadUInt16());
                 int length = reader.ReadInt32();
                 if (length < 0)
@@ -189,12 +200,16 @@ public sealed class JavaClassFile
                     code = ReadCode(ref reader, name, end);
                     if (reader.Position != end)
                         throw new ClassFormatException($"The Code attribute of {name}{descriptor} has a wrong length.");
+                    codeStart = attributeStart;
+                    codeEnd = end;
                 }
                 else
                     reader.Skip(length);
             }
-            members[index] = new ClassMember(name, descriptor, access, accessOffset, code);
+            members[index] = new ClassMember(name, descriptor, access, accessOffset, code, reader.Position, codeStart, codeEnd);
         }
+        if (isMethod)
+            MethodsEnd = reader.Position;
         return members;
     }
 

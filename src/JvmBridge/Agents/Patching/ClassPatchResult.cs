@@ -3,7 +3,7 @@ namespace JvmBridge.Agents;
 /// <summary>What applying a <see cref="ClassPatch"/> to a class did, or why it did nothing.</summary>
 public sealed class ClassPatchResult
 {
-    internal ClassPatchResult(string className, byte[]? bytes, string? skippedReason, IReadOnlyList<string> details, int redirectedInvocations, int replacedConstants, int changedAccessFlags, int appliedEdits)
+    internal ClassPatchResult(string className, byte[]? bytes, string? skippedReason, IReadOnlyList<string> details, int redirectedInvocations, int replacedConstants, int changedAccessFlags, int appliedEdits, int advisedMethods = 0, PatchSkipCategory skipCategory = PatchSkipCategory.None)
     {
         ClassName = className;
         Bytes = bytes;
@@ -13,6 +13,8 @@ public sealed class ClassPatchResult
         ReplacedConstants = replacedConstants;
         ChangedAccessFlags = changedAccessFlags;
         AppliedEdits = appliedEdits;
+        AdvisedMethods = advisedMethods;
+        SkipCategory = skipCategory;
     }
 
     /// <summary>Gets the internal name of the patched class.</summary>
@@ -41,6 +43,12 @@ public sealed class ClassPatchResult
 
     /// <summary>Gets the number of custom edits that ran.</summary>
     public int AppliedEdits { get; }
+
+    /// <summary>Gets the number of methods that got a Before or After hook.</summary>
+    public int AdvisedMethods { get; }
+
+    /// <summary>Gets the kind of reason the class was left unchanged, or <see cref="PatchSkipCategory.None"/> when it was changed.</summary>
+    public PatchSkipCategory SkipCategory { get; }
 
     /// <summary>Describes the outcome in one line suitable for a log, for example <c>patched pkg/Name (sort()V: 1 invocation of java/util/Collections.sort redirected)</c>.</summary>
     /// <returns>The description.</returns>

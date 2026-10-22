@@ -38,13 +38,16 @@ public sealed class CodeAttribute
 /// <summary>A declared field or method.</summary>
 public sealed class ClassMember
 {
-    internal ClassMember(string name, string descriptor, int accessFlags, int accessFlagsOffset, CodeAttribute? code)
+    internal ClassMember(string name, string descriptor, int accessFlags, int accessFlagsOffset, CodeAttribute? code, int endOffset, int codeAttributeStart, int codeAttributeEnd)
     {
         Name = name;
         Descriptor = descriptor;
         AccessFlags = accessFlags;
         AccessFlagsOffset = accessFlagsOffset;
         Code = code;
+        EndOffset = endOffset;
+        CodeAttributeStart = codeAttributeStart;
+        CodeAttributeEnd = codeAttributeEnd;
     }
 
     /// <summary>Gets the member name.</summary>
@@ -59,5 +62,15 @@ public sealed class ClassMember
     /// <summary>Gets the method's code, or <see langword="null"/> for fields and for abstract and native methods.</summary>
     public CodeAttribute? Code { get; }
 
+    /// <summary>Gets the offset of the member: where its access flags start.</summary>
     internal int AccessFlagsOffset { get; }
+
+    /// <summary>Gets the offset just after the member and all its attributes.</summary>
+    internal int EndOffset { get; }
+
+    /// <summary>Gets the offset of the <c>Code</c> attribute (its name index), or -1 without code.</summary>
+    internal int CodeAttributeStart { get; }
+
+    /// <summary>Gets the offset just after the <c>Code</c> attribute, or -1 without code.</summary>
+    internal int CodeAttributeEnd { get; }
 }

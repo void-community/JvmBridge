@@ -1,10 +1,13 @@
 using System.Buffers.Binary;
 
+using JvmBridge.ClassFiles.Advice;
+
 namespace JvmBridge.ClassFiles;
 
 /// <summary>
 /// Edits a class file in ways that keep every existing constant pool index and code offset: new constants are appended after the existing ones, and everything else is
-/// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed.
+/// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed. The one exception is
+/// the method advice that <c>ClassPatch</c> adds: it moves a method's code, byte for byte, into a new method, and gives the old method a short straight-line body.
 /// </summary>
 public sealed class ClassFileEditor
 {
@@ -294,6 +297,57 @@ public sealed class ClassFileEditor
     /// <returns>The number of methods changed.</returns>
     public int SetMethodAccess(string name, string? descriptor, int accessFlags) => SetMemberAccess(Model.Methods, name, descriptor, accessFlags);
 
+    /// <summary>
+    /// Moves the code of a method into a new private synthetic method and gives the method the code of a stub that calls it. The method keeps its flags, signature and annotations; the new method is <c>static</c> when it is. This is the one edit that adds a method, so it
+    /// is only valid for a class that has not been defined yet: a loaded class cannot gain methods.
+    /// </summary>
+    /// <param name="name">The method name.</param>
+    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="bodyName">The name of the new method, which holds a verbatim copy of the old <c>Code</c> attribute.</param>
+    /// <param name="stub">The code of the method from now on.</param>
+    internal void ReplaceBodyWithStub(string name, string descriptor, string bodyName, StubCode stub)
+    {
+        Atomically(() =>
+        {
+            int bodyNameIndex = AddUtf8(bodyName);
+            int codeNameIndex = AddUtf8("Code");
+            ClassMember method = RequireMethod(name, descriptor);
+
+            if (method.Code is null)
+                throw new ClassFormatException($"{name}{descriptor} has no code.");
+
+            int flags = (method.AccessFlags & 0x0008) | 0x0002 | 0x1000;
+            int start = method.AccessFlagsOffset;
+            ReadOnlySpan<byte> original = _bytes;
+
+            using MemoryStream body = new();
+
+            WriteUInt16To(body, flags);
+            WriteUInt16To(body, bodyNameIndex);
+            body.Write(original.Slice(start + 4, 2));
+            WriteUInt16To(body, value: 1);
+            body.Write(original[method.CodeAttributeStart..method.CodeAttributeEnd]);
+
+            using MemoryStream result = new();
+
+            int count = BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]);
+
+            result.Write(original[..Model.MethodsCountOffset]);
+            WriteUInt16To(result, count + 1);
+            result.Write(original[(Model.MethodsCountOffset + 2)..method.CodeAttributeStart]);
+            result.Write(AdviceStub.CodeAttribute(codeNameIndex, stub));
+            result.Write(original[method.CodeAttributeEnd..Model.MethodsEnd]);
+            result.Write(body.ToArray());
+            result.Write(original[Model.MethodsEnd..]);
+
+            byte[] candidate = result.ToArray();
+
+            _ = JavaClassFile.Read(candidate);
+            _bytes = candidate;
+            _model = null;
+        });
+    }
+
     /// <summary>Produces the edited class file.</summary>
     /// <returns>A copy of the class file bytes.</returns>
     public byte[] ToArray() => (byte[])_bytes.Clone();
@@ -314,6 +368,26 @@ public sealed class ClassFileEditor
             int nameAndType = AddNameAndType(name, descriptor);
             return Find<MemberReferenceEntry>(entry => entry.Kind == kind && entry.ClassIndex == ownerIndex && entry.NameAndTypeIndex == nameAndType) ?? Append(ConstantEncoding.Reference(kind, ownerIndex, nameAndType), slots: 1);
         });
+    }
+
+    private static void WriteUInt16To(Stream stream, int value)
+    {
+        stream.WriteByte((byte)(value >> 8));
+        stream.WriteByte((byte)value);
+    }
+
+    private void Atomically(Action edit)
+    {
+        byte[] snapshot = (byte[])_bytes.Clone();
+
+        try { edit(); }
+        catch (Exception)
+        {
+            _bytes = snapshot;
+            _model = null;
+
+            throw;
+        }
     }
 
     /// <summary>Runs a multi-step edit so that a failure part-way leaves the class exactly as it was.</summary>
