@@ -1,0 +1,65 @@
+{
+  "linux-arm64": {
+    "8": {
+      "librarySizeBytes": 2113376
+    },
+    "17": {
+      "librarySizeBytes": 2113376
+    },
+    "21": {
+      "librarySizeBytes": 2113376
+    }
+  },
+  "linux-x64": {
+    "8": {
+      "librarySizeBytes": 2064320
+    },
+    "17": {
+      "librarySizeBytes": 2064320
+    },
+    "21": {
+      "librarySizeBytes": 2064320
+    }
+  },
+  "osx-arm64": {
+    "8": {
+      "librarySizeBytes": 1949304
+    },
+    "17": {
+      "librarySizeBytes": 1949304
+    },
+    "21": {
+      "librarySizeBytes": 1949304
+    }
+  },
+  "osx-x64": {
+    "8": {
+      "librarySizeBytes": 2036584
+    },
+    "17": {
+      "librarySizeBytes": 2036584
+    },
+    "21": {
+      "librarySizeBytes": 2036584
+    }
+  },
+  "win-arm64": {
+    "17": {
+      "librarySizeBytes": 2008576
+    },
+    "21": {
+      "librarySizeBytes": 2008576
+    }
+  },
+  "win-x64": {
+    "8": {
+      "librarySizeBytes": 1991680
+    },
+    "17": {
+      "librarySizeBytes": 1991680
+    },
+    "21": {
+      "librarySizeBytes": 1991680
+    }
+  }
+}
