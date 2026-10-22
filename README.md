@@ -7,7 +7,7 @@
 
 JvmBridge combines generated JNI/JVMTI declarations, explicit Java reference ownership, and NativeAOT agent entry-point generation in one NuGet package. It works with ordinary Java applications and provides a standalone JVM-hosting API for .NET applications.
 
-The initial package is available as a [**CI artifact**](https://github.com/void-community/JvmBridge/actions). Public NuGet publication is configured but has not yet been performed.
+JvmBridge is published on [**NuGet**](https://www.nuget.org/packages/JvmBridge), with two companion packages: [**JvmBridge.Testing**](https://www.nuget.org/packages/JvmBridge.Testing) for xUnit tests and [**JvmBridge.Templates**](https://www.nuget.org/packages/JvmBridge.Templates) for a `dotnet new` agent template. To start without writing a project file, run `dotnet new install JvmBridge.Templates`, then `dotnet new jvmbridge-agent -n MyAgent`.
 
 ## A native agent in a few lines
 
@@ -23,12 +23,12 @@ Create a .NET 10 class library and reference JvmBridge:
     <PublishAot>true</PublishAot>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="JvmBridge" Version="YOUR_PACKAGE_VERSION" />
+    <PackageReference Include="JvmBridge" Version="26.10.22.2272" />
   </ItemGroup>
 </Project>
 ```
 
-Use the exact version from the downloaded `.nupkg`, or a published version once available. Restore a downloaded package from its local directory together with nuget.org. `PublishAot` is explicit because the SDK evaluates native runtime-pack requirements before package build targets.
+`dotnet add package JvmBridge` adds the latest version; pin the one you test against. `PublishAot` is explicit because the SDK evaluates native runtime-pack requirements before package build targets.
 
 ```csharp
 using JvmBridge.Agents;
@@ -143,7 +143,7 @@ context.DefineClass(Callbacks.Definition, ClassLoaderTarget.Bootstrap);
 
 An optional first `JavaEnvironment` parameter receives the callback's JNI environment. Other parameters and the return type may be `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, or `nint` for a Java object (typed by `[JavaType("Ljava/util/List;")]`, otherwise `java/lang/Object`). An exception that a method throws is reported and contained, and the JVM receives a default value.
 
-`JvmBridge.Testing` is a companion package for xUnit v3 that removes the test harness an agent usually builds for itself:
+`JvmBridge.Testing` is a companion package for xUnit v3 that removes the test harness an agent usually builds for itself. Add it to a test project with `dotnet add package JvmBridge.Testing`:
 
 ```csharp
 [Theory]
