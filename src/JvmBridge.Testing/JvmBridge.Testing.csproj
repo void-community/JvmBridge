@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>JvmBridge.Testing</PackageId>
+    <Description>Test helpers for JvmBridge agents on xUnit v3: checksum-pinned JDKs, javac and java runners, published-agent lookup, and class-file assertions.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JvmBridge.Testing.Tests" />
+    <ProjectReference Include="../JvmBridge/JvmBridge.csproj" />
+    <PackageReference Include="xunit.v3.assert" VersionOverride="4.0.2" />
+    <PackageReference Include="xunit.v3.extensibility.core" VersionOverride="4.0.2" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <!-- The JDK download, checksum and extraction code and the pinned inventory are the ones the repository's own validation uses. -->
+    <Compile Include="../JvmBridge.Build/Infrastructure/FileSystem.cs" Link="Shared/FileSystem.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/HttpService.cs" Link="Shared/HttpService.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/JdkArchiveManager.cs" Link="Shared/JdkArchiveManager.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/TextFile.cs" Link="Shared/TextFile.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkArchive.cs" Link="Shared/JdkArchive.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkEntry.cs" Link="Shared/JdkEntry.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkLock.cs" Link="Shared/JdkLock.cs" />
+    <EmbeddedResource Include="../JvmBridge.Build/jdks.lock.json" LogicalName="jdks.lock.json" />
+  </ItemGroup>
+</Project>

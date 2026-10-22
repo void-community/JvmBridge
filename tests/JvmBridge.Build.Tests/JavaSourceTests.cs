@@ -163,19 +163,25 @@ public sealed class JavaSourceTests
         return project;
     }
 
+    private static bool IsMainPackage(string path)
+    {
+        string name = Path.GetFileName(path);
+        bool versioned = name.Length > "JvmBridge.".Length && char.IsDigit(name["JvmBridge.".Length]);
+
+        // JvmBridge.Testing and JvmBridge.Templates are packed beside it, and the symbols package shares its prefix.
+        return versioned && name.EndsWith(value: ".nupkg", StringComparison.Ordinal) && !name.EndsWith(value: ".snupkg", StringComparison.Ordinal);
+    }
+
     private static string PackedVersion()
     {
         string packages = Path.Combine(RepositoryContext.Discover().Artifacts, path2: "packages");
 
         string package = Directory.Exists(packages)
-            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg").Where(static path => !path.EndsWith(value: ".snupkg", StringComparison.Ordinal)).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? string.Empty
+            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg").Where(IsMainPackage).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? string.Empty
             : string.Empty;
 
-        if (package.Length == 0)
-            throw new InvalidOperationException(message: "Pack the JvmBridge package into artifacts/packages first: dotnet pack src/JvmBridge -c Release -o artifacts/packages.");
-
-        string name = Path.GetFileNameWithoutExtension(package);
-
-        return name["JvmBridge.".Length..];
+        return package.Length == 0
+            ? throw new InvalidOperationException(message: "Pack the JvmBridge package into artifacts/packages first: dotnet pack src/JvmBridge -c Release -o artifacts/packages.")
+            : Path.GetFileNameWithoutExtension(package)["JvmBridge.".Length..];
     }
 }

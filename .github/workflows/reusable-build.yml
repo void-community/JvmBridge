@@ -34,6 +34,10 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev
       - name: Pack the consumer artifact before restoring samples
         run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
+      - name: Pack the testing package and the template that the build tests instantiate
+        run: |
+          dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
       - name: Restore solution
         run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests

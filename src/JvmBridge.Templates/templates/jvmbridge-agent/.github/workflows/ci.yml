@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    name: Test (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64, runner: ubuntu-latest }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+          - { rid: win-x64, runner: windows-latest }
+          - { rid: osx-arm64, runner: macos-latest }
+    runs-on: ${{ matrix.runner }}
+    env:
+      TARGET_RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # The Java helper is compiled by javac at build time, so the build needs a JDK. The tests download their own pinned JDKs.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Prepare the NativeAOT toolchain
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev
+      - name: Publish the agent
+        run: dotnet publish MyJvmAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained -o artifacts/agent/${{ matrix.rid }}
+      # Runs the patch tests, then the JVM tests against the agent on every JDK they list.
+      - name: Test
+        run: dotnet test tests/MyJvmAgent.Tests -c Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-${{ matrix.rid }}
+          path: artifacts/agent/${{ matrix.rid }}/MyJvmAgent.*
+          if-no-files-found: error
+
+  release:
+    name: Attach the agents to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-*
+          path: agents
+      - name: Create the release with an archive per platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for directory in agents/agent-*; do
+            rid="${directory#agents/agent-}"
+            (cd "$directory" && zip -r "../../MyJvmAgent-$rid.zip" .)
+          done
+          gh release create "${{ github.ref_name }}" MyJvmAgent-*.zip --repo "${{ github.repository }}" --generate-notes

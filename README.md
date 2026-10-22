@@ -143,6 +143,26 @@ context.DefineClass(Callbacks.Definition, ClassLoaderTarget.Bootstrap);
 
 An optional first `JavaEnvironment` parameter receives the callback's JNI environment. Other parameters and the return type may be `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, or `nint` for a Java object (typed by `[JavaType("Ljava/util/List;")]`, otherwise `java/lang/Object`). An exception that a method throws is reported and contained, and the JVM receives a default value.
 
+`JvmBridge.Testing` is a companion package for xUnit v3 that removes the test harness an agent usually builds for itself:
+
+```csharp
+[Theory]
+[JdkData(8, 17)]
+public async Task AgentChangesTheSort(Jdk jdk)
+{
+    string classPath = await jdk.CompileAsync("Fixtures/**/*.java");
+    JavaRun without = await jdk.RunAsync("example.Target", classPath);
+    JavaRun with = await jdk.RunAsync("example.Target", classPath, PublishedAgent.Find("MyAgent"));
+
+    Assert.Contains("[a, b, c]", without.Output);
+    Assert.Contains("[c, b, a]", with.Output);
+}
+```
+
+`[JdkData]` supplies the checksum-pinned JDK of each major version from this repository's inventory, downloaded once and cached; set `JVMBRIDGE_JDK_<major>` to use an installed JDK instead, and a version with no pinned JDK for the platform skips the test with the reason. `CompileAsync` compiles Java sources for Java 8 unless you ask for another release, `RunAsync` returns the exit code and combined output (and stops a run that exceeds its timeout), and `PublishedAgent.Find` looks in `artifacts/agent/<rid>` and skips the test when the agent has not been published for the platform. `ClassFileAssert.Calls` and `DoesNotCall` check patched class bytes without a JVM.
+
+`dotnet new install JvmBridge.Templates` adds the `jvmbridge-agent` template: `dotnet new jvmbridge-agent -n MyAgent` creates an agent project with a placeholder `ClassPatch` and a Java helper, a test project that checks the patch on class bytes and runs a fixture in JVMs with and without the agent, and a GitHub Actions workflow that publishes the agent for each platform, runs the tests, and attaches the agents to a release when you push a `v*` tag.
+
 In a live JVM callback, use a class reference from that callback or an explicitly owned reference to inspect members and invoke Java code:
 
 ```csharp

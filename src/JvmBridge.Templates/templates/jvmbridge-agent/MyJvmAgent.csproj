@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Publishes a NativeAOT shared library that a JVM loads with -agentpath, and generates its entry points. -->
+    <JvmBridgeAgent>true</JvmBridgeAgent>
+    <!-- NativeAOT is selected while the project is evaluated, so the project sets it even though JvmBridgeAgent implies it. -->
+    <PublishAot>true</PublishAot>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Java helper classes are compiled with the JDK in JvmBridgeJdkHome or JAVA_HOME. JavaRelease defaults to 8. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="JvmBridge" Version="JVMBRIDGE_VERSION" />
+    <JavaSource Include="java/**/*.java" />
+    <!-- The tests live below the agent project, so keep their sources out of the agent. -->
+    <Compile Remove="tests/**" />
+    <None Remove="tests/**" />
+  </ItemGroup>
+</Project>

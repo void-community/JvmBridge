@@ -4,11 +4,13 @@
     <Project Path="src/JvmBridge.Generator/JvmBridge.Generator.csproj" />
     <Project Path="src/JvmBridge.Build/JvmBridge.Build.csproj" />
     <Project Path="src/JvmBridge.Maintenance/JvmBridge.Maintenance.csproj" />
+    <Project Path="src/JvmBridge.Testing/JvmBridge.Testing.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JvmBridge.Tests/JvmBridge.Tests.csproj" />
     <Project Path="tests/JvmBridge.Build.Tests/JvmBridge.Build.Tests.csproj" />
     <Project Path="tests/JvmBridge.IntegrationTests/JvmBridge.IntegrationTests.csproj" />
+    <Project Path="tests/JvmBridge.Testing.Tests/JvmBridge.Testing.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/HelloAgent/HelloAgent.csproj" />

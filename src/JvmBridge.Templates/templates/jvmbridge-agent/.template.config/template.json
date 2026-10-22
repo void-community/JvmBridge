@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "void-community",
+  "classifications": [ "JvmBridge", "Java", "Agent", "NativeAOT" ],
+  "identity": "JvmBridge.Agent",
+  "name": "JvmBridge agent",
+  "description": "A NativeAOT JVM agent that patches a class declaratively, with a Java helper, unit and JVM tests, and a CI matrix that publishes every platform.",
+  "shortName": "jvmbridge-agent",
+  "sourceName": "MyJvmAgent",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {
+    "jvmBridgeVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "The JvmBridge and JvmBridge.Testing package version. A floating version picks the latest release.",
+      "defaultValue": "*",
+      "replaces": "JVMBRIDGE_VERSION"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "MyJvmAgent.csproj" },
+    { "path": "tests/MyJvmAgent.Tests/MyJvmAgent.Tests.csproj" }
+  ]
+}

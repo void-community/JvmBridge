@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>JvmBridge.Templates</PackageId>
+    <PackageType>Template</PackageType>
+    <Description>The jvmbridge-agent template for dotnet new: a NativeAOT JVM agent with a declarative class patch, a Java helper, unit and JVM tests, and a CI matrix that publishes every platform.</Description>
+    <PackageTags>dotnet-new;templates;jvmbridge;java;agent</PackageTags>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="templates/**/*" Exclude="templates/**/bin/**;templates/**/obj/**" PackagePath="content/" />
+  </ItemGroup>
+</Project>
