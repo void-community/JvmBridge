@@ -1,0 +1,14 @@
+<Project>
+  <!-- Package metadata for every project that publishes a package. This file is imported after the project, so PackageId is already known. -->
+  <PropertyGroup Condition="'$(PackageId)' != ''">
+    <PackageProjectUrl>https://github.com/void-community/JvmBridge</PackageProjectUrl>
+    <Copyright>Copyright (c) void-community</Copyright>
+    <PackageTags Condition="'$(PackageTags)' == ''">jvm;jni;jvmti;java;agent;nativeaot</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <!-- CI writes the subjects of the commits in the push to a file; local packs have none. -->
+    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == '' and '$(ReleaseNotesFile)' != '' and Exists('$(ReleaseNotesFile)')">$([System.IO.File]::ReadAllText('$(ReleaseNotesFile)'))</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PackageId)' != ''">
+    <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+</Project>

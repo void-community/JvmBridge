@@ -23,21 +23,35 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: |
             10.0.401
             11.0.100-rc.1.26425.128
+      # Packages carry the subjects of the commits in this push as their release notes. There are no tags to compare against, so the push range from the event is the base.
+      - name: Write release notes from the commits in this push
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          mkdir -p artifacts
+          if [[ -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            git log --no-merges --format='- %s (%h)' "$BEFORE..HEAD" | head -50 > artifacts/release-notes.txt
+          else
+            git log -1 --format='- %s (%h)' > artifacts/release-notes.txt
+          fi
+          cat artifacts/release-notes.txt
       - name: Restore binding generator
         run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
       - name: Prepare Windows x86 package support compiler
         run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev
       - name: Pack the consumer artifact before restoring samples
-        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
-      - name: Pack the testing package and the template that the build tests instantiate
+        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+      - name: Pack the companion packages and the template that the build tests instantiate
         run: |
-          dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
-          dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Logging -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
       - name: Restore solution
         run: dotnet restore JvmBridge.slnx --locked-mode
       - name: Verify generation, manifests, build, and unit tests
