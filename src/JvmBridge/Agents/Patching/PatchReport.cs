@@ -16,13 +16,27 @@ public sealed class PatchReport
     public IReadOnlyList<PatchClassReport> Classes { get; }
 
     /// <summary>Gets the number of loaded classes that could not be retransformed.</summary>
-    public int Failed => Classes.Count(report => !report.Succeeded);
+    public int Failed
+    {
+        get
+        {
+            int failed = 0;
+
+            foreach (PatchClassReport report in Classes)
+            {
+                if (!report.Succeeded)
+                    failed++;
+            }
+
+            return failed;
+        }
+    }
 
     /// <summary>Gets why loaded classes were not looked at, for example because retransformation was not enabled, or <see langword="null"/> when they were.</summary>
     public string? NotRetransformedReason { get; }
 
     /// <summary>Gets the number of loaded classes that were retransformed.</summary>
-    public int Retransformed => Classes.Count(report => report.Succeeded);
+    public int Retransformed => Classes.Count - Failed;
 
     /// <summary>Describes the outcome in one line suitable for a log.</summary>
     /// <returns>The description.</returns>

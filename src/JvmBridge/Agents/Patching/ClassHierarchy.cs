@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 using JvmBridge.ClassFiles;
 
 namespace JvmBridge.Agents;
@@ -10,10 +8,18 @@ namespace JvmBridge.Agents;
 /// </summary>
 public sealed class ClassHierarchy
 {
-    private readonly ConcurrentDictionary<string, Supertypes> _known = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Supertypes> _known = new(StringComparer.Ordinal);
+    private readonly object _sync = new();
 
     /// <summary>Gets the number of classes recorded.</summary>
-    public int Count => _known.Count;
+    public int Count
+    {
+        get
+        {
+            lock (_sync)
+                return _known.Count;
+        }
+    }
 
     /// <summary>Records the direct supertypes of a class, replacing an earlier record.</summary>
     /// <param name="className">The internal name of the class.</param>
@@ -23,7 +29,10 @@ public sealed class ClassHierarchy
     {
         ArgumentException.ThrowIfNullOrEmpty(className);
         ArgumentNullException.ThrowIfNull(interfaces);
-        _known[className] = new Supertypes(superName, [.. interfaces]);
+        Supertypes supertypes = new(superName, [.. interfaces]);
+
+        lock (_sync)
+            _known[className] = supertypes;
     }
 
     /// <summary>Gets whether the direct supertypes of a class are recorded.</summary>
@@ -31,7 +40,8 @@ public sealed class ClassHierarchy
     /// <returns><see langword="true"/> when the class was recorded.</returns>
     public bool Contains(string className)
     {
-        return _known.ContainsKey(className);
+        lock (_sync)
+            return _known.ContainsKey(className);
     }
 
     /// <summary>Gets whether a recorded class extends or implements a type, directly or through other recorded types. A class is not a subtype of itself.</summary>
@@ -40,7 +50,9 @@ public sealed class ClassHierarchy
     /// <returns><see langword="true"/> when the walk from the class reaches the ancestor.</returns>
     public bool IsSubtypeOf(string className, string ancestor)
     {
-        return _known.TryGetValue(className, out Supertypes? supertypes) && IsSubtype(supertypes.Super, supertypes.Interfaces, ancestor);
+        Supertypes? supertypes = Find(className);
+
+        return supertypes is not null && IsSubtype(supertypes.Super, supertypes.Interfaces, ancestor);
     }
 
     internal bool IsSubtype(string? superName, IReadOnlyList<string> interfaces, string ancestor)
@@ -61,7 +73,7 @@ public sealed class ClassHierarchy
             if (current == ancestor)
                 return true;
 
-            if (!visited.Add(current) || !_known.TryGetValue(current, out Supertypes? next))
+            if (!visited.Add(current) || Find(current) is not { } next)
                 continue;
 
             if (next.Super is not null)
@@ -76,7 +88,16 @@ public sealed class ClassHierarchy
 
     internal void Record(ClassHeader header)
     {
-        _known[header.Name] = new Supertypes(header.SuperName, [.. header.Interfaces]);
+        Supertypes supertypes = new(header.SuperName, [.. header.Interfaces]);
+
+        lock (_sync)
+            _known[header.Name] = supertypes;
+    }
+
+    private Supertypes? Find(string className)
+    {
+        lock (_sync)
+            return _known.TryGetValue(className, out Supertypes? supertypes) ? supertypes : null;
     }
 
     private sealed record Supertypes(string? Super, string[] Interfaces);

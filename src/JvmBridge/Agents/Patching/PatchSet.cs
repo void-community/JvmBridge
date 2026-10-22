@@ -12,8 +12,22 @@ internal sealed class PatchSet
     private PatchSet(Entry[] entries)
     {
         Entries = entries;
-        _exact = entries.Where(entry => entry.Patch.Matcher.ExactName is not null).GroupBy(entry => entry.Patch.Matcher.ExactName ?? string.Empty).ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
-        _matching = [.. entries.Where(entry => entry.Patch.Matcher.ExactName is null)];
+        _exact = new Dictionary<string, Entry[]>(StringComparer.Ordinal);
+        List<Entry> matching = [];
+
+        foreach (Entry entry in entries)
+        {
+            if (entry.Patch.Matcher.ExactName is not { } name)
+            {
+                matching.Add(entry);
+
+                continue;
+            }
+
+            _exact[name] = _exact.TryGetValue(name, out Entry[]? existing) ? [.. existing, entry] : [entry];
+        }
+
+        _matching = [.. matching];
         NeedsHierarchy = entries.Any(entry => entry.Patch.Matcher.NeedsHierarchy);
         NeedsAnnotations = entries.Any(entry => entry.Patch.Matcher.NeedsAnnotations);
     }

@@ -2,7 +2,7 @@ namespace JvmBridge.Agents;
 
 /// <summary>
 /// Retransforms classes in chunks so that one class the JVM refuses does not stop the rest. A chunk the JVM rejects is split in halves until the failing class stands alone and carries the reason. Retransforming a class twice is harmless,
-/// so the split is correct whether the JVM rejects a chunk atomically or only after changing some classes.
+/// so the split is correct whether the JVM rejects a chunk atomically or only after changing some classes. The code uses plain loops, not LINQ, because every LINQ instantiation over a struct adds to every agent's native size.
 /// </summary>
 internal static class RetransformBatches
 {
@@ -17,18 +17,32 @@ internal static class RetransformBatches
         List<PatchClassReport> reports = [];
 
         for (int start = 0; start < candidates.Count; start += ChunkSize)
-            Attempt([.. candidates.Skip(start).Take(ChunkSize)], retransform, reports);
+        {
+            int count = Math.Min(ChunkSize, candidates.Count - start);
+            RetransformCandidate[] chunk = new RetransformCandidate[count];
+
+            for (int index = 0; index < count; index++)
+                chunk[index] = candidates[start + index];
+
+            Attempt(chunk, retransform, reports);
+        }
 
         return reports;
     }
 
     private static void Attempt(RetransformCandidate[] group, Func<nint[], string?> retransform, List<PatchClassReport> reports)
     {
-        string? failure = retransform([.. group.Select(candidate => candidate.Type)]);
+        nint[] types = new nint[group.Length];
+
+        for (int index = 0; index < group.Length; index++)
+            types[index] = group[index].Type;
+
+        string? failure = retransform(types);
 
         if (failure is null)
         {
-            reports.AddRange(group.Select(candidate => new PatchClassReport(candidate.Name, Failure: null)));
+            foreach (RetransformCandidate candidate in group)
+                reports.Add(new PatchClassReport(candidate.Name, Failure: null));
 
             return;
         }
@@ -41,7 +55,11 @@ internal static class RetransformBatches
         }
 
         int half = group.Length / 2;
-        Attempt(group[..half], retransform, reports);
-        Attempt(group[half..], retransform, reports);
+        RetransformCandidate[] first = new RetransformCandidate[half];
+        RetransformCandidate[] second = new RetransformCandidate[group.Length - half];
+        Array.Copy(group, sourceIndex: 0, first, destinationIndex: 0, half);
+        Array.Copy(group, half, second, destinationIndex: 0, second.Length);
+        Attempt(first, retransform, reports);
+        Attempt(second, retransform, reports);
     }
 }
