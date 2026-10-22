@@ -23,6 +23,21 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             Log(message: "RETRANSFORM_UNAVAILABLE");
 
         PatchDemo.Register(context);
+        Interop.Context = context;
+        context.DefineClass(Interop.Definition, ClassLoaderTarget.Bootstrap);
+
+        // Redefinition is requested up front; the events that need capabilities are denied without an exception on a JVM that does not offer them.
+        if (!context.TryRequest(JavaCapability.RedefineClasses))
+            Log(message: "REDEFINE_UNAVAILABLE");
+
+        // HotSpot offers the method entry and exit capabilities only to an agent that is loaded at startup, so they are requested here and the events are subscribed later, around the one call that is traced.
+        bool tracing = context.TryRequest(JavaCapability.GenerateMethodEntryEvents) && context.TryRequest(JavaCapability.GenerateMethodExitEvents);
+
+        if (!tracing)
+            Log(message: "METHOD_EVENTS_UNAVAILABLE");
+
+        JavaEvents events = JavaEvents.ThreadStart | JavaEvents.ThreadEnd | JavaEvents.ClassLoad | JavaEvents.Exception | JavaEvents.GarbageCollectionStart | JavaEvents.GarbageCollectionFinish | JavaEvents.MonitorContendedEnter | JavaEvents.MonitorContendedEntered;
+        Interop.Subscription = context.Events.Subscribe(events).ToString();
     }
 
     /// <inheritdoc/>
@@ -65,6 +80,9 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     }
 
     /// <inheritdoc/>
+    public override void OnClassLoad(AgentContext context, JavaEnvironment environment, nint thread, nint type) => Interop.ClassLoaded();
+
+    /// <inheritdoc/>
     public override void OnClassPrepare(AgentContext context, JavaEnvironment environment, nint type)
     {
         if (context.GetClassSignature(type) == "LBridgeFixture;")
@@ -88,6 +106,15 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     }
 
     /// <inheritdoc/>
+    public override void OnException(AgentContext context, JavaEnvironment environment, JavaExceptionEvent thrown) => Interop.ExceptionThrown();
+
+    /// <inheritdoc/>
+    public override void OnGarbageCollectionFinish(AgentContext context) => Interop.CollectionFinished();
+
+    /// <inheritdoc/>
+    public override void OnGarbageCollectionStart(AgentContext context) => Interop.CollectionStarted();
+
+    /// <inheritdoc/>
     public override void OnLoad(AgentContext context)
     {
         s_context = context;
@@ -98,6 +125,24 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
         Log($"LOAD retransform={context.CanRetransform}");
     }
+
+    /// <inheritdoc/>
+    public override void OnMethodEntry(AgentContext context, JavaEnvironment environment, nint thread, nint method) => Interop.MethodEntered(context, environment, method);
+
+    /// <inheritdoc/>
+    public override void OnMethodExit(AgentContext context, JavaEnvironment environment, nint thread, nint method, bool poppedByException) => Interop.MethodExited();
+
+    /// <inheritdoc/>
+    public override void OnMonitorContendedEnter(AgentContext context, JavaEnvironment environment, nint thread, nint monitor) => Interop.MonitorBlocking();
+
+    /// <inheritdoc/>
+    public override void OnMonitorContendedEntered(AgentContext context, JavaEnvironment environment, nint thread, nint monitor) => Interop.MonitorAcquired();
+
+    /// <inheritdoc/>
+    public override void OnThreadEnd(AgentContext context, JavaEnvironment environment, nint thread) => Interop.ThreadEnded(context, environment, thread);
+
+    /// <inheritdoc/>
+    public override void OnThreadStart(AgentContext context, JavaEnvironment environment, nint thread) => Interop.ThreadStarted(context, environment, thread);
 
     /// <inheritdoc/>
     public override void OnUnload(AgentContext context)

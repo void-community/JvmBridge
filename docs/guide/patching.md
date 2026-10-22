@@ -132,7 +132,7 @@ internal static partial class Callbacks
 context.DefineClass(Callbacks.Definition, ClassLoaderTarget.Bootstrap);
 ```
 
-An optional first `JavaEnvironment` parameter receives the callback's JNI environment. Other parameters and the return type may be `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, or `nint` for a Java object (typed by `[JavaType("Ljava/util/List;")]`, otherwise `java/lang/Object`). An exception that a method throws is reported and contained, and the JVM receives a default value.
+An optional first `JavaEnvironment` parameter receives the callback's JNI environment. Other parameters and the return type may be `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, one-dimensional arrays of the primitives and of `string`, or `nint` for a Java object (typed by `[JavaType("Ljava/util/List;")]`, otherwise `java/lang/Object`). An exception that a method throws is reported and contained, and the JVM receives a default value; throw `JavaThrowException` to raise a Java exception instead (see [**Calling between C# and Java**](interop.md)).
 
 ## Defining a class by hand
 

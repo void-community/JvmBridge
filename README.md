@@ -75,6 +75,8 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 - **Agent lifecycle:** startup and late attachment, VM initialization/death, class preparation, copied JVMTI class/member metadata, capability negotiation, and retransformation.
 - **Class files and patches:** a read-only class-file model, an editor whose edits keep every constant index and code offset, a writer for small helper classes, and declarative `ClassPatch`es with results a test can assert on, all without a JVM.
 - **Helper classes:** written in Java (`JavaSource`, compiled with `javac`, with an optional pinned JDK download for machines that have none) or in C# (`[JavaClass]` and `[JavaMethod]`).
+- **Events and JVM state:** thread, class-load, exception, method, garbage-collection and monitor events with capability negotiation, thread and stack wrappers, and class redefinition.
+- **Java interop:** arrays, exception throwing, monitors and local frames, `[JavaMethod]` with arrays, and typed proxies for the classes of a jar.
 - **Logging and options:** levels, a replaceable sink, an `ILogger` adapter and a parsed option string.
 - **Testing:** `JvmBridge.Testing` supplies checksum-pinned JDKs, `javac` and `java` runners, published-agent lookup and class-file assertions.
 - **One package:** the runtime, source generator, and MSBuild integration ship together. Consumers do not need Clang or header files.
@@ -82,7 +84,7 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 
 ## Documentation
 
-- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**loading and attaching**](docs/guide/attaching.md), [**testing**](docs/guide/testing.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
+- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**loading and attaching**](docs/guide/attaching.md), [**JVM events**](docs/guide/events.md), [**calling between C# and Java**](docs/guide/interop.md), [**testing**](docs/guide/testing.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
 - [**Diagnostics**](docs/diagnostics.md): every `JVMB` build error and what to change.
 - [**Compatibility**](docs/compatibility.md): the generated inventory of JVMs and platforms.
 - [**Footprint**](docs/footprint.md): what loading an agent costs in library size, start-up time and memory.

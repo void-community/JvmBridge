@@ -10,7 +10,7 @@ The generator emits `Agent_OnLoad`, `Agent_OnAttach` and `Agent_OnUnload` for th
 2. The runtime installs the callbacks for VM initialization, VM death, class preparation and class-file loading.
 3. **`OnLoad`** runs for `-agentpath` and `JAVA_TOOL_OPTIONS`. **`OnAttach`** runs when the agent is loaded into a running JVM and defaults to calling `OnLoad`; callbacks are already active, so it can retransform classes that are already loaded.
 4. **`OnVmInit`** gives you a `JavaEnvironment` once the VM is live. On a late attach the VM initialization event has already happened, so do start-up work in `OnAttach` too.
-5. **`OnClassPrepare`** and **`TransformClass`** run as classes are prepared and defined. Patches registered with `Patch` apply when classes load, and can be added or removed while the JVM runs.
+5. **Events you subscribed to** (`OnThreadStart`, `OnException`, ...) run after the callbacks are installed; see [**JVM events**](events.md). **`OnClassPrepare`** and **`TransformClass`** run as classes are prepared and defined. Patches registered with `Patch` apply when classes load, and can be added or removed while the JVM runs.
 6. **`OnCommand`** runs when the library is loaded into the JVM again, which is how a running agent is told what to do (see [**Loading and attaching**](attaching.md#telling-a-running-agent-what-to-do)).
 7. **`OnVmDeath`** and **`OnUnload`** perform logical cleanup exactly once. A NativeAOT library is never unloaded with `FreeLibrary`/`dlclose`; it stays mapped until the process exits.
 

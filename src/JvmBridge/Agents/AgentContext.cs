@@ -519,7 +519,7 @@ public sealed unsafe class AgentContext
         }
     }
 
-    /// <summary>Gets the live Java threads as local references that the caller must dispose or let the callback scope release.</summary>
+    /// <summary>Gets the live Java threads as local references, which belong to the current JNI local-reference scope and are released when it ends, for example when the native method that called this returns.</summary>
     /// <param name="environment">The JNI environment of the current thread and callback scope.</param>
     /// <returns>The thread references.</returns>
     public nint[] GetAllThreads(JavaEnvironment environment)

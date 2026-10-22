@@ -1,6 +1,8 @@
 # Limitations
 
 - **Method bodies only on loaded classes.** The JVM forbids adding methods, fields or interfaces when a class is retransformed. Edits made when a class first loads are not limited this way, but a late attach can only change bodies of classes that are already loaded.
+- **Capabilities depend on how the agent was loaded.** On HotSpot, exception events and method entry and exit events are only offered to an agent loaded at startup, not to one attached to a running JVM. Subscriptions report a denial instead of failing.
+- **Typed proxies wrap what is public.** Only public methods and constructors of public top-level classes, looked up on each call, through classes the system class loader can see.
 - **Matchers know what the agent has seen.** `ForSubclassesOf` follows the supertypes the agent recorded from class loads and from the classes that were already loaded when it started or when the patch was registered; an ancestor it never saw ends the walk. `ForAnnotatedWith` reads the class bytes, so on its own it cannot find already loaded classes.
 - **Retransforming at run time needs the capability from the start.** `PatchNow` and `Unpatch` can only retransform loaded classes if `can_retransform_classes` was requested before events were enabled: automatic for an attached agent, `TryEnableRetransformation` in `Configure` otherwise.
 - **Edits keep constant indices and code offsets.** `ClassFileEditor` appends constants and rewrites code at the same length. It does not insert or delete instructions and does not interpret stack map frames, so it is not a general bytecode editor.

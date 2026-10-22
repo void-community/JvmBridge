@@ -51,6 +51,8 @@ public final class BridgeFixture {
 
     public static final class Selected { public static String name() { return "selected-original"; } }
 
+    public static final class Redefinable { public static String value() { return "before"; } }
+
     private static final class PatchLoader extends ClassLoader {
         PatchLoader() { super(null); }
 
@@ -270,6 +272,107 @@ public final class BridgeFixture {
         System.out.println("MATCHER_PATCH_OK");
     }
 
+    // The helpers of jvmbridge.sample.Interop are defined by the agent in the bootstrap loader, so the fixture reaches them by reflection.
+    private static Object interop(String name, Class<?>[] types, Object... arguments) throws Exception {
+        Class<?> type = Class.forName("jvmbridge.sample.Interop", true, null);
+        try { return type.getMethod(name, types).invoke(null, arguments); }
+        catch (java.lang.reflect.InvocationTargetException failure) {
+            if (failure.getCause() instanceof Exception) throw (Exception) failure.getCause();
+            throw failure;
+        }
+    }
+
+    private static int eventCount(String summary, String key) {
+        for (String part : summary.split(";")) if (part.startsWith(key + "=")) return Integer.parseInt(part.substring(key.length() + 1));
+        throw new AssertionError("No " + key + " in " + summary);
+    }
+
+    private static boolean isSubscribed(String summary, String event) {
+        for (String part : summary.split(";"))
+            if (part.startsWith("subscribed=")) return java.util.Arrays.asList(part.substring("subscribed=".length()).split("\\+")).contains(event);
+        return false;
+    }
+
+    // Events that a JVM may deny are only checked when the agent says it subscribed to them; the ones that need no capability are always checked.
+    private static void checkEvents() throws Exception {
+        final Object contended = new Object();
+        final boolean[] holding = new boolean[1];
+        Thread holder = new Thread(new Runnable() {
+            public void run() {
+                synchronized (contended) {
+                    holding[0] = true;
+                    try { Thread.sleep(300); } catch (InterruptedException ignored) { }
+                }
+            }
+        }, "jvmbridge-holder");
+        holder.start();
+        while (!holding[0]) Thread.sleep(5);
+        synchronized (contended) { }
+        holder.join();
+        System.gc();
+        Thread.sleep(200);
+        String summary = (String) interop("events", new Class<?>[0]);
+        String log = (String) interop("threadLog", new Class<?>[0]);
+        if (eventCount(summary, "threadStart") < 1 || eventCount(summary, "threadEnd") < 1 || eventCount(summary, "classLoad") < 1)
+            throw new AssertionError("Thread or class events did not arrive: " + summary);
+        if (!log.contains("start:jvmbridge-holder") || !log.contains("end:jvmbridge-holder"))
+            throw new AssertionError("The thread events did not name the thread that ran: " + log);
+        if (isSubscribed(summary, "Exception") && eventCount(summary, "exception") < 20000)
+            throw new AssertionError("Exception events did not arrive: " + summary);
+        if (isSubscribed(summary, "GarbageCollectionStart") && (eventCount(summary, "collectionStart") < 1 || eventCount(summary, "collectionFinish") < 1))
+            throw new AssertionError("Garbage collection events did not arrive: " + summary);
+        if (isSubscribed(summary, "MonitorContendedEnter") && (eventCount(summary, "monitorEnter") < 1 || eventCount(summary, "monitorEntered") < 1))
+            throw new AssertionError("Monitor events did not arrive: " + summary);
+        System.out.println("EVENTS_OK " + summary);
+        String trace = (String) interop("trace", new Class<?>[] { boolean.class }, true);
+        if (trace.equals("on")) {
+            PatchTarget.label();
+            interop("trace", new Class<?>[] { boolean.class }, false);
+            String traced = (String) interop("traced", new Class<?>[0]);
+            if (!traced.contains("BridgeFixture$PatchTarget.label()Ljava/lang/String;")) throw new AssertionError("Method entry events missed the call: " + traced);
+            System.out.println("METHOD_EVENTS_OK");
+        } else {
+            System.out.println("METHOD_EVENTS_UNAVAILABLE " + trace);
+        }
+    }
+
+    private static void checkInterop() throws Exception {
+        byte[] reversed = (byte[]) interop("reverse", new Class<?>[] { byte[].class }, new byte[] { 1, 2, 3 });
+        if (!java.util.Arrays.equals(new byte[] { 3, 2, 1 }, reversed)) throw new AssertionError("Byte arrays did not cross the boundary: " + java.util.Arrays.toString(reversed));
+        if (interop("reverse", new Class<?>[] { byte[].class }, (Object) null) != null) throw new AssertionError("A null array did not stay null");
+        String[] words = (String[]) interop("words", new Class<?>[] { String.class }, "a b c");
+        if (!java.util.Arrays.equals(new String[] { "a", "b", "c" }, words)) throw new AssertionError("String arrays did not cross the boundary: " + java.util.Arrays.toString(words));
+        if (((Integer) interop("positive", new Class<?>[] { int.class }, 5)).intValue() != 5) throw new AssertionError("A positive number was not returned");
+        try {
+            interop("positive", new Class<?>[] { int.class }, -1);
+            throw new AssertionError("The Java exception was not raised");
+        } catch (IllegalArgumentException expected) {
+            if (!"must be positive: -1".equals(expected.getMessage())) throw new AssertionError("The exception message was lost: " + expected.getMessage());
+        }
+        final Object lock = new Object();
+        if (!"locked".equals(interop("locked", new Class<?>[] { Object.class }, lock))) throw new AssertionError("The monitor helper did not return");
+        final boolean[] acquired = new boolean[1];
+        Thread other = new Thread(new Runnable() { public void run() { synchronized (lock) { acquired[0] = true; } } });
+        other.start();
+        other.join(5000);
+        if (!acquired[0]) throw new AssertionError("The monitor was not released");
+        String stack = (String) interop("stack", new Class<?>[0]);
+        if (!stack.contains("BridgeFixture.checkInterop")) throw new AssertionError("The stack trace misses the caller: " + stack);
+        String threads = (String) interop("threads", new Class<?>[0]);
+        if (!threads.contains("main") || !threads.contains("Runnable")) throw new AssertionError("The thread wrappers misreport the threads: " + threads);
+        System.out.println("INTEROP_OK");
+        if (!"before".equals(Redefinable.value())) throw new AssertionError("Redefinable changed before it was redefined");
+        String redefined = (String) interop("redefine", new Class<?>[] { Class.class, byte[].class }, Redefinable.class, readClass("BridgeFixture$Redefinable.class"));
+        if ("ok".equals(redefined)) {
+            if (!"after".equals(Redefinable.value())) throw new AssertionError("Redefinition did not change the behavior: " + Redefinable.value());
+            System.out.println("REDEFINE_OK");
+        } else if ("unavailable".equals(redefined)) {
+            System.out.println("REDEFINE_UNAVAILABLE");
+        } else {
+            throw new AssertionError("Redefinition failed: " + redefined);
+        }
+    }
+
     private static void checkBootstrapLoader() throws Exception {
         Class<?> bootstrap = Class.forName("java.util.concurrent.atomic.AtomicStampedReference", false, null);
         if (bootstrap.getClassLoader() != null) throw new AssertionError("Bootstrap class had a defining loader");
@@ -325,6 +428,8 @@ public final class BridgeFixture {
             catch (ArithmeticException expected) { }
         }
         System.gc();
+        checkEvents();
+        checkInterop();
         System.out.println("SIGNAL_EXCEPTIONS_OK");
         System.out.println("JNI_UNICODE_THREADS_REFERENCES_OK");
         System.out.println("AGENT_OK");

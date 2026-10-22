@@ -4,6 +4,8 @@ JvmBridge writes JVM agents in C#: generated JNI and JVMTI declarations, explici
 
 - [**Concepts**](concepts.md): lifecycle, class loaders and helper classes, references and ownership, threads, logging and options.
 - [**Patching classes**](patching.md): the class-file model, `ClassPatch`, and helper classes written in Java or C#.
+- [**JVM events**](events.md): threads, classes, exceptions, methods, garbage collection and monitors, with capabilities and wrappers.
+- [**Calling between C# and Java**](interop.md): arrays, exceptions, monitors, local frames and typed proxies.
 - [**Recipes**](recipes.md): short answers to the usual jobs.
 - [**Loading and attaching**](attaching.md): `-agentpath`, `JAVA_TOOL_OPTIONS`, `jcmd` and the Attach API.
 - [**Testing an agent**](testing.md): JvmBridge.Testing and the project template.
