@@ -68,6 +68,9 @@ public sealed unsafe class AgentContext
 
     internal PatchEngine Patches => _patches;
 
+    /// <summary>Gets the patches that are registered now, in the order the runtime applies them. A tool reads it to preview what an agent would change; <see cref="Patch"/> and <see cref="Unpatch"/> change it.</summary>
+    public IReadOnlyList<ClassPatch> RegisteredPatches => _patches.Registered;
+
     /// <summary>
     /// Registers a declarative class patch. The runtime applies it, in registration order, to the classes that load from now on and logs what it did. When the agent attaches late, and when a patch is registered after
     /// <see cref="JavaAgent.Configure"/>, it also retransforms the matching classes that are already loaded, if retransformation is enabled; <see cref="PatchNow"/> reports what happened to each of those.

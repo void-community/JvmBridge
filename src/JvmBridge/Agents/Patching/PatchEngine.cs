@@ -20,6 +20,9 @@ internal sealed class PatchEngine(AgentContext context)
     /// <summary>Gets what is known about the supertypes of classes, for patches that look at them.</summary>
     internal ClassHierarchy Hierarchy => _hierarchy;
 
+    /// <summary>Gets the registered patches in the order they apply.</summary>
+    internal IReadOnlyList<ClassPatch> Registered => Volatile.Read(ref _set).Patches;
+
     /// <summary>Registers a patch for the classes that load from now on. A patch that is registered already stays as it is.</summary>
     internal void Add(ClassPatch patch)
     {

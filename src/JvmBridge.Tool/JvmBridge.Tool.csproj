@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>jvmbridge</ToolCommandName>
+    <PackageId>JvmBridge.Tool</PackageId>
+    <Description>The jvmbridge command: disassemble class files, preview what an agent's patches would change, and pack a native agent into a jar that java -javaagent can start.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JvmBridge.Tool.Tests" />
+    <ProjectReference Include="../JvmBridge/JvmBridge.csproj" />
+    <ProjectReference Include="../JvmBridge.Launcher/JvmBridge.Launcher.csproj" />
+    <PackageReference Include="System.CommandLine" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

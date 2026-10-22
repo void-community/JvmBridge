@@ -11,5 +11,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../../src/JvmBridge.Build/JvmBridge.Build.csproj" />
+    <ProjectReference Include="../../src/JvmBridge.Launcher/JvmBridge.Launcher.csproj" />
   </ItemGroup>
 </Project>

@@ -51,6 +51,7 @@ jobs:
         run: |
           dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
           dotnet pack src/JvmBridge.Logging -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Tool -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
           dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
       - name: Restore solution
         run: dotnet restore JvmBridge.slnx --locked-mode

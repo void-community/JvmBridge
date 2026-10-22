@@ -9,6 +9,8 @@ JvmBridge is a generic JNI/JVMTI library and NativeAOT agent toolkit. Keep all p
 - `src/JvmBridge.Tasks`: the MSBuild task that downloads the pinned JDK for `JvmBridgeProvisionJdk`, shipped inside the JvmBridge package under `tasks/`. `src/Shared` holds the JDK provisioning code it shares with JvmBridge.Testing.
 - `src/JvmBridge.Testing`: the JvmBridge.Testing xUnit package: pinned JDKs, javac and java runners, published-agent lookup, and class-file assertions. It links the JDK provisioning code and embeds the inventory of `src/JvmBridge.Build`.
 - `src/JvmBridge.Logging`: the JvmBridge.Logging package: an `ILogger` that writes to the agent log and a redirect of the agent log into an `ILogger`. It is the only project that references Microsoft.Extensions.Logging.Abstractions, so the core package stays dependency-free.
+- `src/JvmBridge.Launcher`: `Launcher.java` and its checked-in `Launcher.class` (compiled with Java 8; a test fails when they differ) and the jar writer that `jvmbridge pack` and the integration tests share. Not packaged on its own.
+- `src/JvmBridge.Tool`: the JvmBridge.Tool package, the `jvmbridge` .NET tool: `dump`, `patch --dry-run` (runs an agent's `Configure` against an offline JVM) and `pack`.
 - `src/JvmBridge.Templates`: the JvmBridge.Templates package, whose `jvmbridge-agent` template is instantiated by the build tests.
 - `src/JvmBridge.Build`: MSBuild tasks for deterministic native declarations, ABI inspection, fixture compilation, and coverage validation; owns pinned inventories and unmodified headers.
 - `src/JvmBridge.Maintenance`: deliberate vendor-inventory and header updates, separate from normal builds.
@@ -51,7 +53,7 @@ Use Conventional Commits with a scope, a gitmoji after the scope, and past-tense
 
 Examples: `feat(agents): ✨ added generated native entry points`, `ci(test): ✅ expanded JVM compatibility checks`.
 
-Pull request descriptions use the repository template. Every validated main commit publishes its tested NuGet artifacts (JvmBridge, JvmBridge.Testing, JvmBridge.Templates and JvmBridge.Logging, all at one version) through `publish-nuget.yml` and the `nuget` environment using Trusted Publishing. There are no release PRs, release tags, GitHub releases, or release-please workflows; each package's `releaseNotes` carry the commit subjects of its push, written by `reusable-build.yml`. Versions follow NetAgents' UTC `YY.M.D.B` scheme, with the timestamp frozen once per workflow run; `B` is 1000 plus the integer part of seconds-since-midnight multiplied by 9000/86400. Never rebuild packages in the publishing job, publish unvalidated artifacts, print tokens, or copy organization secrets into this repository.
+Pull request descriptions use the repository template. Every validated main commit publishes its tested NuGet artifacts (JvmBridge, JvmBridge.Testing, JvmBridge.Templates, JvmBridge.Logging and JvmBridge.Tool, all at one version) through `publish-nuget.yml` and the `nuget` environment using Trusted Publishing. There are no release PRs, release tags, GitHub releases, or release-please workflows; each package's `releaseNotes` carry the commit subjects of its push, written by `reusable-build.yml`. Versions follow NetAgents' UTC `YY.M.D.B` scheme, with the timestamp frozen once per workflow run; `B` is 1000 plus the integer part of seconds-since-midnight multiplied by 9000/86400. Never rebuild packages in the publishing job, publish unvalidated artifacts, print tokens, or copy organization secrets into this repository.
 
 ## Documentation
 

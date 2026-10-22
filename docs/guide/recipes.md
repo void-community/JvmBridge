@@ -83,3 +83,37 @@ java -agentpath:/path/MyAgent.so=log=debug -jar app.jar
 context.Log(AgentLogLevel.Debug, "inspected " + name);
 if (context.ParsedOptions.IsEnabled("trace-classes")) { /* extra work */ }
 ```
+
+## Patch a class of the JDK
+
+Classes of `java.base` are patched like any other; the one rule is where the helper lives. A patched `java.base` class can call a helper that the agent defines in the **bootstrap** loader, and cannot call one defined in an application loader.
+
+```csharp
+private static readonly ClassPatch Joiner = ClassPatch.For("java/util/StringJoiner")
+    .RedirectInvocation(
+        JavaMethod.Static("java/util/Objects", "requireNonNull", "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;"),
+        toOwner: "acme/agent/Checks");
+
+public override void Configure(AgentContext context)
+{
+    context.DefineClass(JavaClasses.Acme.Agent.Checks, ClassLoaderTarget.Bootstrap);
+    context.Patch(Joiner);
+}
+```
+
+This is the `JavaBase` patch of the HelloAgent sample. It was run against HotSpot 8, 17 and 21, where `java.base` is a named module from Java 9: at startup with `-agentpath`, and through a late attach, which retransforms the class that is already loaded. It needed no `--add-opens`, `--add-exports` or other module option on any of them. Keep these in mind:
+
+- JDK classes load early and are called from everywhere. Keep the redirect to the one method you mean (`.Method(...)`), and keep the helper free of anything that could call back into the patched method.
+- A patched class of the bootstrap loader that also mentions a `ClassLoaderTarget.PatchedClassLoader` helper is left unpatched, because that helper cannot be defined there. The log says so.
+- Retransforming a JDK class changes method bodies only, like any retransformation.
+
+## Run more than one agent in a JVM
+
+Agents are separate: each load of a library gets its own JVMTI environment, and each library carries its own .NET runtime, so two agents do not share state. A few things are shared by the JVM and are worth knowing:
+
+- **Other agents' transformations.** JVMTI chains the class-file hooks of the agents, so each sees the bytes the previous one produced (agents that cannot retransform are called before those that can, the rest in load order). Your patches see bytes another agent has already changed, and the reverse. Patch narrowly (a method, a constant) so that another agent's edit to the same class does not make yours skip, and read the `ClassPatchResult` log lines when they do.
+- **Retransformation.** When any agent retransforms a class, every agent's transformer runs again on the original bytes. An agent whose patches are deterministic gets the same result again, which is what `ClassPatch` provides.
+- **Two copies of one agent.** Loading the same library twice (`-agentpath:/a/MyAgent.so -agentpath:/b/MyAgent.so`) starts two runtimes. Both load and unload, and the second reports `LinkageError ... duplicate class definition` for the helper classes that the first defined in the same loader and skips them; the process still exits normally. Loading the same file again after the agent runs is a command, not a second agent, see [**Telling a running agent what to do**](attaching.md#telling-a-running-agent-what-to-do).
+- **Jars.** `-javaagent` jars from `jvmbridge pack` each carry a launcher of their own, so any number of them can be named. Naming the same jar twice starts its agent once.
+
+The integration tests run the two-copies case and the same-jar-twice case on every JVM of the CI matrix.

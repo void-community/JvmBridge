@@ -2,7 +2,7 @@
 
 ## Versions
 
-Every validated commit to `main` publishes its packages (JvmBridge, JvmBridge.Testing, JvmBridge.Templates and JvmBridge.Logging) at one shared timestamp version `YY.M.D.B`, for example `26.10.22.2272`: the UTC date and a time-of-day bucket from 1000 through 9999. A later version is newer; the numbers say nothing about the size of a change. Pin the version you tested against.
+Every validated commit to `main` publishes its packages (JvmBridge, JvmBridge.Testing, JvmBridge.Templates, JvmBridge.Logging and JvmBridge.Tool) at one shared timestamp version `YY.M.D.B`, for example `26.10.22.2272`: the UTC date and a time-of-day bucket from 1000 through 9999. A later version is newer; the numbers say nothing about the size of a change. Pin the version you tested against.
 
 There are no tags or GitHub releases. Each package's `releaseNotes` list the commits that went into that version, and the repository history is the change log. Commit subjects follow Conventional Commits, so `feat` and `fix` mark behavior changes and a body states the observable effect ("none" when there is none).
 

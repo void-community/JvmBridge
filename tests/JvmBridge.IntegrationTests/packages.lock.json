@@ -202,6 +202,9 @@
           "Nito.AsyncEx.Context": "[5.1.2, )"
         }
       },
+      "jvmbridge.launcher": {
+        "type": "Project"
+      },
       "Microsoft.CodeAnalysis.CSharp": {
         "type": "CentralTransitive",
         "requested": "[5.9.0, )",

@@ -10,6 +10,7 @@ using JvmBridge.Build;
 
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
+using JvmBridge.Launcher;
 
 namespace JvmBridge.IntegrationTests;
 
@@ -231,12 +232,14 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             throw new InvalidOperationException(message: "Helper callback exception was not contained under checked JNI.");
 
         await AttachTestAsync(java, agent, fixture, home, directory, entry.Java, environment, entry.Implementation, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await DeliveryTestAsync(java, agent, rid, fixture, directory, environment, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         JsonObject outcome = JsonFile.ToObject(entry);
         outcome.SetProperty(propertyName: "status", value: "passed");
         outcome.SetProperty(propertyName: "abi", value: "passed");
         outcome.SetProperty(propertyName: "startup", value: "passed");
         outcome.SetProperty(propertyName: "attach", value: "passed");
+        outcome.SetProperty(propertyName: "delivery", value: "passed");
         outcome.SetProperty(propertyName: "host", value: "passed");
         outcome.SetProperty(propertyName: "nativeDestroyResult", JsonValue.Create(destroy));
         JsonNode?[] optionNodes = [.. vmOptions.Select(value => (JsonNode?)JsonValue.Create(value))];
@@ -543,6 +546,67 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         string output = (await _processRunner.RunAsync([binary], Path.Combine(directory, path2: "abi-native.json"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Output;
 
         return ParseLongDictionary(output);
+    }
+
+    // The agent library started from a jar by java -javaagent, the same jar named twice, and two copies of the library started with -agentpath.
+    private async Task DeliveryTestAsync(
+        string java,
+        string agent,
+        string rid,
+        string fixture,
+        string directory,
+        IReadOnlyDictionary<string, string?> environment,
+        IReadOnlyDictionary<string, int> plainWarnings,
+        CancellationToken cancellationToken
+    )
+    {
+        string jar = Path.Combine(directory, path2: "hello.jar");
+        string launcher = LauncherJar.Write(jar, [new AgentLibrary(rid, agent)]);
+
+        ProcessResult launched = await _processRunner.RunAsync(
+            [java, "-Xcheck:jni", "-javaagent:" + jar + "=delivery", "-cp", fixture, "BridgeFixture"],
+            Path.Combine(directory, path2: "javaagent.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "MATCHER_PATCH_OK", "UNLOAD" })
+        {
+            if (!launched.Output.Contains(marker, StringComparison.Ordinal))
+                throw new InvalidOperationException($"Missing {marker} when {launcher} started the agent with -javaagent.");
+        }
+
+        bool introduced = Warnings(launched.Output).Any(warning => warning.Value > plainWarnings.GetValueOrDefault(warning.Key));
+
+        if (introduced || launched.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
+            throw new InvalidOperationException(message: "The -javaagent launcher introduced JNI diagnostics.");
+
+        ProcessResult twice = await _processRunner.RunAsync(
+            [java, "-javaagent:" + jar, "-javaagent:" + jar, "-version"],
+            Path.Combine(directory, path2: "javaagent-twice.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        bool startedOnce = twice.Output.Contains(value: "is already started in this JVM", StringComparison.Ordinal) && twice.Output.Split(separator: "UNLOAD", StringSplitOptions.None).Length == 2;
+
+        if (!startedOnce)
+            throw new InvalidOperationException(message: "A jar named twice on the command line did not start its agent exactly once.");
+
+        string copy = Path.Combine(directory, "HelloAgentCopy" + Path.GetExtension(agent));
+        File.Copy(agent, copy, overwrite: true);
+
+        ProcessResult copies = await _processRunner.RunAsync(
+            [java, "-agentpath:" + agent, "-agentpath:" + copy, "-version"],
+            Path.Combine(directory, path2: "agent-copies.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        bool bothLoaded = copies.Output.Contains(value: "LinkageError", StringComparison.Ordinal) && copies.Output.Split(separator: "UNLOAD", StringSplitOptions.None).Length == 3;
+
+        if (!bothLoaded)
+            throw new InvalidOperationException(message: "Two copies of one agent did not both load, with the second reporting the duplicate helper definition.");
     }
 
     private async Task LoadAgentAsync(

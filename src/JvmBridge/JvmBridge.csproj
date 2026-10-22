@@ -16,6 +16,7 @@
     <ProjectReference Include="../JvmBridge.Generator/JvmBridge.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="../JvmBridge.Tasks/JvmBridge.Tasks.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <InternalsVisibleTo Include="JvmBridge.Tests" />
+    <InternalsVisibleTo Include="JvmBridge.Tool" />
     <None Include="buildTransitive/*" Pack="true" PackagePath="buildTransitive" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
     <None Include="../../NOTICE.md" Pack="true" PackagePath="/" />
