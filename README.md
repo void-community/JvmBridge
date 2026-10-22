@@ -73,10 +73,29 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 - **Generated native API:** JNI/JVMTI types, constants, function-table entries, and callback signatures from pinned OpenJDK headers. C# raw declarations live in `JvmBridge.Native` and preserve native identifiers.
 - **Runtime helpers:** JVM creation, thread attachment, UTF-16 string conversion, modified UTF-8 names/options, checked field access, constructor and typed method calls, native registration, and owned local/global references.
 - **Agent lifecycle:** startup and late attachment, VM initialization/death, class preparation, copied JVMTI class/member metadata, capability negotiation, and retransformation.
+- **Class files:** a read-only class-file model, an editor whose edits keep every constant index and code offset, and a writer for small helper classes, in `JvmBridge.ClassFiles`.
 - **One package:** the runtime, source generator, and MSBuild integration ship together. Consumers do not need Clang or header files.
 - **Real validation:** CI publishes the example against the packed NuGet package and loads it into each available pinned JVM.
 
-Raw function pointers are intentionally unsafe escape hatches. Check version/capability/phase requirements before using them. Variadic and va_list entries are exposed as addresses; use typed argument-array `*A` calls from managed code. JvmBridge supplies class bytes and JVMTI transformation plumbing, not a general Java bytecode editor.
+Raw function pointers are intentionally unsafe escape hatches. Check version/capability/phase requirements before using them. Variadic and va_list entries are exposed as addresses; use typed argument-array `*A` calls from managed code. JvmBridge supplies class bytes, JVMTI transformation plumbing and the small class-file model below, not a general Java bytecode editor.
+
+`JvmBridge.ClassFiles` reads, edits and writes class files without a JVM. `JavaClassFile.Read` exposes the version, flags, hierarchy, fields and methods, the typed constant pool and each `Code` attribute's instructions (offset, opcode, constant operand). It does not interpret stack maps, and it throws `ClassFormatException` for truncated input, trailing bytes, unknown constant tags and malformed code. `ClassFileEditor` only makes edits that keep every existing constant index and code offset, so code, exception tables and stack map frames stay valid without being recomputed: new constants are appended once, a member reference can be retargeted everywhere, an invocation can be replaced in place, constants can be replaced, and access flags can be changed.
+
+```csharp
+using JvmBridge.ClassFiles;
+
+JavaClassFile file = JavaClassFile.Read(bytes);
+foreach (ClassMember method in file.Methods)
+    Console.WriteLine($"{file.Name}.{method.Name}{method.Descriptor}");
+
+ClassFileEditor editor = new(bytes);
+int redirected = editor.ReplaceInvocation(
+    JavaMethod.Static("java/util/Collections", "sort", "(Ljava/util/List;Ljava/util/Comparator;)V"),
+    toOwner: "legacyforgepatcher/Collections");
+byte[] patched = editor.ToArray();
+```
+
+`ReplaceInvocation` turns `invokestatic`, `invokevirtual` or `invokeinterface` into `invokestatic` of another owner at the same length; a virtual or interface receiver becomes the first parameter, and `invokeinterface` padding becomes `nop`. `ClassFileWriter` writes small classes made of static methods (including `native` ones for `RegisterNative`) with a deduplicating constant pool; straight-line code needs no stack map frames. `ModifiedUtf8.GetBytes` encodes class-file strings without the JNI terminator.
 
 In a live JVM callback, use a class reference from that callback or an explicitly owned reference to inspect members and invoke Java code:
 

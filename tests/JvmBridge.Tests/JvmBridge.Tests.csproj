@@ -15,4 +15,8 @@
     <ProjectReference Include="../../src/JvmBridge/JvmBridge.csproj" />
     <ProjectReference Include="../../src/JvmBridge.Generator/JvmBridge.Generator.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Compiled with javac, release 8 and no debug information, from the neighboring .java sources. -->
+    <EmbeddedResource Include="Fixtures/ClassFiles/**/*.class" LogicalName="ClassFiles.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

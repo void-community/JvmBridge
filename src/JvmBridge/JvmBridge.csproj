@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../JvmBridge.Generator/JvmBridge.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <InternalsVisibleTo Include="JvmBridge.Tests" />
     <None Include="buildTransitive/*" Pack="true" PackagePath="buildTransitive" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
     <None Include="../../NOTICE.md" Pack="true" PackagePath="/" />

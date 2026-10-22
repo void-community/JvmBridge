@@ -8,10 +8,15 @@ public static class ModifiedUtf8
     /// <summary>Encodes UTF-16 code units as null-terminated JNI modified UTF-8.</summary>
     /// <param name="value">The managed string to encode.</param>
     /// <returns>The modified UTF-8 bytes followed by a zero terminator.</returns>
-    public static byte[] Encode(string value)
+    public static byte[] Encode(string value) => [.. GetBytes(value), 0];
+
+    /// <summary>Encodes UTF-16 code units as modified UTF-8 without a terminator, as stored in class-file Utf8 constants.</summary>
+    /// <param name="value">The managed string to encode.</param>
+    /// <returns>The modified UTF-8 bytes. The length prefix a class file stores is the caller's concern.</returns>
+    public static byte[] GetBytes(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        List<byte> bytes = new(value.Length * 3 + 1);
+        List<byte> bytes = new(value.Length * 3);
         foreach (char character in value)
         {
             if (character is > '\0' and <= '\x7f')
@@ -28,7 +33,6 @@ public static class ModifiedUtf8
                 bytes.Add((byte)(0x80 | character & 0x3f));
             }
         }
-        bytes.Add(0);
         return bytes.ToArray();
     }
 
