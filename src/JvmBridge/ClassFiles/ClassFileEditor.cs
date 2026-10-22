@@ -352,7 +352,7 @@ public sealed class ClassFileEditor
     /// <returns>A copy of the class file bytes.</returns>
     public byte[] ToArray() => (byte[])_bytes.Clone();
 
-    private static string WithReceiver(string owner, string descriptor)
+    internal static string WithReceiver(string owner, string descriptor)
     {
         if (descriptor.Length == 0 || descriptor[0] != '(')
             throw new ArgumentException($"'{descriptor}' is not a method descriptor.", nameof(descriptor));

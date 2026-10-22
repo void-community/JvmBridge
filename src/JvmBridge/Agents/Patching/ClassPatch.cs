@@ -146,19 +146,31 @@ public sealed class ClassPatch
     public ClassPatch RedirectInvocation(JavaMethod from, string toOwner, string? toName = null, bool ownerIsInterface = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(toOwner);
-        MethodScope? scope = _scope;
 
-        return With(PatchKind.Invocation, editor =>
-        {
-            if (FindMissingMethod(editor, scope) is { } missing)
-                return StepOutcome.Skip(missing);
+        return Redirecting(from, toOwner, toName, toDescriptor: null, ownerIsInterface);
+    }
 
-            int count = editor.ReplaceInvocation(from, toOwner, toName, toDescriptor: null, scope?.Name, scope?.Descriptor, ownerIsInterface);
+    /// <summary>
+    /// Redirects calls of a method to a static method with a descriptor of its own, at the same length. The target takes the operands of the call in order, the receiver of a virtual or interface call first, and returns what the call returns. A parameter may be
+    /// <c>java/lang/Object</c> where the call passes another reference, which is how a helper in the bootstrap loader receives objects of classes it cannot see: the verifier accepts any reference where <c>Object</c> is expected.
+    /// </summary>
+    /// <param name="from">The call to redirect; kind, owner, name and descriptor must match.</param>
+    /// <param name="to">The replacement, described with <see cref="JavaMethod.Static"/>.</param>
+    /// <param name="ownerIsInterface">Whether the owner of <paramref name="to"/> is an interface, whose static methods need an interface method reference (class files of version 52 or later).</param>
+    /// <returns>A new patch.</returns>
+    /// <exception cref="ArgumentException">The target is not static, or the operands of the call cannot be passed to it: another number of parameters, another result type, another primitive type, or a reference parameter that is neither the type of the
+    /// operand nor <c>java/lang/Object</c>.</exception>
+    public ClassPatch RedirectInvocation(JavaMethod from, JavaMethod to, bool ownerIsInterface = false)
+    {
+        if (to.Kind != JavaMethodKind.Static)
+            throw new ArgumentException($"The target {to} must be static; describe it with JavaMethod.Static.", nameof(to));
 
-            return count == 0
-                ? StepOutcome.Skip($"no invocation of {from.Owner}.{from.Name}{from.Descriptor}{(scope is null ? string.Empty : $" in {scope}")}")
-                : StepOutcome.Applied(count, $"{Prefix(scope)}{count} invocation{(count == 1 ? string.Empty : "s")} of {from.Owner}.{from.Name} redirected");
-        });
+        string derived = from.Kind == JavaMethodKind.Static ? from.Descriptor : ClassFileEditor.WithReceiver(from.Owner, from.Descriptor);
+
+        if (Incompatibility(derived, to.Descriptor) is { } problem)
+            throw new ArgumentException($"The call {from} cannot be redirected to {to}: {problem}.", nameof(to));
+
+        return Redirecting(from, to.Owner, to.Name, to.Descriptor, ownerIsInterface);
     }
 
     /// <summary>Replaces a String constant. Every use of the constant changes.</summary>
@@ -237,6 +249,36 @@ public sealed class ClassPatch
         });
     }
 
+    /// <summary>
+    /// Runs a custom edit that reports what it did, so that it gets the same result, log line and all-or-nothing behavior as the built-in edits. The edit returns how many places it changed; none makes the patch skip the class with the description, and an
+    /// edit that throws <see cref="ClassFormatException"/>, <see cref="ArgumentException"/> or <see cref="InvalidOperationException"/> skips it with the message. A <see cref="Method"/> scope that names a method the class lacks skips the class before the edit runs,
+    /// and the scope is passed to the edit.
+    /// </summary>
+    /// <param name="description">What the edit changes, for the result and the log, for example <c>connection state calls moved to the event loop</c>.</param>
+    /// <param name="edit">The edit. It must keep constant indices and code offsets valid.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch Edit(string description, Func<ClassEditContext, int> edit)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(description);
+        ArgumentNullException.ThrowIfNull(edit);
+        MethodScope? scope = _scope;
+
+        return With(PatchKind.Edit, editor =>
+        {
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
+
+            int count = edit(new ClassEditContext(editor, scope?.Name, scope?.Descriptor));
+
+            return count switch
+            {
+                < 0 => throw new InvalidOperationException($"The edit '{description}' returned {count}; return the number of places it changed."),
+                0 => StepOutcome.Skip($"{description}: nothing to change{(scope is null ? string.Empty : $" in {scope}")}"),
+                _ => StepOutcome.Applied(count, $"{Prefix(scope)}{description} ({count} change{(count == 1 ? string.Empty : "s")})"),
+            };
+        });
+    }
+
     /// <summary>Runs a custom edit with the underlying editor, for changes the other methods do not cover.</summary>
     /// <param name="edit">The edit. It must keep constant indices and code offsets valid.</param>
     /// <returns>A new patch.</returns>
@@ -257,7 +299,7 @@ public sealed class ClassPatch
     /// parameter may be the declaring class instead of <c>Object</c>. Scope the patch with <see cref="Method"/> and a descriptor first. The method's code moves into a private synthetic method and the method becomes a short stub, so the patch must apply when
     /// the class is first defined: it cannot advise a class that was loaded before the agent, and the log says so. Constructors, static initializers, native, abstract, bridge and interface methods are not supported. A hook that throws prevents the method from running.
     /// </summary>
-    /// <param name="hook">The hook, described with <see cref="JavaMethod.Static"/>. The class that declares it must be visible to the advised class, as for <see cref="RedirectInvocation"/>.</param>
+    /// <param name="hook">The hook, described with <see cref="JavaMethod.Static"/>. The class that declares it must be visible to the advised class, as for <see cref="RedirectInvocation(JavaMethod, string, string?, bool)"/>.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch Before(JavaMethod hook)
     {
@@ -374,6 +416,47 @@ public sealed class ClassPatch
             _ = (advice?.Applied.Add(key));
 
         return new ClassPatchResult(className, editor.ToArray(), skippedReason: null, details, counts[(int)PatchKind.Invocation], counts[(int)PatchKind.Constant], counts[(int)PatchKind.Access], counts[(int)PatchKind.Edit], advised.Count);
+    }
+
+    private static string? Incompatibility(string derived, string target)
+    {
+        ClassFiles.Advice.MethodDescriptor call = ClassFiles.Advice.MethodDescriptor.Parse(derived);
+        ClassFiles.Advice.MethodDescriptor helper = ClassFiles.Advice.MethodDescriptor.Parse(target);
+
+        if (call.Parameters.Count != helper.Parameters.Count)
+            return $"the call passes {call.Parameters.Count} operand{(call.Parameters.Count == 1 ? string.Empty : "s")} ({derived}), the target takes {helper.Parameters.Count}";
+
+        if (call.ReturnType != helper.ReturnType)
+            return $"the call returns {call.ReturnType}, the target {helper.ReturnType}";
+
+        for (int index = 0; index < call.Parameters.Count; index++)
+        {
+            string passed = call.Parameters[index];
+            string taken = helper.Parameters[index];
+            bool reference = passed[0] is 'L' or '[';
+
+            if (passed != taken && !(reference && taken == "Ljava/lang/Object;"))
+                return $"operand {index + 1} is {passed}, which the target's {taken} cannot take; use {passed} or Ljava/lang/Object;";
+        }
+
+        return null;
+    }
+
+    private ClassPatch Redirecting(JavaMethod from, string toOwner, string? toName, string? toDescriptor, bool ownerIsInterface)
+    {
+        MethodScope? scope = _scope;
+
+        return With(PatchKind.Invocation, editor =>
+        {
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
+
+            int count = editor.ReplaceInvocation(from, toOwner, toName, toDescriptor, scope?.Name, scope?.Descriptor, ownerIsInterface);
+
+            return count == 0
+                ? StepOutcome.Skip($"no invocation of {from.Owner}.{from.Name}{from.Descriptor}{(scope is null ? string.Empty : $" in {scope}")}")
+                : StepOutcome.Applied(count, $"{Prefix(scope)}{count} invocation{(count == 1 ? string.Empty : "s")} of {from.Owner}.{from.Name} redirected");
+        });
     }
 
     private static string Prefix(MethodScope? scope) => scope is null ? string.Empty : $"{scope}: ";

@@ -46,6 +46,35 @@ public sealed class PatcherAgent : JavaAgent
 
 Register patches and helpers from `Configure`. The runtime only calls a patch for its class name, applies it as the class loads, logs `patched ...` or `skipped ...: reason`, and, when the agent attaches late and retransformation is available, retransforms the matching classes that are already loaded. See [**Concepts**](concepts.md#class-loaders-and-helper-classes) for where helpers are defined.
 
+### A helper that cannot see the types it is given
+
+A helper in the bootstrap loader cannot see the classes of an application loader, so it cannot declare a parameter of their type. Give `RedirectInvocation` the target as a `JavaMethod` with a descriptor of its own, and let the helper take `java/lang/Object` where the call passes those types; the verifier accepts any reference where `Object` is expected:
+
+```csharp
+ClassPatch.For("net/minecraftforge/fml/common/network/handshake/NetworkDispatcher")
+    .Method("serverInitiateHandshake", "()I")
+    .RedirectInvocation(
+        JavaMethod.Virtual("net/minecraft/network/NetworkManager", "func_150723_a", "(Lnet/minecraft/network/EnumConnectionState;)V"),
+        JavaMethod.Static("legacyforgepatcher/Network", "setConnectionState", "(Ljava/lang/Object;Ljava/lang/Object;)V"));
+```
+
+The target takes the operands of the call in order (the receiver of a virtual or interface call first) and returns what the call returns. Building the patch refuses a target that is not static, takes another number of parameters, returns another type, has another primitive, or has a reference parameter that is neither the type of the operand nor `Object`; a supertype other than `Object` would need the class hierarchy to check, so it is refused too. The result and the log line are those of any redirect. Inside the helper, reach the real types through reflection or a helper defined with `PatchedClassLoader`. This was run with `-Xverify:all` on HotSpot 8 and 17.
+
+### Custom edits that report
+
+`.Edit(Action<ClassFileEditor>)` runs any edit, but cannot say what it did: it always reports `custom edit applied`. `.Edit(description, context => ...)` returns the number of places it changed, and gets the same treatment as the built-in edits: the count in `AppliedEdits`, `<method>: <description> (1 change)` in the result and the log, and a skip (`<description>: nothing to change in <method>`) when it returns 0. It honours `.Method`: a scoped method the class lacks skips the class before the edit runs, and `context.MethodName` and `context.MethodDescriptor` carry the scope, so the edit does not repeat it:
+
+```csharp
+ClassPatch.For("com/acme/Service")
+    .Method("handle", "(Ljava/lang/String;)I")
+    .Edit("string length calls measured", context => context.Editor.ReplaceInvocation(
+        JavaMethod.Virtual("java/lang/String", "length", "()I"),
+        toOwner: "acme/agent/Strings",
+        toDescriptor: "(Ljava/lang/Object;)I",
+        methodName: context.MethodName,
+        methodDescriptor: context.MethodDescriptor));
+```
+
 ## Matching several classes
 
 `ClassPatch.For` names one class. These start a patch that targets every class a test accepts, with the same edits and the same all-or-nothing rule per class:
