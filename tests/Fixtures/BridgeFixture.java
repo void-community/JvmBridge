@@ -347,8 +347,8 @@ public final class BridgeFixture {
         return false;
     }
 
-    // Events that a JVM may deny are only checked when the agent says it subscribed to them; the ones that need no capability are always checked.
-    private static void checkEvents() throws Exception {
+    // Two threads contend for a monitor, one holding it while the other waits. A JVM that spins before it blocks may not report a contended enter for a short wait, so the check tries a few times before it gives up.
+    private static void contend() throws Exception {
         final Object contended = new Object();
         final boolean[] holding = new boolean[1];
         Thread holder = new Thread(new Runnable() {
@@ -363,9 +363,19 @@ public final class BridgeFixture {
         while (!holding[0]) Thread.sleep(5);
         synchronized (contended) { }
         holder.join();
+    }
+
+    // Events that a JVM may deny are only checked when the agent says it subscribed to them; the ones that need no capability are always checked.
+    private static void checkEvents() throws Exception {
+        String summary = null;
+        for (int attempt = 0; attempt < 5; attempt++) {
+            contend();
+            summary = (String) interop("events", new Class<?>[0]);
+            if (!isSubscribed(summary, "MonitorContendedEnter") || (eventCount(summary, "monitorEnter") >= 1 && eventCount(summary, "monitorEntered") >= 1)) break;
+        }
         System.gc();
         Thread.sleep(200);
-        String summary = (String) interop("events", new Class<?>[0]);
+        summary = (String) interop("events", new Class<?>[0]);
         String log = (String) interop("threadLog", new Class<?>[0]);
         if (eventCount(summary, "threadStart") < 1 || eventCount(summary, "threadEnd") < 1 || eventCount(summary, "classLoad") < 1)
             throw new AssertionError("Thread or class events did not arrive: " + summary);
