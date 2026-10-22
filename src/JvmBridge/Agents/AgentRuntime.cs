@@ -42,6 +42,7 @@ public static unsafe class AgentRuntime
             callbacks.VMDeath = &VmDeath;
             callbacks.ClassPrepare = &ClassPrepare;
             callbacks.ClassFileLoadHook = &ClassFileLoad;
+            EventTable.Compose(ref callbacks);
             // SetEventCallbacks accepts a prefix; do not read Java 9+ callback slots on Java 8.
             int size = (int)Marshal.OffsetOf<jvmtiEventCallbacks>(nameof(jvmtiEventCallbacks.SampledObjectAlloc));
             // An agent that attaches later is expected to patch classes that are already loaded, and the capability can only be added before events are enabled.
@@ -50,6 +51,7 @@ public static unsafe class AgentRuntime
             AgentContext.Check((*environment)->SetEventCallbacks(environment, &callbacks, size), "SetEventCallbacks");
             foreach (jvmtiEvent notification in new[] { jvmtiEvent.JVMTI_EVENT_VM_INIT, jvmtiEvent.JVMTI_EVENT_VM_DEATH, jvmtiEvent.JVMTI_EVENT_CLASS_PREPARE, jvmtiEvent.JVMTI_EVENT_CLASS_FILE_LOAD_HOOK })
                 AgentContext.Check(((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, jvmtiEventMode.JVMTI_ENABLE, notification, null), "SetEventNotificationMode");
+            context.Events.EnablePending();
             context.EventsEnabled = true;
             if (attached)
             {
@@ -82,6 +84,12 @@ public static unsafe class AgentRuntime
     {
         try { StopCore(machine); }
         catch (Exception exception) when (ReportAndContain(exception)) { return; }
+    }
+
+    /// <summary>Finds the context of a JVMTI environment, for event callbacks.</summary>
+    internal static AgentContext? FindContext(nint tooling)
+    {
+        return _contexts.TryGetValue(tooling, out AgentContext? context) ? context : null;
     }
 
     private static AgentContext? FindRunning(nint machine)

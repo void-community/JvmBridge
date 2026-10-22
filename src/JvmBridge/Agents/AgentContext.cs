@@ -1,3 +1,5 @@
+using System.Buffers;
+
 using JvmBridge.Native;
 using JvmBridge.Runtime;
 
@@ -14,6 +16,9 @@ public sealed unsafe class AgentContext
 
     /// <summary>Gets the name that prefixes this agent's log lines: the simple name of the agent's assembly, as set by the generated entry points.</summary>
     public string Name { get; }
+
+    /// <summary>Gets the events that this agent receives. Subscribe from <see cref="JavaAgent.Configure"/> or later; JvmBridge owns the callback table, so never call <c>SetEventCallbacks</c> through <see cref="RawHandle"/>.</summary>
+    public AgentEvents Events { get; }
 
     /// <summary>Gets the JVM that owns this tooling environment.</summary>
     public JavaVirtualMachine VirtualMachine { get; }
@@ -44,6 +49,7 @@ public sealed unsafe class AgentContext
         Agent = agent;
         Name = name ?? DefaultName(agent);
         _patches = new PatchEngine(this);
+        Events = new AgentEvents(this);
         Options = options;
         ParsedOptions = AgentOptions.Parse(options);
         LogLevel = ParsedOptions.TryGetValue("log", out string? level) ? AgentLog.ParseLevel(level, AgentLogLevel.Information) : AgentLogLevel.Information;
@@ -171,6 +177,7 @@ public sealed unsafe class AgentContext
         requested.can_retransform_classes = 1;
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(TryEnableRetransformation));
         CanRetransform = true;
+        _granted |= 1 << (int)JavaCapability.RetransformClasses;
         return true;
     }
 
@@ -392,6 +399,243 @@ public sealed unsafe class AgentContext
         foreach (nint buffer in buffers)
             if (buffer != 0)
                 _ = (*_environment)->Deallocate(_environment, (byte*)buffer);
+    }
+
+    private int _granted;
+
+    /// <summary>Gets whether a capability has been granted to this agent.</summary>
+    /// <param name="capability">The capability.</param>
+    /// <returns><see langword="true"/> when the JVM granted it.</returns>
+    public bool IsGranted(JavaCapability capability)
+    {
+        return (_granted & (1 << (int)capability)) != 0 || (capability == JavaCapability.RetransformClasses && CanRetransform);
+    }
+
+    /// <summary>
+    /// Asks the JVM for a capability, which it grants only if it offers it in its current phase. A JVM that started the agent through <c>-agentpath</c> offers more than one that the agent was attached to.
+    /// Retransformation must be requested before events are enabled, so request it from <see cref="JavaAgent.Configure"/>; the other capabilities can be requested later.
+    /// </summary>
+    /// <param name="capability">The capability.</param>
+    /// <returns><see langword="true"/> when the capability was granted, now or earlier.</returns>
+    public bool TryRequest(JavaCapability capability)
+    {
+        EnsureAccessible();
+
+        if (IsGranted(capability))
+            return true;
+
+        if (capability == JavaCapability.RetransformClasses)
+            return TryEnableRetransformation();
+
+        jvmtiCapabilities available = default;
+        Check((*_environment)->GetPotentialCapabilities(_environment, &available), nameof(TryRequest));
+
+        if (!IsPotential(available, capability))
+            return false;
+
+        jvmtiCapabilities requested = default;
+        Select(ref requested, capability);
+        Check((*_environment)->AddCapabilities(_environment, &requested), nameof(TryRequest));
+        _granted |= 1 << (int)capability;
+
+        return true;
+    }
+
+    internal void SetEventEnabled(jvmtiEvent notification, bool enabled)
+    {
+        EnsureAccessible();
+        jvmtiInterface_1_** environment = _environment;
+        jvmtiEventMode mode = enabled ? jvmtiEventMode.JVMTI_ENABLE : jvmtiEventMode.JVMTI_DISABLE;
+        Check(
+            ((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, mode, notification, null),
+            operation: "SetEventNotificationMode"
+        );
+    }
+
+    private static bool IsPotential(jvmtiCapabilities available, JavaCapability capability)
+    {
+        return capability == JavaCapability.RedefineClasses
+            ? available.can_redefine_classes != 0
+            : capability == JavaCapability.GenerateExceptionEvents
+            ? available.can_generate_exception_events != 0
+            : capability == JavaCapability.GenerateMethodEntryEvents
+            ? available.can_generate_method_entry_events != 0
+            : capability == JavaCapability.GenerateMethodExitEvents
+            ? available.can_generate_method_exit_events != 0
+            : capability == JavaCapability.GenerateMonitorEvents
+            ? available.can_generate_monitor_events != 0
+            : capability == JavaCapability.GenerateGarbageCollectionEvents
+            ? available.can_generate_garbage_collection_events != 0
+            : available.can_retransform_classes != 0;
+    }
+
+    private static void Select(ref jvmtiCapabilities requested, JavaCapability capability)
+    {
+        if (capability == JavaCapability.RedefineClasses)
+            requested.can_redefine_classes = 1;
+        else if (capability == JavaCapability.GenerateExceptionEvents)
+            requested.can_generate_exception_events = 1;
+        else if (capability == JavaCapability.GenerateMethodEntryEvents)
+            requested.can_generate_method_entry_events = 1;
+        else if (capability == JavaCapability.GenerateMethodExitEvents)
+            requested.can_generate_method_exit_events = 1;
+        else if (capability == JavaCapability.GenerateMonitorEvents)
+            requested.can_generate_monitor_events = 1;
+        else if (capability == JavaCapability.GenerateGarbageCollectionEvents)
+            requested.can_generate_garbage_collection_events = 1;
+        else
+            requested.can_retransform_classes = 1;
+    }
+
+    /// <summary>Resolves a raw method ID, as events and stack frames give it, to its class, name and descriptor.</summary>
+    /// <param name="environment">The JNI environment of the current thread and callback scope.</param>
+    /// <param name="method">The raw method ID.</param>
+    /// <returns>The method's declaring class, name and descriptor.</returns>
+    public JavaMethodName DescribeMethod(JavaEnvironment environment, nint method)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentOutOfRangeException.ThrowIfZero(method);
+        EnsureAccessible();
+        environment.EnsureAccessible();
+        byte* name = null;
+        byte* descriptor = null;
+        byte* generic = null;
+        Check((*_environment)->GetMethodName(_environment, (_jmethodID*)method, &name, &descriptor, &generic), nameof(DescribeMethod));
+        string methodName = ModifiedUtf8.Decode(name);
+        string methodDescriptor = ModifiedUtf8.Decode(descriptor);
+        Free((nint)name, (nint)descriptor, (nint)generic);
+        _jobject* declaring = null;
+        Check((*_environment)->GetMethodDeclaringClass(_environment, (_jmethodID*)method, &declaring), nameof(DescribeMethod));
+
+        try
+        {
+            string signature = GetClassSignature((nint)declaring);
+
+            return new JavaMethodName(signature.Length > 2 && signature[index: 0] == 'L' ? signature[1..^1] : signature, methodName, methodDescriptor);
+        }
+        finally
+        {
+            environment.DeleteLocal((nint)declaring);
+        }
+    }
+
+    /// <summary>Gets the live Java threads as local references that the caller must dispose or let the callback scope release.</summary>
+    /// <param name="environment">The JNI environment of the current thread and callback scope.</param>
+    /// <returns>The thread references.</returns>
+    public nint[] GetAllThreads(JavaEnvironment environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        EnsureAccessible();
+        environment.EnsureAccessible();
+        int count = 0;
+        _jobject** threads = null;
+        Check((*_environment)->GetAllThreads(_environment, &count, &threads), nameof(GetAllThreads));
+        nint[] values = new nint[count];
+
+        for (int index = 0; index < count; index++)
+            values[index] = (nint)threads[index];
+
+        Free((nint)threads);
+
+        return values;
+    }
+
+    /// <summary>Gets the top frames of a thread's stack, innermost first.</summary>
+    /// <param name="environment">The JNI environment of the current thread and callback scope.</param>
+    /// <param name="thread">A thread reference, or 0 for the current thread.</param>
+    /// <param name="maxFrames">The most frames to return.</param>
+    /// <returns>The frames.</returns>
+    public JavaStackFrame[] GetStackTrace(JavaEnvironment environment, nint thread, int maxFrames = 64)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxFrames, other: 1);
+        EnsureAccessible();
+        environment.EnsureAccessible();
+        jvmtiFrameInfo[] buffer = new jvmtiFrameInfo[maxFrames];
+        int count = 0;
+
+        fixed (jvmtiFrameInfo* frames = buffer)
+            Check((*_environment)->GetStackTrace(_environment, (_jobject*)thread, 0, maxFrames, frames, &count), nameof(GetStackTrace));
+
+        JavaStackFrame[] result = new JavaStackFrame[count];
+
+        for (int index = 0; index < count; index++)
+            result[index] = new JavaStackFrame(DescribeMethod(environment, (nint)buffer[index].method), buffer[index].location);
+
+        return result;
+    }
+
+    /// <summary>Gets the name, priority and daemon flag of a thread.</summary>
+    /// <param name="environment">The JNI environment of the current thread and callback scope.</param>
+    /// <param name="thread">A thread reference, or 0 for the current thread.</param>
+    /// <returns>What the JVM knows about the thread.</returns>
+    public JavaThreadInfo GetThreadInfo(JavaEnvironment environment, nint thread)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        EnsureAccessible();
+        environment.EnsureAccessible();
+        jvmtiThreadInfo info = default;
+        Check((*_environment)->GetThreadInfo(_environment, (_jobject*)thread, &info), nameof(GetThreadInfo));
+
+        // The group and the context loader are local references that this call created; the name is JVMTI memory.
+        if (info.thread_group != null)
+            environment.DeleteLocal((nint)info.thread_group);
+
+        if (info.context_class_loader != null)
+            environment.DeleteLocal((nint)info.context_class_loader);
+
+        string name = info.name == null ? string.Empty : ModifiedUtf8.Decode(info.name);
+        Free((nint)info.name);
+
+        return new JavaThreadInfo(name, info.priority, info.is_daemon != 0);
+    }
+
+    /// <summary>Gets the state bits of a thread.</summary>
+    /// <param name="thread">A thread reference.</param>
+    /// <returns>The state flags.</returns>
+    public JavaThreadState GetThreadState(nint thread)
+    {
+        EnsureAccessible();
+        int state = 0;
+        Check((*_environment)->GetThreadState(_environment, (_jobject*)thread, &state), nameof(GetThreadState));
+
+        return (JavaThreadState)state;
+    }
+
+    /// <summary>Replaces the bytes of loaded classes. The new bytes may only change method bodies, never the shape of a class. Needs <see cref="JavaCapability.RedefineClasses"/>.</summary>
+    /// <param name="definitions">The classes and their new bytes.</param>
+    public void RedefineClasses(IReadOnlyList<ClassRedefinition> definitions)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        EnsureAccessible();
+
+        if (!IsGranted(JavaCapability.RedefineClasses))
+            throw new NotSupportedException(message: "Redefinition needs the RedefineClasses capability; request it with TryRequest.");
+
+        if (definitions.Count == 0)
+            return;
+
+        jvmtiClassDefinition[] native = new jvmtiClassDefinition[definitions.Count];
+        MemoryHandle[] pins = new MemoryHandle[definitions.Count];
+
+        try
+        {
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                pins[index] = definitions[index].Bytes.Pin();
+                native[index].klass = (_jobject*)definitions[index].Type;
+                native[index].class_byte_count = definitions[index].Bytes.Length;
+                native[index].class_bytes = (byte*)pins[index].Pointer;
+            }
+
+            fixed (jvmtiClassDefinition* values = native)
+                Check((*_environment)->RedefineClasses(_environment, native.Length, values), nameof(RedefineClasses));
+        }
+        finally
+        {
+            foreach (MemoryHandle pin in pins)
+                pin.Dispose();
+        }
     }
 
     /// <summary>Requests retransformation of a class after the capability has been enabled.</summary>

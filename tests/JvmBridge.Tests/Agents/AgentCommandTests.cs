@@ -7,6 +7,7 @@ using Xunit;
 namespace JvmBridge.Tests.Agents;
 
 /// <summary>Verifies that loading an agent library again into a JVM where it runs is a command for the running agent.</summary>
+[Collection(FakeJvm.CollectionName)]
 public sealed unsafe class AgentCommandTests
 {
     /// <summary>A command the agent cannot handle makes the attaching tool see a failed load, and the failure is contained.</summary>

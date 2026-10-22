@@ -9,7 +9,7 @@ using Xunit;
 namespace JvmBridge.Tests.Agents;
 
 /// <summary>Verifies how the engine applies, orders and removes patches as classes load, without a JVM.</summary>
-[Collection(nameof(AgentLogTests))]
+[Collection(FakeJvm.CollectionName)]
 public sealed class PatchEngineTests
 {
     private static byte[] Annotated => ClassFileFixtures.Read(resource: "ClassFiles.Annotated.class");

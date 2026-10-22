@@ -9,7 +9,7 @@ using Xunit;
 namespace JvmBridge.Tests.Agents;
 
 /// <summary>Verifies agent log levels, the replaceable sink and the level taken from the agent options.</summary>
-[Collection(nameof(AgentLogTests))]
+[Collection(FakeJvm.CollectionName)]
 public sealed unsafe class AgentLogTests
 {
     [ThreadStatic]
