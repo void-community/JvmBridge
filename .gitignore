@@ -15,3 +15,6 @@ core.*
 javacore.*
 jitdump.*
 Snap.*
+
+# Snapshot assertions write what they received next to the snapshot
+*.received

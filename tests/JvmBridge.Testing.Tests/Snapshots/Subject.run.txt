@@ -1,0 +1,5 @@
+  method public static run(I)I
+    max_stack=1 max_locals=1
+      0: iload_0
+      1: invokestatic #10 // Method java/lang/Math.abs:(I)I
+      4: ireturn

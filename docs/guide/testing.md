@@ -22,6 +22,7 @@ public async Task AgentChangesTheSort(Jdk jdk)
 - `CompileAsync` compiles Java sources for Java 8 unless you ask for another release.
 - `RunAsync` returns the exit code and combined output and stops a run that exceeds its timeout.
 - `PublishedAgent.Find` looks in `artifacts/agent/<rid>` (or `JVMBRIDGE_AGENT_DIRECTORY`) and skips the test when the agent has not been published for the platform.
+- `ClassFileAssert.MatchesSnapshot(bytes, "Snapshots/run.txt", method: "run")` compares the disassembly of a class or method with a stored snapshot. The text is `javap -c`-style and deterministic (`ClassFileDisassembler.Disassemble` produces it), so a patch's effect on the bytecode shows up in a diff. A relative path is resolved against the test project's directory; a mismatch writes `<snapshot>.received` next to it (add `*.received` to `.gitignore`), and `JVMBRIDGE_UPDATE_SNAPSHOTS=1` accepts what a run produced.
 - `ClassFileAssert.Calls` and `DoesNotCall` check patched class bytes without a JVM. Give them a `descriptor` to match the call's whole member reference rather than only its owner and name.
 
 Test patches on class bytes first (`patch.Apply(bytes)` returns a `ClassPatchResult` that says what changed, or why nothing did), and run a JVM only for behavior the bytes cannot show. Patch tests need no JDK, no published agent and no native toolchain.
