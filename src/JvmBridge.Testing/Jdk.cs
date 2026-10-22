@@ -9,7 +9,8 @@ using Xunit;
 namespace JvmBridge.Testing;
 
 /// <summary>
-/// A Java Development Kit for tests. The JDK is the checksum-pinned archive from JvmBridge's inventory, downloaded once and cached under the temporary directory, unless <c>JVMBRIDGE_JDK_&lt;major&gt;</c> names an installed one.
+/// A Java Development Kit for tests. The JDK is the checksum-pinned archive from JvmBridge's inventory, downloaded once and cached under the temporary directory, unless <c>JVMBRIDGE_JDK_&lt;major&gt;_&lt;IMPLEMENTATION&gt;</c> (for example
+/// <c>JVMBRIDGE_JDK_8_HOTSPOT</c>) or <c>JVMBRIDGE_JDK_&lt;major&gt;</c> names an installed one. An installed JDK is asked for its version and implementation once, and a test fails when they are not the ones it asked for, or when the directory does not exist.
 /// Creating a <see cref="Jdk"/> does no work; the first call that needs the JDK resolves it.
 /// </summary>
 public sealed class Jdk
@@ -137,13 +138,62 @@ public sealed class Jdk
         return $"No pinned {this} for {runtimeIdentifier}{detail}. Set {installedVariable} to use an installed JDK.";
     }
 
+    /// <summary>
+    /// Checks that an installed JDK is the one a test asked for, by asking it: a JDK of another major version or implementation, or a path that is not a JDK, fails the test with what the variable named, what it found and what the test needs, so
+    /// that a test labelled Java 8 never passes on another Java.
+    /// </summary>
+    /// <param name="variable">The environment variable that named the JDK, for the message.</param>
+    /// <param name="home">The JDK directory.</param>
+    /// <returns>A task that completes when the JDK matches.</returns>
+    /// <exception cref="InvalidOperationException">The JDK does not match, or is not a JDK.</exception>
+    internal async Task VerifyInstalledAsync(string variable, string home)
+    {
+        string advice = $"Point {variable} at a {this} JDK, or unset it to use the pinned one.";
+
+        if (!Directory.Exists(home))
+            throw new InvalidOperationException($"{variable} names {home}, which does not exist. {advice}");
+
+        string java = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "java.exe" : "java");
+
+        if (!File.Exists(java))
+            throw new InvalidOperationException($"{variable} names {home}, which has no bin/{Path.GetFileName(java)}, so it is not a JDK. {advice}");
+
+        JavaRun probe = await ProcessExecution.RunAsync(
+            java,
+            ["-XshowSettings:properties", "-version"],
+            new Dictionary<string, string>(),
+            TimeSpan.FromMinutes(minutes: 1),
+            CancellationToken.None
+        )
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        InstalledJdk found = InstalledJdk.Parse(probe.Output) ?? throw new InvalidOperationException(
+            $"{variable} names {home}, whose java did not report its version (exit code {probe.ExitCode.ToString(CultureInfo.InvariantCulture)}). {advice}"
+        );
+
+        if (found.Major == Major && found.Implementation == Implementation)
+            return;
+
+        string specific = SpecificVariable();
+        string alternative = found.Major == Major && variable != specific ? $" For a {found} JDK beside it, set {specific} for this one." : string.Empty;
+
+        throw new InvalidOperationException($"{variable} names {home}, which is {found}, but this test needs {this}. {advice}{alternative}");
+    }
+
     private async Task<string> ResolveHomeAsync()
     {
         string installedVariable = "JVMBRIDGE_JDK_" + Major.ToString(CultureInfo.InvariantCulture);
-        string? installed = Environment.GetEnvironmentVariable(installedVariable);
 
-        if (!string.IsNullOrEmpty(installed) && Directory.Exists(installed))
+        // The variable for one implementation wins, so a suite can name a HotSpot and an OpenJ9 JDK of the same major; the shared one must still match.
+        foreach (string variable in new[] { SpecificVariable(), installedVariable })
+        {
+            if (Environment.GetEnvironmentVariable(variable) is not { Length: > 0 } installed)
+                continue;
+
+            await VerifyInstalledAsync(variable, installed).ConfigureAwait(continueOnCapturedContext: false);
+
             return installed;
+        }
 
         string runtimeIdentifier = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
         JdkEntry? entry = PinnedJdk.Find(Major, Implementation, runtimeIdentifier);
@@ -156,5 +206,10 @@ public sealed class Jdk
         }
 
         return await PinnedJdk.UnpackAsync(entry, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+    }
+
+    private string SpecificVariable()
+    {
+        return "JVMBRIDGE_JDK_" + Major.ToString(CultureInfo.InvariantCulture) + "_" + Implementation.ToUpperInvariant();
     }
 }

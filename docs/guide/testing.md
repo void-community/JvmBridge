@@ -18,7 +18,7 @@ public async Task AgentChangesTheSort(Jdk jdk)
 }
 ```
 
-- `[JdkData]` supplies the checksum-pinned JDK of each major version from this repository's inventory, downloaded once and cached under the temporary directory. Set `JVMBRIDGE_JDK_<major>` to use an installed JDK instead. A version with no pinned JDK for the platform skips the test with the reason.
+- `[JdkData]` supplies the checksum-pinned JDK of each major version from this repository's inventory, downloaded once and cached under the temporary directory. Set `JVMBRIDGE_JDK_<major>` to use an installed JDK instead, or `JVMBRIDGE_JDK_<major>_HOTSPOT` and `JVMBRIDGE_JDK_<major>_OPENJ9` to name one per implementation; those win over the shared variable. An installed JDK is asked for its version and implementation once per run (`java -XshowSettings:properties -version`), and a test fails when it is another Java or another implementation than the test asked for, or when the variable names a directory that does not exist, so a test labelled Java 8 never passes on another Java. A version with no pinned JDK for the platform skips the test with the reason.
 - `CompileAsync` compiles Java sources for Java 8 unless you ask for another release.
 - `RunAsync` returns the exit code and combined output and stops a run that exceeds its timeout.
 - `PublishedAgent.Find` looks in `artifacts/agent/<rid>` (or `JVMBRIDGE_AGENT_DIRECTORY`) and skips the test when the agent has not been published for the platform.
