@@ -36,6 +36,7 @@
     <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == '' and $(JavaRelease) &gt; 17">$(JavaRelease)</JvmBridgeJdkMajor>
     <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == ''">17</JvmBridgeJdkMajor>
   </PropertyGroup>
+  <UsingTask TaskName="JvmBridge.Tasks.GenerateJavaProxies" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="JvmBridge.Tasks.ProvisionJdk" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="JvmBridgeGenerateJavaClasses" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
@@ -112,6 +113,18 @@
     <ItemGroup>
       <Compile Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs" />
       <FileWrites Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs;$(_JvmBridgeJavaDirectory)javac.stamp;$(_JvmBridgeJavaDirectory)sources.txt" />
+    </ItemGroup>
+  </Target>
+  <!-- Typed proxies: JavaReference items name jars, and their Types metadata selects the classes to wrap as JavaProxies.<Package>.<Class>. -->
+  <Target Name="_JvmBridgeGenerateJavaProxies" BeforeTargets="BeforeCompile;CoreCompile" Condition="'@(JavaReference)' != ''" Inputs="@(JavaReference);$(MSBuildProjectFullPath)" Outputs="$(IntermediateOutputPath)jvmbridge-java/JavaProxies.g.cs">
+    <PropertyGroup>
+      <_JvmBridgeProxyFile>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'jvmbridge-java', 'JavaProxies.g.cs'))</_JvmBridgeProxyFile>
+    </PropertyGroup>
+    <Error Condition="'$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JavaReference reads jars with a task that only runs under dotnet build. Build with the dotnet CLI." />
+    <GenerateJavaProxies References="@(JavaReference)" GeneratorAssembly="$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'analyzers', 'dotnet', 'cs', 'JvmBridge.Generator.dll'))" OutputFile="$(_JvmBridgeProxyFile)" />
+    <ItemGroup>
+      <Compile Include="$(_JvmBridgeProxyFile)" />
+      <FileWrites Include="$(_JvmBridgeProxyFile)" />
     </ItemGroup>
   </Target>
 </Project>

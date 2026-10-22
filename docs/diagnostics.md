@@ -12,8 +12,11 @@ Every error the JvmBridge package reports carries a `JVMB` code. The generator r
 | [**JVMB006**](#jvmb006-publishaot-missing) | build | An agent project does not set `PublishAot` |
 | [**JVMB007**](#jvmb007-no-pinned-jdk) | build task | `JvmBridgeProvisionJdk` has no pinned JDK for this machine |
 | [**JVMB008**](#jvmb008-jdk-download-failed) | build task | The pinned JDK could not be downloaded or verified |
-| [**JVMB009**](#jvmb009-provisioning-needs-dotnet-build) | build | `JvmBridgeProvisionJdk` was used outside `dotnet build` |
+| [**JVMB009**](#jvmb009-provisioning-needs-dotnet-build) | build | A task that needs `dotnet build` was used outside it |
 | [**JVMB010**](#jvmb010-agent-must-be-a-library) | build | An agent project is not a class library |
+| [**JVMB011**](#jvmb011-javareference-has-no-types) | build task | A `JavaReference` has no `Types` metadata |
+| [**JVMB012**](#jvmb012-types-entry-matches-nothing) | build task | A `Types` entry of a `JavaReference` matches no class |
+| [**JVMB013**](#jvmb013-javareference-cannot-be-read) | build task | A `JavaReference` jar is missing or unreadable |
 
 ### JVMB001: Invalid JVM agent
 
@@ -54,8 +57,20 @@ The pinned JDK archive could not be downloaded, its checksum did not match, or i
 
 ### JVMB009: Provisioning needs dotnet build
 
-`JvmBridgeProvisionJdk` downloads the JDK with a task that only loads under the `dotnet` CLI's MSBuild. Build with `dotnet build`, or set `JvmBridgeJdkHome` or `JAVA_HOME` so no download is needed.
+`JvmBridgeProvisionJdk` downloads the JDK, and `JavaReference` reads jars, with tasks that only load under the `dotnet` CLI's MSBuild. Build with `dotnet build`; for the JDK you can also set `JvmBridgeJdkHome` or `JAVA_HOME` so no download is needed.
 
 ### JVMB010: Agent must be a library
 
 An agent is a NativeAOT shared library that a JVM loads with `-agentpath`, so its project must set `<OutputType>Library</OutputType>`.
+
+### JVMB011: JavaReference has no Types
+
+A `JavaReference` item names a jar, and its `Types` metadata selects the classes to wrap in typed proxies: `<JavaReference Include="libs/app.jar" Types="com/acme/Service;com/acme/model/*" />`. An entry is an internal class name, a package (`com/acme/*`) or a package and its subpackages (`com/acme/**`), separated by semicolons. Without `Types` nothing is wrapped, because wrapping a whole jar would generate far more code than an agent calls.
+
+### JVMB012: Types entry matches nothing
+
+A `Types` entry matched no class in the jar, which is usually a typo or a package written with dots instead of slashes. Nested classes (names with `$`) are never wrapped, and a class that is not public is skipped.
+
+### JVMB013: JavaReference cannot be read
+
+The jar does not exist at that path (the path is relative to the project) or is not a readable zip file.
