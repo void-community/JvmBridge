@@ -21,6 +21,12 @@ public sealed unsafe class AgentContext
     /// <summary>Gets the modified UTF-8 agent options decoded as UTF-16.</summary>
     public string Options { get; }
 
+    /// <summary>Gets <see cref="Options"/> parsed as comma-separated <c>key=value</c> entries and flags.</summary>
+    public AgentOptions ParsedOptions { get; }
+
+    /// <summary>Gets or sets the lowest severity that <see cref="Log(AgentLogLevel, string)"/> writes. It starts as the <c>log</c> option (<c>log=debug</c>, <c>log=none</c>, ...) and is <see cref="AgentLogLevel.Information"/> without one.</summary>
+    public AgentLogLevel LogLevel { get; set; }
+
     /// <summary>Gets whether the agent was loaded into an already running JVM.</summary>
     public bool IsAttached { get; }
 
@@ -39,6 +45,8 @@ public sealed unsafe class AgentContext
         Name = name ?? DefaultName(agent);
         _patches = new PatchEngine(this);
         Options = options;
+        ParsedOptions = AgentOptions.Parse(options);
+        LogLevel = ParsedOptions.TryGetValue("log", out string? level) ? AgentLog.ParseLevel(level, AgentLogLevel.Information) : AgentLogLevel.Information;
         IsAttached = attached;
         VirtualMachine = JavaVirtualMachine.Borrow(machine);
         _environment = (jvmtiInterface_1_**)VirtualMachine.GetToolingEnvironment();
@@ -87,12 +95,30 @@ public sealed unsafe class AgentContext
         _patches.Add(definition, target);
     }
 
-    /// <summary>Writes a line prefixed with <see cref="Name"/> to standard error. It is safe in every callback, needs no ICU, and never throws.</summary>
+    /// <summary>Logs an <see cref="AgentLogLevel.Information"/> line. By default the line is written prefixed with <see cref="Name"/> to standard error; <see cref="AgentLog.Sink"/> redirects it. It is safe in every callback, needs no ICU, and never throws.</summary>
     /// <param name="message">The text to write.</param>
     public void Log(string message)
     {
+        Log(AgentLogLevel.Information, message);
+    }
+
+    /// <summary>Logs a line unless <paramref name="level"/> is below <see cref="LogLevel"/>. It is safe in every callback and never throws.</summary>
+    /// <param name="level">The severity of the line.</param>
+    /// <param name="message">The text to write.</param>
+    public void Log(AgentLogLevel level, string message)
+    {
         ArgumentNullException.ThrowIfNull(message);
-        StandardError.WriteLine($"{Name}: {message}");
+
+        if (IsLogEnabled(level))
+            AgentLog.Write(level, Name, message);
+    }
+
+    /// <summary>Gets whether a line of this severity would be written, so callers can skip building an expensive message.</summary>
+    /// <param name="level">The severity to test.</param>
+    /// <returns><see langword="true"/> when <paramref name="level"/> is at or above <see cref="LogLevel"/> and not <see cref="AgentLogLevel.None"/>.</returns>
+    public bool IsLogEnabled(AgentLogLevel level)
+    {
+        return level != AgentLogLevel.None && level >= LogLevel;
     }
 
     /// <summary>Attempts to enable the JVMTI class-retransformation capability during configuration.</summary>

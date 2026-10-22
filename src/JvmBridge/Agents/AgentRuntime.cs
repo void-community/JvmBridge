@@ -96,7 +96,7 @@ public static unsafe class AgentRuntime
 
     private static bool ReportAndContain(Exception exception)
     {
-        StandardError.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}");
+        AgentLog.Write(AgentLogLevel.Error, "JvmBridge", $"{exception.GetType().Name}: {exception.Message}");
 
         return true;
     }
