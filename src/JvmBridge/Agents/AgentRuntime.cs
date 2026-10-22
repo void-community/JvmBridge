@@ -21,9 +21,40 @@ public static unsafe class AgentRuntime
     /// <returns>The JNI success or failure result for the native entry point.</returns>
     public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0, string? agentName = null)
     {
+        return StartCore(factory, machine, ModifiedUtf8.Decode((byte*)options), attached, entryPoint, agentName);
+    }
+
+    /// <summary>
+    /// Starts an agent from <c>JNI_OnLoad</c>, which the JVM calls when Java code loads the library with <c>System.load</c>, as the launcher jar of a <c>-javaagent</c> does. The agent starts as if it had been attached to the running JVM,
+    /// with the system property <c>jvmbridge.options</c> as its options, and stops at VM death because such a library never receives <c>Agent_OnUnload</c>.
+    /// </summary>
+    /// <param name="factory">Creates the configured agent instance.</param>
+    /// <param name="machine">The raw JVM invocation-interface pointer.</param>
+    /// <param name="entryPoint">An address inside the NativeAOT module that must remain loaded.</param>
+    /// <param name="agentName">The name that prefixes the agent's log lines.</param>
+    /// <returns>The JNI version that the library needs, or <c>JNI_ERR</c> when the agent could not start.</returns>
+    public static int StartFromLoadedLibrary(Func<JavaAgent> factory, nint machine, nint entryPoint = 0, string? agentName = null)
+    {
+        try
+        {
+            string options;
+
+            using (JavaThreadAttachment attachment = JavaVirtualMachine.Borrow(machine).AttachCurrentThread())
+                options = ReadLauncherOptions(attachment.Environment);
+
+            return StartCore(factory, machine, options, attached: true, entryPoint, agentName) == Methods.JNI_OK ? Methods.JNI_VERSION_1_8 : Methods.JNI_ERR;
+        }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return Methods.JNI_ERR;
+        }
+    }
+
+    private static int StartCore(Func<JavaAgent> factory, nint machine, string options, bool attached, nint entryPoint, string? agentName)
+    {
         // A library that is loaded again into a JVM where its agent already runs is a command for that agent, not a second agent.
         if (attached && FindRunning(machine) is { } running)
-            return RunCommand(running, ModifiedUtf8.Decode((byte*)options));
+            return RunCommand(running, options);
 
         AgentContext? context = null;
         nint registeredHandle = 0;
@@ -31,7 +62,7 @@ public static unsafe class AgentRuntime
         {
             if (entryPoint != 0)
                 NativeModule.Retain(entryPoint);
-            context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached, agentName);
+            context = new AgentContext(factory(), machine, options, attached, agentName);
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
             registeredHandle = context.RawHandle;
@@ -90,6 +121,16 @@ public static unsafe class AgentRuntime
     internal static AgentContext? FindContext(nint tooling)
     {
         return _contexts.TryGetValue(tooling, out AgentContext? context) ? context : null;
+    }
+
+    private static string ReadLauncherOptions(JavaEnvironment environment)
+    {
+        using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
+        nint method = environment.GetMethod(system.Handle, name: "getProperty", signature: "(Ljava/lang/String;)Ljava/lang/String;", isStatic: true);
+        using JavaLocalReference key = environment.NewString(value: "jvmbridge.options");
+        using JavaLocalReference value = environment.CallObject(system.Handle, method, [JavaValue.Object(key.Handle)], isStatic: true);
+
+        return environment.GetString(value.Handle) ?? string.Empty;
     }
 
     private static AgentContext? FindRunning(nint machine)

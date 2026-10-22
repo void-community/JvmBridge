@@ -140,6 +140,9 @@ public sealed class AgentGenerator : IIncrementalGenerator
                             => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, true, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Attach, AGENT_NAME);
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnUnload")]
                         public static void Unload(nint machine) => global::JvmBridge.Agents.AgentRuntime.Stop(machine);
+                        [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "JNI_OnLoad")]
+                        public static int LoadLibrary(nint machine, nint reserved)
+                            => global::JvmBridge.Agents.AgentRuntime.StartFromLoadedLibrary(static () => new AGENT_TYPE(), machine, (nint)(delegate* unmanaged<nint, nint, int>)&LoadLibrary, AGENT_NAME);
                     }
                 }
                 """;
@@ -187,7 +190,7 @@ public sealed class AgentGenerator : IIncrementalGenerator
     {
         string sourceValue = entryPoint.ToCSharpString();
 
-        return sourceValue is "\"Agent_OnLoad\"" or "\"Agent_OnAttach\"" or "\"Agent_OnUnload\"";
+        return sourceValue is "\"Agent_OnLoad\"" or "\"Agent_OnAttach\"" or "\"Agent_OnUnload\"" or "\"JNI_OnLoad\"";
     }
 
     private static System.Collections.Generic.IEnumerable<INamedTypeSymbol> NestedTypes(INamedTypeSymbol parent)

@@ -44,6 +44,7 @@ public sealed class GeneratorTests
         Assert.Contains(expectedSubstring: "Agent_OnLoad", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Agent_OnAttach", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Agent_OnUnload", source, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JNI_OnLoad", source, StringComparison.Ordinal);
     }
 
     /// <summary>

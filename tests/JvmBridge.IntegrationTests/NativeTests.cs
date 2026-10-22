@@ -68,7 +68,7 @@ public sealed class NativeTests
             cancellationToken: TestContext.Current.CancellationToken
         );
 
-        foreach (string symbol in new[] { "Agent_OnLoad", "Agent_OnAttach", "Agent_OnUnload" })
+        foreach (string symbol in new[] { "Agent_OnLoad", "Agent_OnAttach", "Agent_OnUnload", "JNI_OnLoad" })
             Assert.Contains(symbol, result.Output, StringComparison.Ordinal);
 
         JsonFile.Write(Path.Combine(repository.Artifacts, path2: "results", rid, path4: "build-summary.json"), new BuildSummary { Rid = rid });
