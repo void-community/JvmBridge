@@ -72,7 +72,7 @@ public sealed class Jdk
     /// <summary>Runs a class with this JDK.</summary>
     /// <param name="mainClass">The class with a <c>main</c> method, for example <c>pkg.Main</c>.</param>
     /// <param name="classPath">The class path, for example the directory <see cref="CompileAsync"/> returned.</param>
-    /// <param name="agent">An agent to load with <c>-agentpath</c>, or <see langword="null"/> to run without one.</param>
+    /// <param name="agent">An agent to load: a native library with <c>-agentpath</c>, a jar (see <see cref="PublishedAgent.FindJar"/>) with <c>-javaagent</c>, or <see langword="null"/> to run without one. <see cref="JavaRunOptions.AgentOptions"/> follow the <c>=</c> either way.</param>
     /// <param name="options">Further options, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Cancels the run.</param>
     /// <returns>The exit code and combined output.</returns>
@@ -97,14 +97,15 @@ public sealed class Jdk
         arguments.AddRange(settings.JvmArguments);
 
         if (agent is not null)
-            arguments.Add("-agentpath:" + agent.FilePath + (string.IsNullOrEmpty(settings.AgentOptions) ? string.Empty : "=" + settings.AgentOptions));
+            arguments.Add(AgentArgument(agent, settings.AgentOptions));
 
         arguments.AddRange(["-cp", classPath, mainClass]);
         arguments.AddRange(settings.Arguments);
 
         Dictionary<string, string> environment = [];
 
-        if (agent is not null && settings.PreloadSignalChaining && Implementation == "hotspot" && !OperatingSystem.IsWindows())
+        // A jar starts its agent after the JVM has started, so there is no runtime of the agent to chain signals with yet when the JVM installs its handlers; the preload is only for -agentpath.
+        if (agent is { IsJar: false } && settings.PreloadSignalChaining && Implementation == "hotspot" && !OperatingSystem.IsWindows())
         {
             string library = OperatingSystem.IsMacOS() ? "libjsig.dylib" : "libjsig.so";
 
@@ -119,6 +120,14 @@ public sealed class Jdk
     public override string ToString()
     {
         return $"Java {Major.ToString(CultureInfo.InvariantCulture)} ({Implementation})";
+    }
+
+    /// <summary>Builds the JVM argument that loads an agent: <c>-javaagent:</c> for a jar and <c>-agentpath:</c> for a native library, with the options after <c>=</c>.</summary>
+    internal static string AgentArgument(PublishedAgent agent, string? options)
+    {
+        string route = agent.IsJar ? "-javaagent:" : "-agentpath:";
+
+        return route + agent.FilePath + (string.IsNullOrEmpty(options) ? string.Empty : "=" + options);
     }
 
     internal string UnavailableMessage(string runtimeIdentifier, string? reason, string installedVariable)

@@ -3,7 +3,7 @@ namespace JvmBridge.Testing;
 /// <summary>Options for <see cref="Jdk.RunAsync"/>.</summary>
 public sealed class JavaRunOptions
 {
-    /// <summary>Gets the options passed to the agent after <c>=</c> in <c>-agentpath</c>.</summary>
+    /// <summary>Gets the options passed to the agent after <c>=</c> in <c>-agentpath</c> or <c>-javaagent</c>.</summary>
     public string? AgentOptions { get; init; }
 
     /// <summary>Gets the program arguments, which follow the main class name.</summary>
@@ -15,7 +15,7 @@ public sealed class JavaRunOptions
     /// <summary>Gets additional JVM arguments, which come before the class path.</summary>
     public IList<string> JvmArguments { get; } = [];
 
-    /// <summary>Gets whether HotSpot on Linux and macOS preloads <c>libjsig</c> when an agent is used, so the agent's signal handlers chain instead of replacing the JVM's.</summary>
+    /// <summary>Gets whether HotSpot on Linux and macOS preloads <c>libjsig</c> when an agent library is loaded with <c>-agentpath</c>, so the agent's signal handlers chain instead of replacing the JVM's. A jar is never run with it.</summary>
     public bool PreloadSignalChaining { get; init; } = true;
 
     /// <summary>Gets how long the program may run before it is stopped and the run fails.</summary>

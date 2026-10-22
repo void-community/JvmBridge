@@ -48,6 +48,18 @@ public sealed class HelperTests
         Assert.Contains(expectedSubstring: "still calls java/lang/Math.abs(J)J", present?.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>The reason a test is skipped for an unpublished jar says to publish with JvmBridgeAgentJar.</summary>
+    [Fact]
+    public void ExplainsHowToPublishAJar()
+    {
+        string message = PublishedAgent.MissingJarMessage(name: "Sample", identifier: "linux-arm64");
+
+        Assert.Equal(
+            expected: "The Sample agent jar is not published for linux-arm64. Publish it with: dotnet publish -c Release -r linux-arm64 -o artifacts/agent/linux-arm64 -p:JvmBridgeAgentJar=true",
+            message
+        );
+    }
+
     /// <summary>The reason a test is skipped for an unpublished agent names the agent and says how to publish it.</summary>
     [Fact]
     public void ExplainsHowToPublishAnAgent()
@@ -80,6 +92,35 @@ public sealed class HelperTests
             Assert.Equal(Path.Combine(published.FullName, file), found?.FilePath);
             Assert.Null(otherPlatform);
             Assert.Null(otherName);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>A jar beside the published library is found as a jar, and loaded with -javaagent; a library is loaded with -agentpath; the options follow the = either way.</summary>
+    [Fact]
+    public void FindsAndLoadsAPublishedJar()
+    {
+        string root = Directory.CreateTempSubdirectory(prefix: "jvmbridge-jar-lookup-").FullName;
+
+        try
+        {
+            DirectoryInfo published = Directory.CreateDirectory(Path.Combine(root, path2: "artifacts", path3: "agent", path4: "linux-x64"));
+            string jar = Path.Combine(published.FullName, path2: "Sample.jar");
+            File.WriteAllText(jar, contents: "jar");
+
+            PublishedAgent? found = PublishedAgent.TryFind(name: "Sample.jar", identifier: "linux-x64", [root]);
+            PublishedAgent? library = PublishedAgent.TryFind(name: "Sample", identifier: "linux-x64", [root]);
+            PublishedAgent native = new(FilePath: "/agents/Sample.so");
+
+            Assert.Equal(jar, found?.FilePath);
+            Assert.True(found?.IsJar);
+            Assert.Null(library);
+            Assert.False(native.IsJar);
+            Assert.Equal("-javaagent:" + jar + "=log=debug", Jdk.AgentArgument(found ?? native, options: "log=debug"));
+            Assert.Equal(expected: "-agentpath:/agents/Sample.so", Jdk.AgentArgument(native, options: null));
         }
         finally
         {
