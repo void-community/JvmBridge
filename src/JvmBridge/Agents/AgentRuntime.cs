@@ -17,8 +17,9 @@ public static unsafe class AgentRuntime
     /// <param name="options">The nullable modified UTF-8 options pointer supplied by the JVM.</param>
     /// <param name="attached">Whether the entry point represents late attachment.</param>
     /// <param name="entryPoint">An address inside the NativeAOT module that must remain loaded.</param>
+    /// <param name="agentName">The name that prefixes the agent's log lines, which generated entry points set to the assembly name. Reading it from reflection would initialize globalization, which aborts the process on hosts without libicu.</param>
     /// <returns>The JNI success or failure result for the native entry point.</returns>
-    public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0)
+    public static int Start(Func<JavaAgent> factory, nint machine, nint options, bool attached, nint entryPoint = 0, string? agentName = null)
     {
         AgentContext? context = null;
         nint registeredHandle = 0;
@@ -26,7 +27,7 @@ public static unsafe class AgentRuntime
         {
             if (entryPoint != 0)
                 NativeModule.Retain(entryPoint);
-            context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached);
+            context = new AgentContext(factory(), machine, ModifiedUtf8.Decode((byte*)options), attached, agentName);
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
             registeredHandle = context.RawHandle;
@@ -44,7 +45,10 @@ public static unsafe class AgentRuntime
                 AgentContext.Check(((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, jvmtiEventMode.JVMTI_ENABLE, notification, null), "SetEventNotificationMode");
             context.EventsEnabled = true;
             if (attached)
+            {
+                StartPatching(context);
                 context.Agent.OnAttach(context);
+            }
             else
                 context.Agent.OnLoad(context);
             return Methods.JNI_OK;
@@ -73,11 +77,10 @@ public static unsafe class AgentRuntime
         catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
-    private static bool ContainReportingFailure(Exception exception)
+    private static void StartPatching(AgentContext context)
     {
-        GC.KeepAlive(exception);
-
-        return true;
+        try { context.Patches.OnAttach(); }
+        catch (Exception exception) when (ReportAndContain(exception)) { return; }
     }
 
     private static void DisposeContext(AgentContext context)
@@ -88,8 +91,7 @@ public static unsafe class AgentRuntime
 
     private static bool ReportAndContain(Exception exception)
     {
-        try { Console.Error.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}"); }
-        catch (Exception reportingException) when (ContainReportingFailure(reportingException)) { return true; }
+        StandardError.WriteLine($"JvmBridge: {exception.GetType().Name}: {exception.Message}");
 
         return true;
     }
@@ -102,6 +104,7 @@ public static unsafe class AgentRuntime
                 continue;
             try { context.Agent.OnUnload(context); }
             catch (Exception exception) when (ReportAndContain(exception)) { continue; }
+            finally { context.Patches.Cleanup(); }
             // JVM shutdown owns native environment disposal. NativeAOT libraries stay loaded until process exit.
         }
     }
@@ -119,6 +122,7 @@ public static unsafe class AgentRuntime
                 if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
                     return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
+                context.Patches.DefineBootstrapHelpers(environment);
                 context.Agent.OnVmInit(context, environment);
             }
         }
@@ -179,7 +183,9 @@ public static unsafe class AgentRuntime
             using JavaEnvironment? javaEnvironment = environment == null ? null : new JavaEnvironment((nint)environment);
             ClassFile file = new(name == null ? null : ModifiedUtf8.Decode(name), redefined != null, new ReadOnlySpan<byte>(bytes, length));
             ClassTransformContext callback = new(javaEnvironment, (nint)loader, (nint)protectionDomain, (nint)redefined, canUseJni);
-            byte[]? result = context.Agent.TransformClass(context, file, callback);
+            byte[]? patched = context.Patches.Transform(file, callback);
+            ClassFile effective = patched is null ? file : new ClassFile(file.Name, file.IsRetransformation, patched);
+            byte[]? result = context.Agent.TransformClass(context, effective, callback) ?? patched;
             if (result is null)
                 return;
             byte* output = null;

@@ -30,6 +30,21 @@ public final class BridgeFixture {
         public static void probe(Object client) { client.hashCode(); }
     }
 
+    public static final class PatchTarget {
+        public static int length(String value) { return value.length(); }
+        public static java.util.List<String> sorted(java.util.List<String> list) {
+            java.util.Collections.sort(list, java.util.Collections.<String>reverseOrder());
+            return list;
+        }
+        public static String label() { return "patch-original"; }
+    }
+
+    private static final class PatchLoader extends ClassLoader {
+        PatchLoader() { super(null); }
+
+        Class<?> definePatchTarget(byte[] bytes) { return defineClass("BridgeFixture$PatchTarget", bytes, 0, bytes.length); }
+    }
+
     private static class MemberBase {
         private int inherited = 19;
     }
@@ -87,9 +102,11 @@ public final class BridgeFixture {
         }
     }
 
-    private static byte[] twinBytes() throws Exception {
-        try (InputStream stream = BridgeFixture.class.getResourceAsStream("BridgeFixture$Twin.class")) {
-            if (stream == null) throw new AssertionError("Missing twin class bytes");
+    private static byte[] twinBytes() throws Exception { return readClass("BridgeFixture$Twin.class"); }
+
+    private static byte[] readClass(String resource) throws Exception {
+        try (InputStream stream = BridgeFixture.class.getResourceAsStream(resource)) {
+            if (stream == null) throw new AssertionError("Missing class bytes " + resource);
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             byte[] buffer = new byte[4096];
             int count;
@@ -161,6 +178,39 @@ public final class BridgeFixture {
         } finally { clearTargetLoader(); }
     }
 
+    private static void checkPatches(boolean attached, boolean retransformable) throws Exception {
+        if (attached && !retransformable) {
+            System.out.println("PATCH_RETRANSFORM_UNAVAILABLE");
+        } else {
+            java.util.List<String> values = new java.util.ArrayList<String>(java.util.Arrays.asList("b", "a", "c"));
+            int length = PatchTarget.length("abcd");
+            String label = PatchTarget.label();
+            java.util.List<String> sorted = PatchTarget.sorted(values);
+            if (length != 1004 || !"patch-replaced".equals(label) || !java.util.Arrays.asList("c", "a", "b").equals(sorted))
+                throw new AssertionError("Patches did not apply: " + length + " " + label + " " + sorted);
+            System.out.println("PATCH_OK");
+        }
+        Class<?> bootstrapHelper = Class.forName("jvmbridge.sample.BootstrapPatchHelpers", false, null);
+        if (bootstrapHelper.getClassLoader() != null) throw new AssertionError("Bootstrap helper had a defining loader");
+        System.out.println("PATCH_BOOTSTRAP_HELPER_OK");
+        byte[] bytes = readClass("BridgeFixture$PatchTarget.class");
+        PatchLoader first = new PatchLoader();
+        PatchLoader second = new PatchLoader();
+        Class<?> firstTarget = first.definePatchTarget(bytes);
+        Class<?> secondTarget = second.definePatchTarget(bytes);
+        for (Class<?> target : new Class<?>[] { firstTarget, secondTarget }) {
+            if (!Integer.valueOf(1004).equals(target.getMethod("length", String.class).invoke(null, "abcd")))
+                throw new AssertionError("Isolated loader did not get the patched call");
+            if (!"patch-replaced".equals(target.getMethod("label").invoke(null)))
+                throw new AssertionError("Isolated loader did not get the replaced constant");
+        }
+        Class<?> firstHelper = Class.forName("jvmbridge.sample.LoaderPatchHelpers", false, first);
+        Class<?> secondHelper = Class.forName("jvmbridge.sample.LoaderPatchHelpers", false, second);
+        if (firstHelper == secondHelper || firstHelper.getClassLoader() != first || secondHelper.getClassLoader() != second)
+            throw new AssertionError("The loader helper was not defined once in each patched loader");
+        System.out.println("PATCH_LOADER_HELPERS_OK");
+    }
+
     private static void checkBootstrapLoader() throws Exception {
         Class<?> bootstrap = Class.forName("java.util.concurrent.atomic.AtomicStampedReference", false, null);
         if (bootstrap.getClassLoader() != null) throw new AssertionError("Bootstrap class had a defining loader");
@@ -174,6 +224,7 @@ public final class BridgeFixture {
         }
         boolean attach = arguments.length > 0 && arguments[0].equals("attach");
         if (attach) {
+            if (PatchTarget.length("touch") != 5) throw new AssertionError("PatchTarget was patched before the agent attached");
             System.out.println("READY");
             System.out.flush();
             if (System.in.read() < 0) throw new AssertionError("Attach controller closed stdin");
@@ -194,12 +245,14 @@ public final class BridgeFixture {
         for (int repeat = 0; repeat < 100; repeat++)
             for (String value : values)
                 if (!value.equals(roundTrip(value))) throw new AssertionError("JNI Unicode round trip failed");
-        if (retransform(BridgeFixture.class)) {
+        boolean retransformable = retransform(BridgeFixture.class);
+        if (retransformable) {
             if (!"RELOADED".equals(message())) throw new AssertionError("Retransformation did not run");
             System.out.println("RETRANSFORM_OK");
         } else {
             System.out.println("RETRANSFORM_UNAVAILABLE");
         }
+        checkPatches(attach, retransformable);
         checkBootstrapLoader();
         checkLoaderIsolation();
         checkWeakReference();

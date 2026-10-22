@@ -134,17 +134,23 @@ public sealed class AgentGenerator : IIncrementalGenerator
                     {
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnLoad")]
                         public static int Load(nint machine, nint options, nint reserved)
-                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, false, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Load);
+                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, false, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Load, AGENT_NAME);
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnAttach")]
                         public static int Attach(nint machine, nint options, nint reserved)
-                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, true, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Attach);
+                            => global::JvmBridge.Agents.AgentRuntime.Start(static () => new AGENT_TYPE(), machine, options, true, (nint)(delegate* unmanaged<nint, nint, nint, int>)&Attach, AGENT_NAME);
                         [global::System.Runtime.InteropServices.UnmanagedCallersOnly(EntryPoint = "Agent_OnUnload")]
                         public static void Unload(nint machine) => global::JvmBridge.Agents.AgentRuntime.Stop(machine);
                     }
                 }
                 """;
 
-            production.AddSource(hintName: "NativeAgentExports.g.cs", SourceText.From(source.Replace(oldValue: "AGENT_TYPE", agent), Encoding.UTF8));
+            production.AddSource(
+                hintName: "NativeAgentExports.g.cs",
+                SourceText.From(
+                    source.Replace(oldValue: "AGENT_TYPE", agent).Replace(oldValue: "AGENT_NAME", SymbolDisplay.FormatLiteral(input.Left.Right.AssemblyName ?? type.Name, quote: true)),
+                    Encoding.UTF8
+                )
+            );
         }
         );
     }

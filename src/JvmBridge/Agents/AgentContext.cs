@@ -7,9 +7,13 @@ namespace JvmBridge.Agents;
 public sealed unsafe class AgentContext
 {
     private readonly jvmtiInterface_1_** _environment;
+    private readonly PatchEngine _patches;
     private bool _disposed;
     internal JavaAgent Agent { get; }
     internal bool EventsEnabled { get; set; }
+
+    /// <summary>Gets the name that prefixes this agent's log lines: the simple name of the agent's assembly, as set by the generated entry points.</summary>
+    public string Name { get; }
 
     /// <summary>Gets the JVM that owns this tooling environment.</summary>
     public JavaVirtualMachine VirtualMachine { get; }
@@ -29,9 +33,11 @@ public sealed unsafe class AgentContext
     /// <summary>Gets the raw JVMTI environment pointer while this context remains active.</summary>
     public nint RawHandle { get { EnsureAccessible(); return (nint)_environment; } }
 
-    internal AgentContext(JavaAgent agent, nint machine, string options, bool attached)
+    internal AgentContext(JavaAgent agent, nint machine, string options, bool attached, string? name = null)
     {
         Agent = agent;
+        Name = name ?? DefaultName(agent);
+        _patches = new PatchEngine(this);
         Options = options;
         IsAttached = attached;
         VirtualMachine = JavaVirtualMachine.Borrow(machine);
@@ -44,6 +50,49 @@ public sealed unsafe class AgentContext
             Check(result, nameof(Version));
         }
         Version = version;
+    }
+
+    internal PatchEngine Patches => _patches;
+
+    /// <summary>Registers a declarative class patch. Call from <see cref="JavaAgent.Configure"/>. The runtime only calls the patch for its class, applies it as the class loads, reports what it did, and retransforms the class when the agent attaches late.</summary>
+    /// <param name="patch">The patch to register.</param>
+    public void Patch(ClassPatch patch)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        EnsureAccessible();
+
+        if (EventsEnabled)
+            throw new InvalidOperationException("Register patches from Configure, before events are enabled.");
+
+        if (IsAttached && !CanRetransform)
+            _ = TryEnableRetransformation();
+
+        _patches.Add(patch);
+    }
+
+    /// <summary>Declares a helper class to define in the JVM. Call from <see cref="JavaAgent.Configure"/>.</summary>
+    /// <param name="definition">The helper class and anything it needs.</param>
+    /// <param name="target">Whether to define it in the bootstrap loader or in each loader that defines a patched class.</param>
+    public void DefineClass(JavaClassDefinition definition, ClassLoaderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        EnsureAccessible();
+
+        if (EventsEnabled)
+            throw new InvalidOperationException("Declare helper classes from Configure, before events are enabled.");
+
+        if (!Enum.IsDefined(target))
+            throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown class loader target.");
+
+        _patches.Add(definition, target);
+    }
+
+    /// <summary>Writes a line prefixed with <see cref="Name"/> to standard error. It is safe in every callback, needs no ICU, and never throws.</summary>
+    /// <param name="message">The text to write.</param>
+    public void Log(string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        StandardError.WriteLine($"{Name}: {message}");
     }
 
     /// <summary>Attempts to enable the JVMTI class-retransformation capability during configuration.</summary>
@@ -63,6 +112,14 @@ public sealed unsafe class AgentContext
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(TryEnableRetransformation));
         CanRetransform = true;
         return true;
+    }
+
+    internal void AddToBootstrapSearch(string path)
+    {
+        EnsureAccessible();
+
+        fixed (byte* segment = ModifiedUtf8.Encode(path))
+            Check((*_environment)->AddToBootstrapClassLoaderSearch(_environment, segment), nameof(AddToBootstrapSearch));
     }
 
     /// <summary>Requests exactly the supplied capabilities; invoke during Configure before events are enabled.</summary>
@@ -290,6 +347,15 @@ public sealed unsafe class AgentContext
         }
         Free((nint)classes);
         return values;
+    }
+
+    // Assembly metadata is deliberately not read: AssemblyName and Assembly.FullName create a CultureInfo, and without libicu that aborts the process.
+    private static string DefaultName(JavaAgent agent)
+    {
+        Type type = agent.GetType();
+        string? root = type.Namespace?.Split('.')[0];
+
+        return string.IsNullOrEmpty(root) ? type.Name : root;
     }
 
     internal static void Check(jvmtiError result, string operation)

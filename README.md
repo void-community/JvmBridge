@@ -97,6 +97,26 @@ byte[] patched = editor.ToArray();
 
 `ReplaceInvocation` turns `invokestatic`, `invokevirtual` or `invokeinterface` into `invokestatic` of another owner at the same length; a virtual or interface receiver becomes the first parameter, and `invokeinterface` padding becomes `nop`. `ClassFileWriter` writes small classes made of static methods (including `native` ones for `RegisterNative`) with a deduplicating constant pool; straight-line code needs no stack map frames. `ModifiedUtf8.GetBytes` encodes class-file strings without the JNI terminator.
 
+`ClassPatch` describes edits to one class declaratively: `ClassPatch.For(className)` is immutable and reusable, `.Method(name, descriptor)` scopes the edits that follow to one method (`.AnyMethod()` ends the scope), and `.RedirectInvocation`, `.ReplaceConstant`, `.SetAccess`/`.SetFieldAccess` and the `.Edit(editor => ...)` escape hatch add edits. `patch.Apply(bytes)` returns a `ClassPatchResult` that says what changed, or why nothing did, so a test can assert on it without a JVM. A patch is all or nothing: when its method or invocation is missing, the class is left unchanged and the result names the reason.
+
+```csharp
+public sealed class PatcherAgent : JavaAgent
+{
+    internal static readonly ClassPatch TweakSort = ClassPatch.For("cpw/mods/fml/relauncher/CoreModManager")
+        .Method("sortTweakList", "()V")
+        .RedirectInvocation(JavaMethod.Static("java/util/Collections", "sort", "(Ljava/util/List;Ljava/util/Comparator;)V"), toOwner: "legacyforgepatcher/Collections");
+
+    public override void Configure(AgentContext context)
+    {
+        byte[] helperBytes = File.ReadAllBytes("Collections.class"); // or build one with ClassFileWriter
+        context.DefineClass(JavaClassDefinition.FromBytes(helperBytes), ClassLoaderTarget.Bootstrap);
+        context.Patch(TweakSort);
+    }
+}
+```
+
+Register patches and helpers from `Configure`. The runtime only calls a patch for its class name, applies it as the class loads, logs `patched ...` or `skipped ...: reason` through `AgentContext.Log`, and, when the agent attaches late and retransformation is available, retransforms the matching classes that are already loaded. `ClassLoaderTarget.Bootstrap` appends a temporary jar of the helpers to the bootstrap search path at VM initialization (or at attach), so every loader sees them; this works on every JVM, including OpenJ9 under checked JNI, which rejects defining a class with a null loader. `ClassLoaderTarget.PatchedClassLoader` defines the helpers once in each loader that defines a patched class, before the first patched class from that loader, for helpers that must see application classes; it cannot serve classes of the bootstrap loader, which the log reports. `AgentContext.Log` writes lines prefixed with the agent's assembly name to standard error. It is safe in every callback and never throws. It writes the file descriptor directly because `Console` initializes terminal and globalization state, which aborts the process on a host without libicu; failures that the runtime contains are reported the same way.
+
 In a live JVM callback, use a class reference from that callback or an explicitly owned reference to inspect members and invoke Java code:
 
 ```csharp

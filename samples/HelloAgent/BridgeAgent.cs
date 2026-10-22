@@ -21,6 +21,8 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     {
         if (!context.TryEnableRetransformation())
             Log(message: "RETRANSFORM_UNAVAILABLE");
+
+        PatchDemo.Register(context);
     }
 
     /// <inheritdoc/>

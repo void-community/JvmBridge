@@ -164,7 +164,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK" })
+        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget (length(Ljava/lang/String;)I: 1 invocation of java/lang/String.length redirected; sorted" })
         {
             if (!result.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
@@ -401,7 +401,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             string targetOutput = string.Concat(output.Concat(errors));
 
-            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK"];
+            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget"];
             bool missingOutput = requiredMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal));
 
             bool missingRetransformation = !targetOutput.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
