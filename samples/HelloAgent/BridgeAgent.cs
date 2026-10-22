@@ -50,6 +50,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
         JavaEnvironment environment = attachment.Environment;
         InstallSystemHelper(environment);
+        LoadedMarker.Mark(environment);
         int localCapacity = 4096;
         int capacityResult = environment.Functions->EnsureLocalCapacity((JNINativeInterface_**)environment.Handle, localCapacity);
         environment.ThrowIfException(operation: "EnsureLocalCapacity");
@@ -174,17 +175,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         Log(message: "VM_INIT");
         InstallSystemHelper(environment);
 
-        using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
-
-        nint method = environment.GetMethod(system.Handle, name: "setProperty", signature: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", isStatic: true);
-
-        using JavaLocalReference name = environment.NewString(value: "jvmbridge.loaded");
-
-        using JavaLocalReference value = environment.NewString(value: "true");
-
-        jvalue[] arguments = [new() { l = (_jobject*)name.Handle }, new() { l = (_jobject*)value.Handle }];
-
-        using JavaLocalReference previous = environment.CallObject(system.Handle, method, arguments, isStatic: true);
+        LoadedMarker.Mark(environment);
 
         if (context.Options.Contains(value: "fail-callback", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "Intentional callback failure.");
