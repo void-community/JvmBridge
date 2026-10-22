@@ -7,7 +7,7 @@ namespace JvmBridge.Logging;
 /// <summary>Sends the agent's own log lines to an <see cref="ILogger"/>.</summary>
 public static class AgentLogging
 {
-    /// <summary>Replaces <see cref="AgentLog.Sink"/> so that everything JvmBridge logs, including failures that the runtime contained, goes to a logger with the agent's name as its scope prefix.</summary>
+    /// <summary>Replaces <see cref="AgentLog.Sink"/> so that everything JvmBridge logs, including failures that the runtime contained, goes to a logger with the agent's name as a prefix.</summary>
     /// <param name="logger">The logger to receive the lines, or <see langword="null"/> to restore standard error.</param>
     public static void Redirect(ILogger? logger)
     {
