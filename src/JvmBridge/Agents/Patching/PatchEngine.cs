@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
 
 using JvmBridge.ClassFiles;
 using JvmBridge.Native;
@@ -204,19 +203,32 @@ internal sealed class PatchEngine(AgentContext context)
         return result.Bytes ?? current;
     }
 
-    private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
+    /// <summary>
+    /// Identifies a class by the methods it declares. A JVM may hand the hook a rebuilt class file when it retransforms (OpenJ9 does, with the constant pool in another order), so the bytes themselves cannot tell that a class was advised when it was defined.
+    /// </summary>
+    private static string Fingerprint(ReadOnlySpan<byte> bytes)
+    {
+        try
+        {
+            return string.Join(separator: '\n', JavaClassFile.Read(bytes).Methods.Select(method => method.Name + method.Descriptor).Order(StringComparer.Ordinal));
+        }
+        catch (ClassFormatException)
+        {
+            return string.Empty;
+        }
+    }
 
     private IReadOnlySet<string>? FindAdvised(string name, ReadOnlySpan<byte> bytes)
     {
         if (!_advised.TryGetValue(name, out ConcurrentDictionary<string, IReadOnlySet<string>>? known))
             return null;
 
-        return known.TryGetValue(Hash(bytes), out IReadOnlySet<string>? methods) ? methods : null;
+        return known.TryGetValue(Fingerprint(bytes), out IReadOnlySet<string>? methods) ? methods : null;
     }
 
     private void Remember(string name, ReadOnlySpan<byte> bytes, HashSet<string> methods)
     {
-        _advised.GetOrAdd(name, static _ => new ConcurrentDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal))[Hash(bytes)] = methods;
+        _advised.GetOrAdd(name, static _ => new ConcurrentDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal))[Fingerprint(bytes)] = methods;
     }
 
     /// <summary>Gives the methods that were advised when the class was defined, and have no advice now, a stub that only calls their body, so the class keeps the methods it was defined with.</summary>
