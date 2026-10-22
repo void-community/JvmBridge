@@ -61,6 +61,18 @@ context.DefineClass(Callbacks.Definition, ClassLoaderTarget.Bootstrap);
 
 Redirect the call to `acme/agent/Callbacks.describe` as in the first recipe. Parameters and results may be primitives, `string` and `nint`; see [**Helper classes in C#**](patching.md#helper-classes-in-c).
 
+## Patch every class that implements an interface
+
+```csharp
+ClassPatch.ForPackage("com/acme/handlers").WhereSubclassOf("com/acme/Handler").ReplaceConstant("v1", "v2");
+```
+
+Every class in the package that implements `Handler`, directly or through a type the agent knows, gets the edit, and the ones without the constant are skipped quietly. See [**Matching several classes**](patching.md#matching-several-classes).
+
+## Turn a patch on and off while the JVM runs
+
+Keep the `ClassPatch` in a field, register it with `PatchNow` and remove it with `Unpatch` from `OnCommand`, then drive it with `jcmd <pid> JVMTI.agent_load /path/MyAgent.so on` or `off`. The classes that are already loaded are retransformed each time. See [**Changing patches while the JVM runs**](patching.md#changing-patches-while-the-jvm-runs).
+
 ## Make the agent verbose without rebuilding
 
 ```sh

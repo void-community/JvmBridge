@@ -39,6 +39,18 @@ public final class BridgeFixture {
         public static String label() { return "patch-original"; }
     }
 
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
+    public @interface Marker { }
+
+    public static class Animal { public String speak() { return "silence"; } }
+    public static class Dog extends Animal { @Override public String speak() { return "woof"; } }
+    public static class Puppy extends Dog { @Override public String speak() { return "woof"; } }
+
+    @Marker
+    public static final class Tagged { public static String name() { return "tagged-original"; } }
+
+    public static final class Selected { public static String name() { return "selected-original"; } }
+
     private static final class PatchLoader extends ClassLoader {
         PatchLoader() { super(null); }
 
@@ -211,6 +223,53 @@ public final class BridgeFixture {
         System.out.println("PATCH_LOADER_HELPERS_OK");
     }
 
+    private static String readLine() throws java.io.IOException {
+        StringBuilder line = new StringBuilder();
+        int next;
+        while ((next = System.in.read()) >= 0) {
+            if (next == '\n') return line.toString();
+            if (next != '\r') line.append((char) next);
+        }
+        return null;
+    }
+
+    private static void awaitController(String marker) throws Exception {
+        System.out.println(marker);
+        System.out.flush();
+        if (readLine() == null) throw new AssertionError("Attach controller closed stdin");
+    }
+
+    private static boolean patched() {
+        java.util.List<String> values = new java.util.ArrayList<String>(java.util.Arrays.asList("b", "a", "c"));
+        return PatchTarget.length("abcd") == 1004 && "patch-replaced".equals(PatchTarget.label()) && java.util.Arrays.asList("c", "a", "b").equals(PatchTarget.sorted(values));
+    }
+
+    private static boolean unpatched() {
+        java.util.List<String> values = new java.util.ArrayList<String>(java.util.Arrays.asList("b", "a", "c"));
+        return PatchTarget.length("abcd") == 4 && "patch-original".equals(PatchTarget.label()) && java.util.Arrays.asList("c", "b", "a").equals(PatchTarget.sorted(values));
+    }
+
+    // The controller tells the running agent to remove its patch and to register it again, by loading the agent library once more with a command.
+    private static void controlPatches() throws Exception {
+        awaitController("UNPATCH_READY");
+        if (!unpatched()) throw new AssertionError("Removing the patch did not restore PatchTarget");
+        System.out.println("UNPATCH_OK");
+        awaitController("REPATCH_READY");
+        if (!patched()) throw new AssertionError("Registering the patch again did not patch PatchTarget");
+        System.out.println("REPATCH_OK");
+    }
+
+    // Patches that match classes by supertype, by class-level annotation and by a name filter. Dog loaded before a late attach, so it is retransformed from the supertypes that the agent learned; Puppy, Tagged and Selected load afterwards.
+    private static void checkMatchers() {
+        String dog = new Dog().speak();
+        String puppy = new Puppy().speak();
+        String tagged = Tagged.name();
+        String selected = Selected.name();
+        if (!"bark".equals(dog) || !"bark".equals(puppy) || !"tagged-patched".equals(tagged) || !"selected-patched".equals(selected))
+            throw new AssertionError("Matching patches did not apply: " + dog + " " + puppy + " " + tagged + " " + selected);
+        System.out.println("MATCHER_PATCH_OK");
+    }
+
     private static void checkBootstrapLoader() throws Exception {
         Class<?> bootstrap = Class.forName("java.util.concurrent.atomic.AtomicStampedReference", false, null);
         if (bootstrap.getClassLoader() != null) throw new AssertionError("Bootstrap class had a defining loader");
@@ -225,9 +284,10 @@ public final class BridgeFixture {
         boolean attach = arguments.length > 0 && arguments[0].equals("attach");
         if (attach) {
             if (PatchTarget.length("touch") != 5) throw new AssertionError("PatchTarget was patched before the agent attached");
+            if (!"woof".equals(new Dog().speak())) throw new AssertionError("Dog was patched before the agent attached");
             System.out.println("READY");
             System.out.flush();
-            if (System.in.read() < 0) throw new AssertionError("Attach controller closed stdin");
+            if (readLine() == null) throw new AssertionError("Attach controller closed stdin");
         } else {
             if (!"true".equals(System.getProperty("jvmbridge.loaded"))) throw new AssertionError("VMInit did not run");
             if (!"MODIFIED".equals(message())) throw new AssertionError("Load transformation did not run: " + message());
@@ -253,6 +313,8 @@ public final class BridgeFixture {
             System.out.println("RETRANSFORM_UNAVAILABLE");
         }
         checkPatches(attach, retransformable);
+        if (!attach || retransformable) checkMatchers();
+        if (attach && retransformable) controlPatches();
         checkBootstrapLoader();
         checkLoaderIsolation();
         checkWeakReference();

@@ -16,6 +16,14 @@ internal static class PatchDemo
         )
         .AnyMethod()
         .ReplaceConstant(oldValue: "patch-original", newValue: "patch-replaced");
+    // Patches that match classes instead of naming one: by supertype, by class-level annotation and by a filter on the class name.
+    internal static readonly ClassPatch Animals = ClassPatch.ForSubclassesOf(superType: "BridgeFixture$Animal").ReplaceConstant(oldValue: "woof", newValue: "bark");
+
+    internal static readonly ClassPatch Tagged = ClassPatch.ForAnnotatedWith(annotationType: "BridgeFixture$Marker").ReplaceConstant(oldValue: "tagged-original", newValue: "tagged-patched");
+
+    internal static readonly ClassPatch Selected = ClassPatch.ForMatching(static name => name.EndsWith(value: "$Selected", StringComparison.Ordinal), description: "classes named Selected")
+        .ReplaceConstant(oldValue: "selected-original", newValue: "selected-patched");
+
     private const string BootstrapHelper = "jvmbridge/sample/BootstrapPatchHelpers";
 
     private const string LoaderHelper = "jvmbridge/sample/LoaderPatchHelpers";
@@ -25,6 +33,9 @@ internal static class PatchDemo
         context.DefineClass(CreateBootstrapHelper(), ClassLoaderTarget.Bootstrap);
         context.DefineClass(CreateLoaderHelper(), ClassLoaderTarget.PatchedClassLoader);
         context.Patch(Target);
+        context.Patch(Animals);
+        context.Patch(Tagged);
+        context.Patch(Selected);
     }
 
     // static int length(String value) { return 1000 + value.length(); }

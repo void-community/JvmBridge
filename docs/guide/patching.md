@@ -46,6 +46,62 @@ public sealed class PatcherAgent : JavaAgent
 
 Register patches and helpers from `Configure`. The runtime only calls a patch for its class name, applies it as the class loads, logs `patched ...` or `skipped ...: reason`, and, when the agent attaches late and retransformation is available, retransforms the matching classes that are already loaded. See [**Concepts**](concepts.md#class-loaders-and-helper-classes) for where helpers are defined.
 
+## Matching several classes
+
+`ClassPatch.For` names one class. These start a patch that targets every class a test accepts, with the same edits and the same all-or-nothing rule per class:
+
+```csharp
+ClassPatch.ForPackage("com/acme/service");                              // classes directly in the package
+ClassPatch.ForPackage("com/acme", includeSubpackages: true);
+ClassPatch.ForMatching(name => name.EndsWith("Controller"), "controllers");   // a filter on the internal name
+ClassPatch.ForSubclassesOf("com/acme/Handler");                         // extends or implements it, directly or through known types
+ClassPatch.ForAnnotatedWith("com/acme/Traced");                         // class-level annotation, visible at run time or not
+
+ClassPatch.ForPackage("com/acme").WhereSubclassOf("com/acme/Handler").WhereAnnotatedWith("com/acme/Traced");
+```
+
+`WhereSubclassOf` and `WhereAnnotatedWith` narrow any patch, and every test must hold. A patch that matches several classes reports the class it patched in each `ClassPatchResult`, while `patch.ClassName` describes what it matches (`package com/acme`). The runtime logs the classes such a patch changed at information level and the ones it skipped at debug level, because most classes it sees lack the target of its edit; a patch that names its class logs every outcome so that a typo shows.
+
+The tests run cheapest first. The name test runs for every class that loads, so keep a filter cheap. The supertype and annotation tests read a lightweight header of the class and run only for classes that pass the name test; `ForSubclassesOf` and `ForAnnotatedWith` have no name test of their own, so they read the header of every class that loads. Start from `ForPackage` when you know the package.
+
+What a supertype test can see is limited by what the agent has seen:
+
+- The runtime learns the direct supertypes of each class from the class files it sees load, and, when a patch looks at supertypes, from the classes that were already loaded when the agent started (at VM initialization or attach) or when the patch was registered. A supertype it has never seen ends the walk up that branch, so a class whose ancestry runs through it does not match.
+- A class matches an ancestor, not itself.
+- A class-level annotation is read from the class bytes, so for a class that was loaded before the agent attached it cannot be read. A patch that only tests annotations therefore applies to the classes that load later; add a name test (`ForPackage(...).WhereAnnotatedWith(...)`) and the named classes that are already loaded are retransformed and checked.
+
+To test a patch without a JVM, `patch.Matches(classBytes, hierarchy)` says whether it targets a class, and a `ClassHierarchy` you fill by hand stands in for what the runtime knows.
+
+## Changing patches while the JVM runs
+
+`Patch` works at any time, not only in `Configure`. Registered after `Configure`, a patch applies to the classes that load from then on and, when retransformation is available, to the matching classes that are already loaded. `PatchNow` does the same and returns a `PatchReport`; `Unpatch` removes a patch and retransforms the classes it had patched, so the JVM transforms them again without it.
+
+```csharp
+public sealed class TracingAgent : JavaAgent
+{
+    private static readonly ClassPatch Tracing = ClassPatch.ForPackage("com/acme/service").ReplaceConstant("quiet", "traced");
+
+    public override void Configure(AgentContext context)
+    {
+        context.TryEnableRetransformation();   // an attached agent gets this automatically
+    }
+
+    public override void OnCommand(AgentContext context, string command)
+    {
+        PatchReport report = command == "off" ? context.Unpatch(Tracing) : context.PatchNow(Tracing);
+
+        context.Log(report.ToString());
+    }
+}
+```
+
+- Retransformation needs the `can_retransform_classes` capability, which has to be requested before events are enabled: an attached agent gets it automatically, and an agent loaded with `-agentpath` requests it with `TryEnableRetransformation` in `Configure`. Without it the patch still applies to classes that load later, and the report's `NotRetransformedReason` says so.
+- The report lists each loaded class that the patch targets and why a class could not be retransformed. A class that the JVM refuses does not stop the others: classes are retransformed in batches, and a batch the JVM rejects is split until the failing class is found.
+- Retransformation can only change method bodies, so a patch registered at run time is limited to edits that do that. Declare helper classes in `Configure`; a patch registered later can use the ones that exist.
+- Patches apply in the order they were registered. `Unpatch` takes the same `ClassPatch` instance that was registered, and registering one instance twice keeps one copy.
+- `PatchNow` and `Unpatch` retransform on the calling thread. From a JVM thread, such as the one that calls `OnCommand`, they need no further setup.
+- A patch that tests only annotations, or has no tests of its own, cannot tell which loaded classes it targets, so the report says it applies to classes that load later.
+
 ## Helper classes in Java
 
 Add `JavaSource` items to the agent project:

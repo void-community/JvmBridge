@@ -164,7 +164,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget (length(Ljava/lang/String;)I: 1 invocation of java/lang/String.length redirected; sorted" })
+        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget (length(Ljava/lang/String;)I: 1 invocation of java/lang/String.length redirected; sorted", "MATCHER_PATCH_OK" })
         {
             if (!result.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
@@ -279,6 +279,36 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         return JsonSerializer.Deserialize<Dictionary<string, long>>(value.Trim(), JsonFile.Options) ?? throw new InvalidOperationException(message: "Invalid ABI JSON.");
     }
 
+    private static async Task ReleaseTargetAsync(Process process, CancellationToken cancellationToken)
+    {
+        await process.StandardInput.WriteLineAsync().ConfigureAwait(continueOnCapturedContext: false);
+        await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+    }
+
+    private static async Task<string> WaitForMarkerAsync(ChannelReader<string> reader, string[] markers, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        limit.CancelAfter(timeout);
+
+        try
+        {
+            await foreach (string line in reader.ReadAllAsync(limit.Token).ConfigureAwait(continueOnCapturedContext: false))
+            {
+                if (markers.Contains(line))
+                    return line;
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                "The attach target did not print " + string.Join(separator: " or ", markers) + " within " + timeout.TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + " seconds."
+            );
+        }
+
+        throw new InvalidOperationException("The attach target exited before it printed " + string.Join(separator: " or ", markers) + ".");
+    }
+
     private static Dictionary<string, int> Warnings(string output)
     {
         Dictionary<string, int> warnings = [];
@@ -375,14 +405,53 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             if (major == 8)
                 classpath += Path.PathSeparator.ToString() + Path.Combine(home, path2: "lib", path3: "tools.jar");
 
-            await _processRunner.RunCheckedAsync(
-                [java, "-cp", classpath, "AttachFixture", process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), agent],
+            await LoadAgentAsync(
+                java,
+                classpath,
+                process.Id,
+                agent,
+                options: null,
                 Path.Combine(directory, path2: "attach-controller.log"),
-                environment: environment,
-                cancellationToken: cancellationToken
+                environment,
+                cancellationToken
             ).ConfigureAwait(continueOnCapturedContext: false);
-            await process.StandardInput.WriteLineAsync().ConfigureAwait(continueOnCapturedContext: false);
-            await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            // On a JVM that can retransform, the fixture pauses twice so that the running agent can be told to remove its patch and to register it again.
+            // Loading the agent library once more with a command is how a running agent is controlled.
+            TimeSpan pause = TimeSpan.FromSeconds(seconds: 90);
+            string paused = await WaitForMarkerAsync(events.Reader, ["UNPATCH_READY", "AGENT_OK"], pause, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            if (paused == "UNPATCH_READY")
+            {
+                await LoadAgentAsync(
+                    java,
+                    classpath,
+                    process.Id,
+                    agent,
+                    options: "unpatch",
+                    Path.Combine(directory, path2: "attach-command-unpatch.log"),
+                    environment,
+                    cancellationToken
+                ).ConfigureAwait(continueOnCapturedContext: false);
+                await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+                string repatch = await WaitForMarkerAsync(events.Reader, ["REPATCH_READY"], pause, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+                if (repatch != "REPATCH_READY")
+                    throw new InvalidOperationException(message: "The attach target did not pause before registering the patch again.");
+
+                await LoadAgentAsync(
+                    java,
+                    classpath,
+                    process.Id,
+                    agent,
+                    options: "patch",
+                    Path.Combine(directory, path2: "attach-command-patch.log"),
+                    environment,
+                    cancellationToken
+                ).ConfigureAwait(continueOnCapturedContext: false);
+                await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            }
 
             using CancellationTokenSource exitTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -401,7 +470,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             string targetOutput = string.Concat(output.Concat(errors));
 
-            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget"];
+            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "MATCHER_PATCH_OK", "HelloAgent: patched BridgeFixture$PatchTarget"];
             bool missingOutput = requiredMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal));
 
             bool missingRetransformation = !targetOutput.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
@@ -409,6 +478,14 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             if (targetOutput.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) && missingRetransformation)
                 throw new InvalidOperationException(message: "Selected loader late-attach retransformation did not run");
+
+            if (targetOutput.Contains(value: "UNPATCH_READY", StringComparison.Ordinal))
+            {
+                string[] controlMarkers = ["UNPATCH_OK", "REPATCH_OK", "COMMAND unpatch", "COMMAND patch"];
+
+                if (controlMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal)))
+                    throw new InvalidOperationException("Controlling the running agent with commands did not complete: " + targetOutput);
+            }
 
             bool introducedWarning = Warnings(targetOutput).Any(entry => entry.Value > baselineWarnings.GetValueOrDefault(entry.Key));
 
@@ -466,5 +543,24 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         string output = (await _processRunner.RunAsync([binary], Path.Combine(directory, path2: "abi-native.json"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Output;
 
         return ParseLongDictionary(output);
+    }
+
+    private async Task LoadAgentAsync(
+        string java,
+        string classpath,
+        int processId,
+        string agent,
+        string? options,
+        string logPath,
+        IReadOnlyDictionary<string, string?> environment,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> command = [java, "-cp", classpath, "AttachFixture", processId.ToString(System.Globalization.CultureInfo.InvariantCulture), agent];
+
+        if (options is not null)
+            command.Add(options);
+
+        await _processRunner.RunCheckedAsync(command, logPath, environment: environment, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
     }
 }

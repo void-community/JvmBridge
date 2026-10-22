@@ -52,6 +52,28 @@ WARNING: Dynamic loading of agents will be disallowed by default in a future rel
 
 The agent still loads. Plan for the flag to become mandatory in a later Java release.
 
+## Telling a running agent what to do
+
+Loading the agent library again into a JVM where its agent already runs does not start a second copy. The runtime calls `OnCommand` on the running agent with the option text of the new load, on the JVM's attach listener thread. That makes the same two routes a control channel: the first load starts the agent, and later loads send it commands.
+
+```csharp
+public override void OnCommand(AgentContext context, string command)
+{
+    if (command == "off")
+        context.Unpatch(Tracing);
+    else
+        throw new InvalidOperationException("Unknown command " + command);
+}
+```
+
+```sh
+jcmd <pid> JVMTI.agent_load /absolute/path/MyAgent.so off
+```
+
+A command that finishes makes `jcmd` print `return code: 0`. A command that throws is reported in the target's log (`JvmBridge: InvalidOperationException: Unknown command bogus`) and `jcmd` prints `return code: -1`. With the Attach API a failed command throws `AgentInitializationException: Agent_OnAttach failed`. An agent that does not override `OnCommand` logs that it ignored the command and the load succeeds.
+
+This works the same whether the agent was started with `-agentpath`, `JAVA_TOOL_OPTIONS` or an earlier attach. It was run against HotSpot 8, 17 and 21 with the `unpatch` and `patch` commands of the HelloAgent sample.
+
 ## What an attached agent can do
 
 An attached agent runs `OnAttach` with callbacks already active, after the VM-initialization event has passed. Registered patches are applied to classes that load afterwards, and, when the agent obtained the retransformation capability, to the matching classes that are already loaded. A retransformation can only change method bodies: it cannot add methods or fields, which the JVM forbids on a loaded class. See the [**limitations**](limitations.md).
@@ -62,3 +84,4 @@ An attached agent runs `OnAttach` with callbacks already active, after the VM-in
 |---|---|
 | Instrument from the first class | `-agentpath` or `JAVA_TOOL_OPTIONS` |
 | Instrument a JVM you cannot restart | `jcmd` (9+) or the Attach API |
+| Change what a running agent does | the same route again, handled by `OnCommand` |
