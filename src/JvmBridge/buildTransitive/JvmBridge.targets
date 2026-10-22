@@ -38,6 +38,7 @@
   </PropertyGroup>
   <UsingTask TaskName="JvmBridge.Tasks.GenerateJavaProxies" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="JvmBridge.Tasks.ProvisionJdk" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="JvmBridge.Tasks.PackAgentJar" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="JvmBridgeGenerateJavaClasses" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <ClassesDirectory ParameterType="System.String" Required="true" />
@@ -126,5 +127,33 @@
       <Compile Include="$(_JvmBridgeProxyFile)" />
       <FileWrites Include="$(_JvmBridgeProxyFile)" />
     </ItemGroup>
+  </Target>
+  <!-- With JvmBridgeAgentJar set to true, dotnet publish of an agent also writes <name>.jar beside the native library: a jar for java -javaagent that holds the library of the published platform. -->
+  <Target Name="_JvmBridgePackAgentJar" AfterTargets="Publish" Condition="'$(JvmBridgeAgent)' == 'true' and '$(JvmBridgeAgentJar)' == 'true'">
+    <PropertyGroup>
+      <_JvmBridgeAgentLibrary>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PublishDir)', '$(TargetName)$(NativeBinaryExt)'))</_JvmBridgeAgentLibrary>
+      <_JvmBridgeAgentJar>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PublishDir)', '$(TargetName).jar'))</_JvmBridgeAgentJar>
+    </PropertyGroup>
+    <Error Condition="'$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JvmBridgeAgentJar writes the jar with a task that only runs under dotnet publish. Publish with the dotnet CLI." />
+    <ItemGroup>
+      <_JvmBridgeAgentJarLibrary Include="$(_JvmBridgeAgentLibrary)" Rid="$(RuntimeIdentifier)" />
+    </ItemGroup>
+    <PackAgentJar Libraries="@(_JvmBridgeAgentJarLibrary)" OutputFile="$(_JvmBridgeAgentJar)" />
+  </Target>
+  <!--
+    Combines the jars that the publish of each platform wrote into one jar, after a CI matrix has published every platform on a runner of its own:
+    dotnet msbuild MyAgent.csproj -restore -t:JvmBridgeMergeAgentJars -p:JvmBridgeAgentJars="agents/**/MyAgent.jar" -p:JvmBridgeAgentJarOutput=MyAgent.jar
+  -->
+  <Target Name="JvmBridgeMergeAgentJars">
+    <ItemGroup>
+      <!-- A command line cannot pass a semicolon in a property, so %3B separates several paths or patterns there. -->
+      <_JvmBridgeMergedJar Include="$([MSBuild]::Unescape('$(JvmBridgeAgentJars)'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_JvmBridgeMergedJarOutput>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$([MSBuild]::ValueOrDefault('$(JvmBridgeAgentJarOutput)', '$(TargetName).jar'))'))</_JvmBridgeMergedJarOutput>
+    </PropertyGroup>
+    <Error Condition="'$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JvmBridgeMergeAgentJars writes the jar with a task that only runs under the dotnet CLI. Run it with dotnet msbuild." />
+    <Error Condition="'@(_JvmBridgeMergedJar)' == ''" Code="JVMB015" Text="JvmBridgeMergeAgentJars found no jar to combine. Name them with JvmBridgeAgentJars, for example -p:JvmBridgeAgentJars=&quot;agents/**/*.jar&quot;; a pattern is relative to the project." />
+    <PackAgentJar Jars="@(_JvmBridgeMergedJar)" OutputFile="$(_JvmBridgeMergedJarOutput)" />
   </Target>
 </Project>

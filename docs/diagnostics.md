@@ -17,6 +17,8 @@ Every error the JvmBridge package reports carries a `JVMB` code. The generator r
 | [**JVMB011**](#jvmb011-javareference-has-no-types) | build task | A `JavaReference` has no `Types` metadata |
 | [**JVMB012**](#jvmb012-types-entry-matches-nothing) | build task | A `Types` entry of a `JavaReference` matches no class |
 | [**JVMB013**](#jvmb013-javareference-cannot-be-read) | build task | A `JavaReference` jar is missing or unreadable |
+| [**JVMB014**](#jvmb014-agent-jar-cannot-be-written) | build task | The `-javaagent` jar of `JvmBridgeAgentJar` or `JvmBridgeMergeAgentJars` cannot be written |
+| [**JVMB015**](#jvmb015-no-jars-to-merge) | build | `JvmBridgeMergeAgentJars` found no jar to combine |
 
 ### JVMB001: Invalid JVM agent
 
@@ -57,7 +59,7 @@ The pinned JDK archive could not be downloaded, its checksum did not match, or i
 
 ### JVMB009: Provisioning needs dotnet build
 
-`JvmBridgeProvisionJdk` downloads the JDK, and `JavaReference` reads jars, with tasks that only load under the `dotnet` CLI's MSBuild. Build with `dotnet build`; for the JDK you can also set `JvmBridgeJdkHome` or `JAVA_HOME` so no download is needed.
+`JvmBridgeProvisionJdk` downloads the JDK, `JavaReference` reads jars, and `JvmBridgeAgentJar` and `JvmBridgeMergeAgentJars` write `-javaagent` jars, with tasks that only load under the `dotnet` CLI's MSBuild. Build with `dotnet build`, `dotnet publish` or `dotnet msbuild`; for the JDK you can also set `JvmBridgeJdkHome` or `JAVA_HOME` so no download is needed.
 
 ### JVMB010: Agent must be a library
 
@@ -74,3 +76,11 @@ A `Types` entry matched no class in the jar, which is usually a typo or a packag
 ### JVMB013: JavaReference cannot be read
 
 The jar does not exist at that path (the path is relative to the project) or is not a readable zip file.
+
+### JVMB014: Agent jar cannot be written
+
+`JvmBridgeAgentJar` writes a `-javaagent` jar after `dotnet publish`, and `JvmBridgeMergeAgentJars` combines such jars; the message says what stopped them. A library or a jar that does not exist, a jar that no JvmBridge publish or `jvmbridge pack` wrote, a runtime identifier that the launcher cannot detect, and two different libraries for one platform among the jars to combine are refused. The same library twice for a platform is fine.
+
+### JVMB015: No jars to merge
+
+`JvmBridgeMergeAgentJars` combines the jars named by `JvmBridgeAgentJars`, paths or wildcards relative to the project (separated by `%3B` on a command line), and none matched: `-p:JvmBridgeAgentJars="agents/*/MyAgent.jar"`. Check where the jars were downloaded to.

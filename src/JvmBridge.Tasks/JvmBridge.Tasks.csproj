@@ -8,6 +8,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JvmBridge.Tasks.Tests" />
     <PackageReference Include="Nito.AsyncEx.Context" />
+    <!-- The launcher class and the jar writer that jvmbridge pack uses, for JvmBridgeAgentJar and JvmBridgeMergeAgentJars. Packed beside this assembly under tasks/. -->
+    <ProjectReference Include="../JvmBridge.Launcher/JvmBridge.Launcher.csproj" />
     <!-- The MSBuild host supplies these assemblies; the task assembly must not carry its own copies. -->
     <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" ExcludeAssets="runtime" />
     <!-- The JDK download, checksum and extraction code and the pinned inventory are the ones the repository's own validation and JvmBridge.Testing use. -->

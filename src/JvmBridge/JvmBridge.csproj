@@ -37,7 +37,7 @@
       <ProvisionTaskDirectory>@(ProvisionTaskAssembly->'%(RootDir)%(Directory)')</ProvisionTaskDirectory>
     </PropertyGroup>
     <ItemGroup>
-      <TfmSpecificPackageFile Include="$(ProvisionTaskDirectory)JvmBridge.Tasks.dll;$(ProvisionTaskDirectory)Nito.*.dll" PackagePath="tasks" />
+      <TfmSpecificPackageFile Include="$(ProvisionTaskDirectory)JvmBridge.Tasks.dll;$(ProvisionTaskDirectory)JvmBridge.Launcher.dll;$(ProvisionTaskDirectory)Nito.*.dll" PackagePath="tasks" />
     </ItemGroup>
   </Target>
   <Import Project="Native/WindowsX86/Build.targets" />

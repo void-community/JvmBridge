@@ -16,6 +16,46 @@ public sealed class AgentProjectTests
         }
         """;
 
+    /// <summary>JvmBridgeMergeAgentJars with nothing to combine says how to name the jars.</summary>
+    [Fact]
+    public async Task AMergeWithoutJarsIsReportedAsync()
+    {
+        using TemporaryDirectory project = CreateProject(includePublishAot: true);
+
+        RepositoryContext repository = RepositoryContext.Discover();
+        string packages = Path.Combine(repository.Artifacts, path2: "packages");
+
+        Dictionary<string, string?> environment = new()
+        {
+            [key: "NUGET_PACKAGES"] = Path.Combine(project.Path, path2: "packages-cache"),
+            [key: "DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+            [key: "DOTNET_NOLOGO"] = "1",
+            [key: "MSBUILDDISABLENODEREUSE"] = "1"
+        };
+
+        ProcessResult result = await new ProcessRunner(repository).RunAsync(
+            [
+                "dotnet",
+                "msbuild",
+                Path.Combine(project.Path, path2: "Consumer.csproj"),
+                "-restore",
+                "-t:JvmBridgeMergeAgentJars",
+                "-p:JvmBridgeAgentJars=agents/*/Probe.jar",
+                "-p:RestoreAdditionalProjectSources=" + packages,
+                "-p:RestoreLockedMode=false"
+            ],
+            logPath: null,
+            environment: environment,
+            expectedExitCode: null,
+            workingDirectory: project.Path,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(expected: 0, result.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB015", result.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JvmBridgeAgentJars", result.Output, StringComparison.Ordinal);
+    }
+
     /// <summary>PublishAot passed on the command line, as the repository's own publish commands do, satisfies the check as well.</summary>
     [Fact]
     public async Task APublishAotCommandLineValueCountsAsync()

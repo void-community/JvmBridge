@@ -182,9 +182,13 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "jvmbridge.launcher": {
+        "type": "Project"
+      },
       "jvmbridge.tasks": {
         "type": "Project",
         "dependencies": {
+          "JvmBridge.Launcher": "[26.10.22.4549, )",
           "Nito.AsyncEx.Context": "[5.1.2, )"
         }
       },
