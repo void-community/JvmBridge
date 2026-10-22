@@ -51,6 +51,20 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         [SpecialType.System_Double] = new Mapped(descriptor: "D", native: "double", fromJni: "{0}", toJni: "{0}"),
     };
 
+    // The Java array type of each primitive C# array: the descriptor of the element and the C# element type that the array helpers take.
+    private static readonly Dictionary<SpecialType, KeyValuePair<string, string>> ArrayElements = new()
+    {
+        [SpecialType.System_Boolean] = new KeyValuePair<string, string>(key: "Z", value: "bool"),
+        [SpecialType.System_Byte] = new KeyValuePair<string, string>(key: "B", value: "byte"),
+        [SpecialType.System_SByte] = new KeyValuePair<string, string>(key: "B", value: "sbyte"),
+        [SpecialType.System_Char] = new KeyValuePair<string, string>(key: "C", value: "char"),
+        [SpecialType.System_Int16] = new KeyValuePair<string, string>(key: "S", value: "short"),
+        [SpecialType.System_Int32] = new KeyValuePair<string, string>(key: "I", value: "int"),
+        [SpecialType.System_Int64] = new KeyValuePair<string, string>(key: "J", value: "long"),
+        [SpecialType.System_Single] = new KeyValuePair<string, string>(key: "F", value: "float"),
+        [SpecialType.System_Double] = new KeyValuePair<string, string>(key: "D", value: "double"),
+    };
+
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -200,9 +214,9 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         text.Line(text: "    [global::System.Runtime.InteropServices.UnmanagedCallersOnly]");
         text.Line("    private static " + returnType + " " + name + "(" + environment + parameters + ")");
         text.Line(text: "    {");
+        text.Line(text: "        using global::JvmBridge.Runtime.JavaEnvironment javaEnvironment = new((nint)environment);");
         text.Line(text: "        try");
         text.Line(text: "        {");
-        text.Line(text: "            using global::JvmBridge.Runtime.JavaEnvironment javaEnvironment = new((nint)environment);");
 
         if (method.Return.IsVoid)
         {
@@ -214,6 +228,11 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             text.Line("            return " + method.Return.ToJni.Replace(oldValue: "{0}", newValue: "value") + ";");
         }
 
+        text.Line(text: "        }");
+        text.Line(text: "        catch (global::JvmBridge.Runtime.JavaThrowException throwing)");
+        text.Line(text: "        {");
+        text.Line(text: "            throwing.Raise(javaEnvironment);");
+        text.Line(method.Return.IsVoid ? "            return;" : "            return default;");
         text.Line(text: "        }");
         text.Line(text: "        catch (global::System.Exception exception) when (global::JvmBridge.Agents.AgentRuntime.ReportFailure(exception))");
         text.Line(text: "        {");
@@ -295,6 +314,33 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         return new NativeMethod(method.Name, javaName, takesEnvironment, parameters, result);
     }
 
+    private static Mapped? MapArray(ITypeSymbol element)
+    {
+        if (element.SpecialType == SpecialType.System_String)
+        {
+            string toStrings = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewStringArray(javaEnvironment, {0}).Release()";
+
+            return new Mapped(
+                descriptor: "[Ljava/lang/String;",
+                Pointer,
+                fromJni: "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.GetStringArray(javaEnvironment, (nint){0})",
+                toStrings
+            );
+        }
+
+        if (!ArrayElements.TryGetValue(element.SpecialType, out KeyValuePair<string, string> known))
+            return null;
+
+        string toArray = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewArray<" + known.Value + ">(javaEnvironment, {0}).Release()";
+
+        return new Mapped(
+            "[" + known.Key,
+            Pointer,
+            "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.ToArray<" + known.Value + ">(javaEnvironment, (nint){0})",
+            toArray
+        );
+    }
+
     private static Mapped? MapType(ITypeSymbol type, ImmutableArray<AttributeData> attributes)
     {
         if (Primitives.TryGetValue(type.SpecialType, out Mapped? primitive))
@@ -306,6 +352,9 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
             return new Mapped(descriptor: "Ljava/lang/String;", Pointer, fromJni: "javaEnvironment.GetString((nint){0})", toJni);
         }
+
+        if (type is IArrayTypeSymbol { Rank: 1 } array)
+            return MapArray(array.ElementType);
 
         if (type.SpecialType != SpecialType.System_IntPtr)
             return null;

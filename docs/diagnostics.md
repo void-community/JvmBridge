@@ -30,7 +30,7 @@ A class marked `[JavaClass("pkg/Name")]` must have a Java internal name with sla
 
 ### JVMB003: Unsupported native helper method signature
 
-A `[JavaMethod]` method must be `static`, non-generic and non-async, and use only parameter and return types the generator can marshal: `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, and `nint` (give its Java type with `[JavaType]`). The first parameter may be a `JavaEnvironment`. `ref`, `in` and `out` parameters are rejected. The message names the method, the parameter and the type.
+A `[JavaMethod]` method must be `static`, non-generic and non-async, and use only parameter and return types the generator can marshal: `bool`, `sbyte`, `char`, `short`, `int`, `long`, `float`, `double`, `string`, one-dimensional arrays of the primitives (`byte[]`, `int[]` and so on) and of `string`, and `nint` (give its Java type with `[JavaType]`). The first parameter may be a `JavaEnvironment`. `ref`, `in` and `out` parameters are rejected. The message names the method, the parameter and the type.
 
 ### JVMB004: No JDK for JavaSource
 
