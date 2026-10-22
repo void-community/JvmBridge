@@ -8,10 +8,13 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeAgentGenerator;IncludeWindowsX86Compatibility</TargetsForTfmSpecificContentInPackage>
+    <!-- The JDK provisioning task is loaded by MSBuild from tasks/, not referenced as a library. -->
+    <NoWarn>$(NoWarn);NU5100</NoWarn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeAgentGenerator;IncludeProvisionTask;IncludeWindowsX86Compatibility</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../JvmBridge.Generator/JvmBridge.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="../JvmBridge.Tasks/JvmBridge.Tasks.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <InternalsVisibleTo Include="JvmBridge.Tests" />
     <None Include="buildTransitive/*" Pack="true" PackagePath="buildTransitive" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
@@ -23,6 +26,17 @@
     </MSBuild>
     <ItemGroup>
       <TfmSpecificPackageFile Include="@(AgentGeneratorAssembly)" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+  <Target Name="IncludeProvisionTask">
+    <MSBuild Projects="../JvmBridge.Tasks/JvmBridge.Tasks.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)" RemoveProperties="TargetFramework">
+      <Output TaskParameter="TargetOutputs" ItemName="ProvisionTaskAssembly" />
+    </MSBuild>
+    <PropertyGroup>
+      <ProvisionTaskDirectory>@(ProvisionTaskAssembly->'%(RootDir)%(Directory)')</ProvisionTaskDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(ProvisionTaskDirectory)JvmBridge.Tasks.dll;$(ProvisionTaskDirectory)Nito.*.dll" PackagePath="tasks" />
     </ItemGroup>
   </Target>
   <Import Project="Native/WindowsX86/Build.targets" />

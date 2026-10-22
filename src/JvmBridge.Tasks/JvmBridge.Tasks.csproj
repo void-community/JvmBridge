@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>JvmBridge.Tasks</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JvmBridge.Tasks.Tests" />
+    <PackageReference Include="Nito.AsyncEx.Context" />
+    <!-- The MSBuild host supplies these assemblies; the task assembly must not carry its own copies. -->
+    <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- The JDK download, checksum and extraction code and the pinned inventory are the ones the repository's own validation and JvmBridge.Testing use. -->
+    <Compile Include="../JvmBridge.Build/Infrastructure/FileSystem.cs" Link="Shared/FileSystem.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/HttpService.cs" Link="Shared/HttpService.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/JdkArchiveManager.cs" Link="Shared/JdkArchiveManager.cs" />
+    <Compile Include="../JvmBridge.Build/Infrastructure/TextFile.cs" Link="Shared/TextFile.cs" />
+    <Compile Include="../Shared/PinnedJdk.cs" Link="Shared/PinnedJdk.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkArchive.cs" Link="Shared/JdkArchive.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkEntry.cs" Link="Shared/JdkEntry.cs" />
+    <Compile Include="../JvmBridge.Build/Models/JdkLock.cs" Link="Shared/JdkLock.cs" />
+    <EmbeddedResource Include="../JvmBridge.Build/jdks.lock.json" LogicalName="jdks.lock.json" />
+  </ItemGroup>
+</Project>

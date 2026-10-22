@@ -6,6 +6,7 @@ JvmBridge is a generic JNI/JVMTI library and NativeAOT agent toolkit. Keep all p
 
 - `src/JvmBridge`: runtime ownership helpers, agent lifecycle, generated native declarations, and NuGet build integration.
 - `src/JvmBridge.Generator`: incremental C# generator shipped inside the same JvmBridge NuGet package.
+- `src/JvmBridge.Tasks`: the MSBuild task that downloads the pinned JDK for `JvmBridgeProvisionJdk`, shipped inside the JvmBridge package under `tasks/`. `src/Shared` holds the JDK provisioning code it shares with JvmBridge.Testing.
 - `src/JvmBridge.Testing`: the JvmBridge.Testing xUnit package: pinned JDKs, javac and java runners, published-agent lookup, and class-file assertions. It links the JDK provisioning code and embeds the inventory of `src/JvmBridge.Build`.
 - `src/JvmBridge.Templates`: the JvmBridge.Templates package, whose `jvmbridge-agent` template is instantiated by the build tests.
 - `src/JvmBridge.Build`: MSBuild tasks for deterministic native declarations, ABI inspection, fixture compilation, and coverage validation; owns pinned inventories and unmodified headers.

@@ -9,7 +9,8 @@
     <!-- NativeAOT is selected while the project is evaluated, so the project sets it even though JvmBridgeAgent implies it. -->
     <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Java helper classes are compiled with the JDK in JvmBridgeJdkHome or JAVA_HOME. JavaRelease defaults to 8. -->
+    <!-- Java helper classes are compiled with the JDK in JvmBridgeJdkHome or JAVA_HOME, and a pinned JDK is downloaded once when neither names one. JavaRelease defaults to 8. -->
+    <JvmBridgeProvisionJdk>true</JvmBridgeProvisionJdk>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="JvmBridge" Version="JVMBRIDGE_VERSION" />

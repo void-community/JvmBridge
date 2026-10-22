@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text.Json;
 
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
@@ -16,7 +15,6 @@ namespace JvmBridge.Testing;
 public sealed class Jdk
 {
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Homes = new(StringComparer.Ordinal);
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     /// <summary>Initializes a JDK request.</summary>
     /// <param name="major">The Java major version, for example 8 or 17.</param>
@@ -130,27 +128,6 @@ public sealed class Jdk
         return $"No pinned {this} for {runtimeIdentifier}{detail}. Set {installedVariable} to use an installed JDK.";
     }
 
-    private static JdkArchive ToArchive(JdkEntry entry)
-    {
-        return new JdkArchive
-        {
-            Distribution = entry.Distribution ?? throw new InvalidOperationException(message: "Missing JDK distribution."),
-            Version = entry.Version ?? throw new InvalidOperationException(message: "Missing JDK version."),
-            Url = entry.Url ?? throw new InvalidOperationException(message: "Missing JDK URL."),
-            Sha256 = entry.Sha256 ?? throw new InvalidOperationException(message: "Missing JDK SHA256.")
-        };
-    }
-
-    private JdkEntry? FindPinned(string runtimeIdentifier)
-    {
-        using Stream stream = typeof(Jdk).Assembly.GetManifestResourceStream(name: "jdks.lock.json") ?? throw new InvalidOperationException(message: "The pinned JDK inventory is missing.");
-
-        JdkLock inventory = JsonSerializer.Deserialize<JdkLock>(stream, JsonOptions) ?? throw new InvalidOperationException(message: "The pinned JDK inventory is empty.");
-        JdkEntry[] matches = [.. inventory.Jdks.Where(entry => entry.Rid == runtimeIdentifier && entry.Java == Major && entry.Implementation == Implementation)];
-
-        return matches.FirstOrDefault(entry => entry.Status == "available") ?? matches.FirstOrDefault();
-    }
-
     private async Task<string> ResolveHomeAsync()
     {
         string installedVariable = "JVMBRIDGE_JDK_" + Major.ToString(CultureInfo.InvariantCulture);
@@ -160,7 +137,7 @@ public sealed class Jdk
             return installed;
 
         string runtimeIdentifier = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
-        JdkEntry? entry = FindPinned(runtimeIdentifier);
+        JdkEntry? entry = PinnedJdk.Find(Major, Implementation, runtimeIdentifier);
 
         if (entry is not { Status: "available", Sha256.Length: >= 12 })
         {
@@ -169,42 +146,6 @@ public sealed class Jdk
             throw new InvalidOperationException(message: "Assert.Skip returned.");
         }
 
-        string cache = Path.Combine(
-            Path.GetTempPath(),
-            path2: "jvmbridge-testing",
-            path3: "jdks",
-            $"{Implementation}-{Major.ToString(CultureInfo.InvariantCulture)}-{entry.Sha256[..12]}"
-        );
-
-        string marker = Path.Combine(cache, path2: "home.txt");
-
-        if (File.Exists(marker))
-        {
-            string relativeHome = (await File.ReadAllTextAsync(marker).ConfigureAwait(continueOnCapturedContext: false)).Trim();
-            string cached = Path.Combine(cache, relativeHome);
-
-            if (Directory.Exists(cached))
-                return cached;
-        }
-
-        string staging = cache + ".staging-" + Guid.NewGuid().ToString(format: "N");
-
-        using HttpService http = new();
-
-        string home = await new JdkArchiveManager(http).UnpackAsync(ToArchive(entry), staging, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-        string relative = Path.GetRelativePath(staging, home);
-        await File.WriteAllTextAsync(Path.Combine(staging, path2: "home.txt"), relative).ConfigureAwait(continueOnCapturedContext: false);
-
-        try
-        {
-            Directory.Move(staging, cache);
-        }
-        catch (IOException) when (Directory.Exists(cache))
-        {
-            // Another process unpacked the same JDK first; use its copy.
-            Directory.Delete(staging, recursive: true);
-        }
-
-        return Path.Combine(cache, relative);
+        return await PinnedJdk.UnpackAsync(entry, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
     }
 }

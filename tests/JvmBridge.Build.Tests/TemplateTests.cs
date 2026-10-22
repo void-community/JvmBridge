@@ -9,7 +9,7 @@ namespace JvmBridge.Build.Tests;
 public sealed class TemplateTests
 {
     /// <summary>
-    /// The template's source name must never collide with an MSBuild property, and the generated agent and tests build and pass against the packed packages. The JVM tests skip because no agent is published here.
+    /// The template's source name must never collide with an MSBuild property, and the generated agent and tests build and pass against the packed packages on a machine with no JDK, which the template's JvmBridgeProvisionJdk covers. The JVM tests skip because no agent is published here.
     /// </summary>
     [Fact]
     public async Task GeneratedProjectsKeepTheirPropertiesAndBuildAsync()
@@ -17,21 +17,9 @@ public sealed class TemplateTests
         RepositoryContext repository = RepositoryContext.Discover();
         string version = PackedVersion(repository);
         string packages = Path.Combine(repository.Artifacts, path2: "packages");
-        string runtimeIdentifier = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
-
-        JdkEntry entry = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"])).Jdks
-            .FirstOrDefault(
-                candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available"
-            )
-            ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
 
         using TemporaryDirectory work = new(prefix: "jvmbridge-template-");
 
-        using TemporaryDirectory jdk = new(prefix: "jvmbridge-template-jdk-");
-
-        using HttpService http = new();
-
-        string home = await new JdkArchiveManager(http).UnpackAsync(FixtureCompiler.ToArchive(entry), jdk.Path, CancellationToken.None);
         ProcessRunner runner = new(repository);
         string hive = Path.Combine(work.Path, path2: "hive");
         string project = Path.Combine(work.Path, path2: "Demo");
@@ -72,11 +60,12 @@ public sealed class TemplateTests
 
         Assert.Contains(expectedSubstring: "<JvmBridgeAgent>true</JvmBridgeAgent>", agent, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "<PublishAot>true</PublishAot>", agent, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "<JvmBridgeProvisionJdk>true</JvmBridgeProvisionJdk>", agent, StringComparison.Ordinal);
         Assert.Contains("Include=\"JvmBridge\" Version=\"" + version + "\"", agent, StringComparison.Ordinal);
         Assert.Contains("Include=\"JvmBridge.Testing\" Version=\"" + version + "\"", tests, StringComparison.Ordinal);
         Assert.DoesNotContain(expectedSubstring: "MyJvmAgent", string.Concat(agent, tests, source), StringComparison.Ordinal);
 
-        List<string> restore = ["-p:RestoreAdditionalProjectSources=" + packages, "-p:JvmBridgeJdkHome=" + home];
+        List<string> restore = ["-p:RestoreAdditionalProjectSources=" + packages];
 
         ProcessResult build = await runner.RunAsync(
             ["dotnet", "build", Path.Combine(project, path2: "tests", path3: "Demo.Tests", path4: "Demo.Tests.csproj"), "-c", "Release", .. restore],

@@ -3,7 +3,7 @@
 A NativeAOT JVM agent built with [JvmBridge](https://github.com/void-community/JvmBridge).
 
 - `PatcherAgent.cs` registers a helper class and a declarative `ClassPatch`. `Patches.SortDescending` is a placeholder: change the class, method and call it targets.
-- `java/` holds Java helper classes. They are compiled with `javac` when you build, so set `JAVA_HOME` (or `JvmBridgeJdkHome`) to a JDK 9 or later.
+- `java/` holds Java helper classes. They are compiled with `javac` when you build. The build uses the JDK in `JvmBridgeJdkHome` or `JAVA_HOME`, and downloads a pinned JDK once (`JvmBridgeProvisionJdk`) when neither names one.
 - `tests/MyJvmAgent.Tests` checks the patch on class bytes, then runs a fixture in a JVM with and without the agent. The JVM tests skip until the agent is published for your platform.
 
 ```sh

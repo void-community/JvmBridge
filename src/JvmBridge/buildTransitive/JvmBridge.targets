@@ -32,7 +32,11 @@
   <!-- Java helper classes: JavaSource items are compiled with javac and exposed to C# as JavaClasses.<Package>.<Class>. -->
   <PropertyGroup>
     <JavaRelease Condition="'$(JavaRelease)' == ''">8</JavaRelease>
+    <!-- The pinned JDK that JvmBridgeProvisionJdk downloads: Java 17, or the release itself when that is newer. -->
+    <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == '' and $(JavaRelease) &gt; 17">$(JavaRelease)</JvmBridgeJdkMajor>
+    <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == ''">17</JvmBridgeJdkMajor>
   </PropertyGroup>
+  <UsingTask TaskName="JvmBridge.Tasks.ProvisionJdk" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="JvmBridgeGenerateJavaClasses" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <ClassesDirectory ParameterType="System.String" Required="true" />
@@ -74,7 +78,20 @@
       <_JvmBridgeJavac Condition="'$(_JvmBridgeJdk)' != ''">$([MSBuild]::NormalizePath('$(_JvmBridgeJdk)', 'bin', 'javac'))</_JvmBridgeJavac>
       <_JvmBridgeJavac Condition="'$(_JvmBridgeJavac)' != '' And '$(OS)' == 'Windows_NT'">$(_JvmBridgeJavac).exe</_JvmBridgeJavac>
     </PropertyGroup>
-    <Error Condition="'$(_JvmBridgeJdk)' == ''" Code="JVMB004" Text="JavaSource items are compiled with javac, which needs a JDK (version 9 or later). Set JvmBridgeJdkHome, or JAVA_HOME, to a JDK directory." />
+    <!-- Opt-in: when no JDK was named (JvmBridgeJdkHome) and JAVA_HOME has no javac, download the pinned JDK once and cache it. An explicit JvmBridgeJdkHome is always respected. -->
+    <PropertyGroup Condition="'$(JvmBridgeProvisionJdk)' == 'true' and '$(JvmBridgeJdkHome)' == '' and !Exists('$(_JvmBridgeJavac)')">
+      <_JvmBridgeProvision>true</_JvmBridgeProvision>
+    </PropertyGroup>
+    <Error Condition="'$(_JvmBridgeProvision)' == 'true' and '$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JvmBridgeProvisionJdk downloads the JDK with a task that only runs under dotnet build. Build with the dotnet CLI, or set JvmBridgeJdkHome, or JAVA_HOME, to a JDK directory." />
+    <ProvisionJdk Condition="'$(_JvmBridgeProvision)' == 'true' and '$(MSBuildRuntimeType)' == 'Core'" Major="$(JvmBridgeJdkMajor)" Implementation="hotspot">
+      <Output TaskParameter="JdkHome" PropertyName="_JvmBridgeProvisionedJdk" />
+    </ProvisionJdk>
+    <PropertyGroup Condition="'$(_JvmBridgeProvisionedJdk)' != ''">
+      <_JvmBridgeJdk>$(_JvmBridgeProvisionedJdk)</_JvmBridgeJdk>
+      <_JvmBridgeJavac>$([MSBuild]::NormalizePath('$(_JvmBridgeJdk)', 'bin', 'javac'))</_JvmBridgeJavac>
+      <_JvmBridgeJavac Condition="'$(OS)' == 'Windows_NT'">$(_JvmBridgeJavac).exe</_JvmBridgeJavac>
+    </PropertyGroup>
+    <Error Condition="'$(_JvmBridgeJdk)' == ''" Code="JVMB004" Text="JavaSource items are compiled with javac, which needs a JDK (version 9 or later). Set JvmBridgeJdkHome, or JAVA_HOME, to a JDK directory, or set JvmBridgeProvisionJdk to true to download a pinned JDK." />
     <Error Condition="!Exists('$(_JvmBridgeJavac)')" Code="JVMB005" Text="javac was not found at '$(_JvmBridgeJavac)'. Set JvmBridgeJdkHome to a JDK, not a JRE." />
     <ItemGroup>
       <_JvmBridgeJavaSource Include="@(JavaSource->'%(FullPath)')">

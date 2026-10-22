@@ -16,6 +16,7 @@
     <Compile Include="../JvmBridge.Build/Infrastructure/HttpService.cs" Link="Shared/HttpService.cs" />
     <Compile Include="../JvmBridge.Build/Infrastructure/JdkArchiveManager.cs" Link="Shared/JdkArchiveManager.cs" />
     <Compile Include="../JvmBridge.Build/Infrastructure/TextFile.cs" Link="Shared/TextFile.cs" />
+    <Compile Include="../Shared/PinnedJdk.cs" Link="Shared/PinnedJdk.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkArchive.cs" Link="Shared/JdkArchive.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkEntry.cs" Link="Shared/JdkEntry.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkLock.cs" Link="Shared/JdkLock.cs" />
