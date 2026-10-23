@@ -69,6 +69,31 @@ public sealed class JavaSourceTests
     }
 
     /// <summary>
+    /// JavaRelease 6 compiles the sources with the pinned JDK 11 that JvmBridgeProvisionJdk downloads, even when JAVA_HOME has a javac (a newer one, which no longer compiles for Java 6), and the classes get the class file
+    /// version of Java 6.
+    /// </summary>
+    [Fact]
+    public async Task JavaRelease6CompilesWithTheProvisionedJdk11Async()
+    {
+        using TemporaryDirectory project = CreateProject(PackedVersion());
+
+        string newer = Path.Combine(project.Path, path2: "newer-jdk");
+        string javac = Path.Combine(newer, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
+        FileSystem.EnsureDirectory(Path.GetDirectoryName(javac) ?? newer);
+        await File.WriteAllTextAsync(javac, contents: "#!/bin/sh\necho 'error: release version 6 not supported'\nexit 2\n", TestContext.Current.CancellationToken);
+
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(javac, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        ProcessResult build = await BuildAsync(project.Path, jdk: null, ["JavaRelease=6", "JvmBridgeProvisionJdk=true", "JAVA_HOME=" + newer]);
+
+        Assert.True(build.ExitCode == 0, build.Output);
+        string helper = Directory.EnumerateFiles(Path.Combine(project.Path, path2: "obj"), searchPattern: "Helper.class", SearchOption.AllDirectories).Single();
+        byte[] bytes = await File.ReadAllBytesAsync(helper, TestContext.Current.CancellationToken);
+        Assert.Equal(expected: 50, (bytes[6] << 8) | bytes[7]);
+    }
+
+    /// <summary>
     /// Java sources are compiled with the pinned JDK, embedded with their nested classes, and exposed by package; a C# native helper class gets a definition. The consumer is built and run, not just inspected.
     /// </summary>
     [Fact]

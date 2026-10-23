@@ -85,8 +85,11 @@
       <_JvmBridgeJavac Condition="'$(_JvmBridgeJdk)' != ''">$([MSBuild]::NormalizePath('$(_JvmBridgeJdk)', 'bin', 'javac'))</_JvmBridgeJavac>
       <_JvmBridgeJavac Condition="'$(_JvmBridgeJavac)' != '' And '$(OS)' == 'Windows_NT'">$(_JvmBridgeJavac).exe</_JvmBridgeJavac>
     </PropertyGroup>
-    <!-- Opt-in: when no JDK was named (JvmBridgeJdkHome) and JAVA_HOME has no javac, download the pinned JDK once and cache it. An explicit JvmBridgeJdkHome is always respected. -->
-    <PropertyGroup Condition="'$(JvmBridgeProvisionJdk)' == 'true' and '$(JvmBridgeJdkHome)' == '' and !Exists('$(_JvmBridgeJavac)')">
+    <!--
+      Opt-in: when no JDK was named (JvmBridgeJdkHome) and JAVA_HOME has no javac, download the pinned JDK once and cache it. JavaRelease 6 downloads it even when JAVA_HOME has a javac, which
+      is rarely one that still compiles for Java 6 (9 to 11). An explicit JvmBridgeJdkHome is always respected.
+    -->
+    <PropertyGroup Condition="'$(JvmBridgeProvisionJdk)' == 'true' and '$(JvmBridgeJdkHome)' == '' and (!Exists('$(_JvmBridgeJavac)') or $(JavaRelease) &lt; 7)">
       <_JvmBridgeProvision>true</_JvmBridgeProvision>
     </PropertyGroup>
     <Error Condition="'$(_JvmBridgeProvision)' == 'true' and '$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JvmBridgeProvisionJdk downloads the JDK with a task that only runs under dotnet build. Build with the dotnet CLI, or set JvmBridgeJdkHome, or JAVA_HOME, to a JDK directory." />
