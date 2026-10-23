@@ -364,6 +364,47 @@ public sealed class ClassPatch
     }
 
     /// <summary>
+    /// Adds a public method that returns the value of a field, so that a helper reads a private field without reflection and without opening it: <c>AddFieldGetter("configData", "agent$configData", returns: "Ljava/lang/Object;")</c>. The getter is
+    /// static for a static field and takes no parameters. Like advice, it is added when the class is first defined, so it cannot be added to a class that loaded before the agent, and a class keeps it when it is retransformed.
+    /// </summary>
+    /// <param name="field">The name of the field, which may be private.</param>
+    /// <param name="name">The name of the added method; a prefix such as <c>agent$</c> keeps it apart from the class's own methods.</param>
+    /// <param name="returns">The type the getter returns, a supertype of a reference field such as <c>Ljava/lang/Object;</c>, or <see langword="null"/> for the field's own type. Only an object type can differ from the field's.</param>
+    /// <param name="fieldDescriptor">The field's type, or <see langword="null"/> to take any field of that name, so that one getter serves versions of the class where the field's type differs.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch AddFieldGetter(string field, string name, string? returns = null, string? fieldDescriptor = null) => WithAddition(new MemberAddition(MemberAddition.Getter, field, fieldDescriptor, name, returns));
+
+    /// <summary>
+    /// Adds a public method that stores its argument in a field, cast to the field's type when it takes a supertype. It is static for a static field, and a final field cannot have one. See <see cref="AddFieldGetter"/> for when it is added.
+    /// </summary>
+    /// <param name="field">The name of the field, which may be private.</param>
+    /// <param name="name">The name of the added method.</param>
+    /// <param name="accepts">The type the setter takes, a supertype of a reference field such as <c>Ljava/lang/Object;</c>, or <see langword="null"/> for the field's own type.</param>
+    /// <param name="fieldDescriptor">The field's type, or <see langword="null"/> to take any field of that name.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch AddFieldSetter(string field, string name, string? accepts = null, string? fieldDescriptor = null) => WithAddition(new MemberAddition(MemberAddition.Setter, field, fieldDescriptor, name, accepts));
+
+    /// <summary>
+    /// Adds a public method that calls a method of the class, which may be private or protected, with the same descriptor: static for a static method, otherwise on the receiver, without virtual dispatch. See <see cref="AddFieldGetter"/> for when it is added.
+    /// </summary>
+    /// <param name="method">The name of the method to call; not a constructor.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, which the invoker shares.</param>
+    /// <param name="name">The name of the added method.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch AddInvoker(string method, string descriptor, string name)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(descriptor);
+
+        if (method is "<init>" or "<clinit>")
+            throw new ArgumentException("An invoker cannot call a constructor or a static initializer.", nameof(method));
+
+        if (descriptor[0] != '(' || !descriptor.Contains(')', StringComparison.Ordinal))
+            throw new ArgumentException($"'{descriptor}' is not a method descriptor.", nameof(descriptor));
+
+        return WithAddition(new MemberAddition(MemberAddition.Invoker, method, descriptor, name, Type: null));
+    }
+
+    /// <summary>
     /// Calls a static method before the scoped method runs, with the receiver (<see langword="null"/> for a static method) and the arguments of the call. The hook has the descriptor <c>(Ljava/lang/Object;</c> and the parameters of the method <c>)V</c>; its first
     /// parameter may be the declaring class instead of <c>Object</c>. Scope the patch with <see cref="Method"/> and a descriptor first. The method's code moves into a private synthetic method and the method becomes a short stub, so the patch must apply when
     /// the class is first defined: it cannot advise a class that was loaded before the agent, and the log says so. Constructors, static initializers, native, abstract, bridge and interface methods are not supported. A hook that throws prevents the method from running.
@@ -458,11 +499,25 @@ public sealed class ClassPatch
         }
 
         List<string> advised = [];
+        List<string> added = [];
 
         if (phases.HasFlag(Phases.Advice) && advice is not null)
         {
             foreach (AdviceStep step in _advice)
             {
+                if (step.Addition is { } addition)
+                {
+                    AdditionOutcome outcome = AddMember(editor, addition, advice);
+
+                    if (outcome.Skip is { } refused)
+                        return Skipped(className, refused.Reason, refused.Category);
+
+                    added.Add(outcome.Key);
+                    details.Add(outcome.Detail);
+
+                    continue;
+                }
+
                 string key = MethodAdvisor.Key(step.Name, step.Descriptor);
 
                 if (advice.IsRetransformation && advice.Recorded?.Contains(key) != true)
@@ -481,7 +536,7 @@ public sealed class ClassPatch
             }
         }
 
-        foreach (string key in advised)
+        foreach (string key in advised.Concat(added))
             _ = (advice?.Applied.Add(key));
 
         return new ClassPatchResult(
@@ -495,9 +550,39 @@ public sealed class ClassPatch
             counts[(int)PatchKind.Edit],
             advised.Count,
             counts[(int)PatchKind.Construction],
-            counts[(int)PatchKind.Removal]
+            counts[(int)PatchKind.Removal],
+            added.Count
         );
     }
+
+    private static AdditionOutcome AddMember(ClassFileEditor editor, MemberAddition addition, AdviceContext advice)
+    {
+        (string? descriptor, AdviceSkip? unsuitable) = MemberAdder.Describe(editor.Model, addition);
+        if (unsuitable is { } || descriptor is null)
+            return new AdditionOutcome(string.Empty, string.Empty, unsuitable ?? new AdviceSkip(PatchSkipCategory.Other, "the member cannot be added"));
+
+        string key = MemberKey(addition.Name, descriptor);
+
+        if (advice.IsRetransformation && advice.Recorded?.Contains(key) != true)
+        {
+            string reason = $"{addition.Name}{descriptor}: the class is loaded already and did not get this method when it was defined, and the JVM forbids adding one now";
+
+            return new AdditionOutcome(key, string.Empty, new AdviceSkip(PatchSkipCategory.SchemaChangeOnRetransform, reason));
+        }
+
+        AdviceSkip? skip;
+
+        try { skip = MemberAdder.Add(editor, addition, descriptor); }
+        catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { skip = new AdviceSkip(PatchSkipCategory.Other, $"adding {addition.Name} failed: {exception.Message}"); }
+
+        if (skip is null)
+            advice.Additions[key] = addition;
+
+        return new AdditionOutcome(key, $"{addition.Name}{descriptor}: {addition.Describe()} added", skip);
+    }
+
+    /// <summary>Gets the key of an added method in the record of what a class got when it was defined; a plus sign tells it apart from an advised method.</summary>
+    internal static string MemberKey(string name, string descriptor) => "+" + MethodAdvisor.Key(name, descriptor);
 
     private static string? Incompatibility(string derived, string target)
     {
@@ -602,6 +687,30 @@ public sealed class ClassPatch
         return scope;
     }
 
+    private ClassPatch WithAddition(MemberAddition addition)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(addition.Target);
+        ArgumentException.ThrowIfNullOrEmpty(addition.Name);
+
+        if (addition.Name.AsSpan().IndexOfAny(".;[/<>") >= 0)
+            throw new ArgumentException($"'{addition.Name}' is not a valid method name.", nameof(addition));
+
+        foreach (string? type in new[] { addition.Type, addition.Kind == MemberAddition.Invoker ? null : addition.TargetDescriptor })
+        {
+            bool valid = type is null || (type.Length > 0 && (type[0] is 'B' or 'C' or 'D' or 'F' or 'I' or 'J' or 'S' or 'Z' ? type.Length == 1 : type[0] == '[' || (type[0] == 'L' && type[^1] == ';')));
+
+            if (!valid)
+                throw new ArgumentException($"'{type}' is not a field type descriptor.", nameof(addition));
+        }
+
+        if (_advice.Any(step => step.Addition?.Name == addition.Name))
+            throw new InvalidOperationException($"The patch adds a method named {addition.Name} already.");
+
+        AdviceStep step = new(addition.Name, string.Empty, new AdviceHooks(Before: null, After: null, IncludeArguments: false), addition);
+
+        return new ClassPatch(_matcher, _steps, _scope, [.. _advice, step]);
+    }
+
     private ClassPatch WithAdvice(MethodScope scope, AdviceHooks hooks)
     {
         AdviceStep step = new(scope.Name, scope.Descriptor ?? string.Empty, hooks);
@@ -629,15 +738,18 @@ public sealed class ClassPatch
         Advice = 2,
     }
 
-    private sealed record AdviceStep(string Name, string Descriptor, AdviceHooks Hooks)
+    // A step at definition time: advice around a method, or, with an addition, a method added to the class.
+    private sealed record AdviceStep(string Name, string Descriptor, AdviceHooks Hooks, MemberAddition? Addition = null)
     {
-        internal bool Matches(MethodScope scope) => Name == scope.Name && Descriptor == scope.Descriptor;
+        internal bool Matches(MethodScope scope) => Addition is null && Name == scope.Name && Descriptor == scope.Descriptor;
     }
 
     private sealed record MethodScope(string Name, string? Descriptor)
     {
         public override string ToString() => Name + Descriptor;
     }
+
+    private sealed record AdditionOutcome(string Key, string Detail, AdviceSkip? Skip);
 
     private sealed record PatchStep(PatchKind Kind, Func<ClassFileEditor, StepOutcome> Run);
 

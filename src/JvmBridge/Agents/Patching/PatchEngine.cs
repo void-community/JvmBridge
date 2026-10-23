@@ -17,6 +17,9 @@ internal sealed class PatchEngine(AgentContext context)
     private readonly List<HelperState> _helpers = [];
     private readonly List<string> _bootstrapJars = [];
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, IReadOnlySet<string>>> _advised = new(StringComparer.Ordinal);
+
+    // The methods that patches added to classes when they were defined, by class name and key, so that a class keeps them when it is retransformed without their patch.
+    private readonly ConcurrentDictionary<string, MemberAddition> _additions = new(StringComparer.Ordinal);
     private PatchSet _set = PatchSet.Empty;
     private long _sequence;
 
@@ -119,7 +122,7 @@ internal sealed class PatchEngine(AgentContext context)
             current = Neutralize(name, current is null ? file.Bytes : current, recorded, advice) ?? current;
 
         if (!file.IsRetransformation && advice.Applied.Count > 0)
-            Remember(name, file.Bytes, advice.Applied);
+            Remember(name, file.Bytes, advice);
 
         if (current is null)
             return null;
@@ -226,9 +229,12 @@ internal sealed class PatchEngine(AgentContext context)
         return known.TryGetValue(Fingerprint(bytes), out IReadOnlySet<string>? methods) ? methods : null;
     }
 
-    private void Remember(string name, ReadOnlySpan<byte> bytes, HashSet<string> methods)
+    private void Remember(string name, ReadOnlySpan<byte> bytes, AdviceContext advice)
     {
-        _advised.GetOrAdd(name, static _ => new ConcurrentDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal))[Fingerprint(bytes)] = methods;
+        _advised.GetOrAdd(name, static _ => new ConcurrentDictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal))[Fingerprint(bytes)] = advice.Applied;
+
+        foreach ((string key, MemberAddition addition) in advice.Additions)
+            _additions[name + " " + key] = addition;
     }
 
     /// <summary>Gives the methods that were advised when the class was defined, and have no advice now, a stub that only calls their body, so the class keeps the methods it was defined with.</summary>
@@ -245,9 +251,14 @@ internal sealed class PatchEngine(AgentContext context)
         {
             int parenthesis = key.IndexOf(value: '(', StringComparison.Ordinal);
 
-            if (MethodAdvisor.Neutralize(editor, key[..parenthesis], key[parenthesis..]) is { } skip)
+            // An added method is added again as it was; a method that had advice gets a stub that only calls its body.
+            AdviceSkip? skip = key.StartsWith(value: '+') && _additions.TryGetValue(name + " " + key, out MemberAddition? addition)
+                ? MemberAdder.Add(editor, addition, key[parenthesis..])
+                : MethodAdvisor.Neutralize(editor, key[..parenthesis], key[parenthesis..]);
+
+            if (skip is { } problem)
             {
-                context.Log(AgentLogLevel.Error, $"could not keep {key} of {name} advised without hooks: {skip.Reason}");
+                context.Log(AgentLogLevel.Error, $"could not keep {key} of {name} advised without hooks: {problem.Reason}");
 
                 return null;
             }

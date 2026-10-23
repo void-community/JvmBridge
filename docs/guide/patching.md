@@ -125,6 +125,25 @@ ClassPatch.For("com/acme/Settings")
 
 Both edits keep code offsets, so stack map frames stay valid, and they report like the others: `ReplacedConstructions` and `RemovedInvocations` in the result, and a line such as `1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages` in the log. They were run with `-Xverify:all` on Java 6, 8 and 17.
 
+### Getters, setters and invokers
+
+A helper that must reach a private member, without reflection and without opening it to the whole application, can call a method the patch adds to the class:
+
+```csharp
+ClassPatch.For("net/neoforged/fml/loading/FMLConfig")
+    .AddFieldGetter(field: "configData", name: "agent$configData", returns: "Ljava/lang/Object;")
+    .AddFieldSetter(field: "configData", name: "agent$setConfigData", accepts: "Ljava/lang/Object;")
+    .AddInvoker(method: "loadFrom", descriptor: "(Ljava/nio/file/Path;)V", name: "agent$loadFrom");
+```
+
+- A getter returns the field, as its own type or, for a reference, a supertype such as `Object`; a setter stores its argument, cast to the field's type. Both are static for a static field, and a final field has no setter. Without `fieldDescriptor`, any field of the name serves, so one getter typed `Object` covers versions of the class whose field types differ.
+- An invoker calls a method of the class, private or protected, with the same descriptor: on its receiver without virtual dispatch, or statically for a static method. Constructors are not supported.
+- The added methods are public and synthetic, and their names should not collide with the class's own: a class that declares the name already makes the patch skip it.
+- Adding a method changes the shape of the class, so additions follow the rules of advice: they are made when the class is first defined, a class that loaded before the agent cannot get them (`SchemaChangeOnRetransform`), and a class keeps them, as they were, whenever it is retransformed, also once the patch is removed. Interfaces get none.
+- `ClassPatchResult.AddedMembers` counts them, and the log names each one, for example `agent$configData()Ljava/lang/Object;: getter of field configData added`.
+
+A typed helper calls them by name, compiled against a stub that declares them. They were run with `-Xverify:all` on Java 6, 8 and 17.
+
 ### Custom edits that report
 
 `.Edit(Action<ClassFileEditor>)` runs any edit, but cannot say what it did: it always reports `custom edit applied`. `.Edit(description, context => ...)` returns the number of places it changed, and gets the same treatment as the built-in edits: the count in `AppliedEdits`, `<method>: <description> (1 change)` in the result and the log, and a skip (`<description>: nothing to change in <method>`) when it returns 0. It honours `.Method`: a scoped method the class lacks skips the class before the edit runs, and `context.MethodName` and `context.MethodDescriptor` carry the scope, so the edit does not repeat it:

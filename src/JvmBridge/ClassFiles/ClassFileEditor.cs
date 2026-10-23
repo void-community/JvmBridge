@@ -481,6 +481,50 @@ public sealed class ClassFileEditor : IConstantPool
         });
     }
 
+    /// <summary>Appends a method with straight-line code to the class. The class must not declare the method already.</summary>
+    internal void AddMethod(int accessFlags, string name, string descriptor, StubCode code)
+    {
+        if (Model.FindMethod(name, descriptor) is not null)
+            throw new InvalidOperationException($"The class already declares {name}{descriptor}.");
+
+        Atomically(() =>
+        {
+            int nameIndex = AddUtf8(name);
+            int descriptorIndex = AddUtf8(descriptor);
+            int codeNameIndex = AddUtf8("Code");
+            ReadOnlySpan<byte> original = _bytes;
+
+            using MemoryStream result = new();
+
+            int count = BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]);
+
+            result.Write(original[..Model.MethodsCountOffset]);
+            WriteUInt16To(result, count + 1);
+            result.Write(original[(Model.MethodsCountOffset + 2)..Model.MethodsEnd]);
+            WriteUInt16To(result, accessFlags);
+            WriteUInt16To(result, nameIndex);
+            WriteUInt16To(result, descriptorIndex);
+            WriteUInt16To(result, value: 1);
+            result.Write(AdviceStub.CodeAttribute(codeNameIndex, code));
+            result.Write(original[Model.MethodsEnd..]);
+
+            byte[] candidate = result.ToArray();
+
+            _ = JavaClassFile.Read(candidate);
+            _bytes = candidate;
+            _model = null;
+        });
+    }
+
+    /// <summary>Writes straight-line code with a builder against this class's constant pool, with the stack and local sizes it needs.</summary>
+    internal StubCode Build(int parameterSlots, Func<CodeBuilder, CodeBuilder> code)
+    {
+        CodeBuilder builder = new(this, parameterSlots);
+        CodeBuilder.RequireSame(builder, code(builder));
+
+        return builder.HasBranches ? throw new InvalidOperationException(message: "Added methods are straight-line code.") : new StubCode(builder.MaxStack, builder.MaxLocals, builder.ToArray());
+    }
+
     /// <summary>Produces the edited class file.</summary>
     /// <returns>A copy of the class file bytes.</returns>
     public byte[] ToArray() => (byte[])_bytes.Clone();

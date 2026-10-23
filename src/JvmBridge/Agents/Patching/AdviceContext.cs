@@ -9,6 +9,9 @@ internal sealed class AdviceContext(bool isRetransformation, IReadOnlySet<string
     /// <summary>Gets the methods (<c>name+descriptor</c>) that were advised when the class was defined, or <see langword="null"/> when it was defined without advice.</summary>
     internal IReadOnlySet<string>? Recorded { get; } = recorded;
 
-    /// <summary>Gets the methods that the patches advised in this pass.</summary>
+    /// <summary>Gets the methods that the patches advised or added in this pass.</summary>
     internal HashSet<string> Applied { get; } = [];
+
+    /// <summary>Gets the methods that the patches added in this pass, by their key, so that they can be added again if their patch is removed.</summary>
+    internal Dictionary<string, MemberAddition> Additions { get; } = new(StringComparer.Ordinal);
 }

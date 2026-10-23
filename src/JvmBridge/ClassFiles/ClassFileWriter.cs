@@ -18,6 +18,7 @@ public sealed class ClassFileWriter : IConstantPool
 
     private readonly ConstantPoolBuilder _pool = new();
     private readonly HashSet<(string Name, string Descriptor)> _declared = [];
+    private readonly List<(int Access, int Name, int Descriptor)> _fields = [];
     private readonly List<(int Access, int Name, int Descriptor, int MaxStack, int MaxLocals, byte[]? Code)> _methods = [];
     private readonly int _majorVersion;
     private readonly int _accessFlags;
@@ -154,6 +155,22 @@ public sealed class ClassFileWriter : IConstantPool
         return AddMethod(name, descriptor, builder.MaxStack, builder.MaxLocals, builder.ToArray(), accessFlags);
     }
 
+    /// <summary>Declares a field, with no initial value: an instance field is null or zero until code sets it, as is a static field until the class's code does.</summary>
+    /// <param name="name">The name the field is declared with.</param>
+    /// <param name="descriptor">Its type in JVM notation, for example <c>I</c> or <c>Ljava/lang/String;</c>.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits; private by default (<c>0x0002</c>), with <c>0x0008</c> for a static field.</param>
+    /// <returns>This writer.</returns>
+    public ClassFileWriter AddField(string name, string descriptor, int accessFlags = 0x0002)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(descriptor);
+        ArgumentOutOfRangeException.ThrowIfNegative(accessFlags);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(accessFlags, ushort.MaxValue);
+        _fields.Add((accessFlags, _pool.Utf8(name), _pool.Utf8(descriptor)));
+
+        return this;
+    }
+
     /// <summary>Adds a <c>public static native</c> method without a body, for registration with RegisterNatives.</summary>
     /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
@@ -182,7 +199,16 @@ public sealed class ClassFileWriter : IConstantPool
         WriteUInt16(stream, _thisClass);
         WriteUInt16(stream, _superClass);
         WriteUInt16(stream, 0);
-        WriteUInt16(stream, 0);
+        WriteUInt16(stream, _fields.Count);
+
+        foreach ((int access, int name, int descriptor) in _fields)
+        {
+            WriteUInt16(stream, access);
+            WriteUInt16(stream, name);
+            WriteUInt16(stream, descriptor);
+            WriteUInt16(stream, 0);
+        }
+
         WriteUInt16(stream, _methods.Count);
         int codeName = _methods.Any(method => method.Code is not null) ? _pool.Utf8("Code") : 0;
         foreach ((int access, int name, int descriptor, int maxStack, int maxLocals, byte[]? code) in _methods)

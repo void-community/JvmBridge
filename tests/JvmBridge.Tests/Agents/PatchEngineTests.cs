@@ -36,6 +36,36 @@ public sealed class PatchEngineTests
         Assert.Equal(expected: 1, runs);
     }
 
+    /// <summary>
+    /// A getter is added when the class is defined and kept, as it was, whenever the class is retransformed, also after its patch is removed, because a loaded class cannot gain or lose methods; a class that loaded before the agent cannot get one.
+    /// </summary>
+    [Fact]
+    public void AddedMembersFollowTheRulesOfAdvice()
+    {
+        using FakeJvm jvm = new();
+
+        ClassPatch getter = ClassPatch.For(className: "fixture/Sample").AddFieldGetter(field: "count", name: "agent$count");
+
+        AgentContext late = jvm.CreateContext(name: "late");
+
+        late.Patches.Add(getter);
+        byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+        AgentContext context = jvm.CreateContext(name: "getter");
+
+        context.Patches.Add(getter);
+        byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+        byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+        PatchReport report = context.Patches.Withdraw(getter);
+        byte[]? withoutPatch = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
+
+        Assert.Null(loadedBefore);
+        Assert.Contains(expected: "agent$count", MethodNames(defined));
+        Assert.Equal(defined, retransformed);
+        Assert.NotNull(report.NotRetransformedReason);
+        Assert.Equal(MethodNames(defined), MethodNames(withoutPatch));
+    }
+
     /// <summary>Advice cannot be added to a class that is loaded already: the patch is refused with the reason, the class stays as it is, and advice that was there at definition goes on working.</summary>
     [Fact]
     public void AdviceCannotBeAddedToLoadedClasses()

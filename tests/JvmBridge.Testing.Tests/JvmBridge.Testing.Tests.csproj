@@ -15,5 +15,6 @@
     <None Include="AdviceFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="RedirectFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ConstructionFixtures/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="MemberFixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
