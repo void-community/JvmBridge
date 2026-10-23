@@ -58,7 +58,7 @@ dotnet publish -c Release -r linux-arm64
 java -agentpath:/absolute/path/MyAgent.so=hello -jar application.jar
 ```
 
-Windows uses `.dll`; macOS uses `.dylib`; Linux uses `.so`. Native publishing requires the platform's C/C++ toolchain. The resulting library includes its .NET runtime; Java users do not need to install .NET. To load an agent through `JAVA_TOOL_OPTIONS` or into a running JVM, see [**Loading and attaching**](docs/guide/attaching.md).
+Windows uses `.dll`; macOS uses `.dylib`; Linux uses `.so`. Native publishing requires the platform's C/C++ toolchain. The resulting library includes its .NET runtime; Java users do not need to install .NET. To load an agent through `JAVA_TOOL_OPTIONS` or into a running JVM, see [**Loading and attaching**](docs/guide/attaching.md). A Linux agent needs the glibc of the machine that published it or newer; publish against .NET's sysroot for one that loads on glibc 2.17 and later, see [**Publishing for Linux**](docs/guide/publishing.md).
 
 On Unix HotSpot, use the JDK's signal-chaining library when hosting both runtimes in one process. For a typical Linux JDK:
 
@@ -85,7 +85,7 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 
 ## Documentation
 
-- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**loading and attaching**](docs/guide/attaching.md), [**JVM events**](docs/guide/events.md), [**calling between C# and Java**](docs/guide/interop.md), [**testing**](docs/guide/testing.md), [**the jvmbridge command**](docs/guide/tool.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
+- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**publishing for Linux**](docs/guide/publishing.md), [**loading and attaching**](docs/guide/attaching.md), [**JVM events**](docs/guide/events.md), [**calling between C# and Java**](docs/guide/interop.md), [**testing**](docs/guide/testing.md), [**the jvmbridge command**](docs/guide/tool.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
 - [**Diagnostics**](docs/diagnostics.md): every `JVMB` build error and what to change.
 - [**Compatibility**](docs/compatibility.md): the generated inventory of JVMs and platforms.
 - [**Footprint**](docs/footprint.md): what loading an agent costs in library size, start-up time and memory.

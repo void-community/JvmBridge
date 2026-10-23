@@ -27,9 +27,17 @@ jobs:
           dotnet-version: 10.0.x
       - name: Prepare the NativeAOT toolchain
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y clang lld zlib1g-dev
+      # Links the Linux agent against the Ubuntu 18.04 sysroot of .NET's cross-build image, so that it loads on glibc 2.17 and later instead of
+      # needing the runner's glibc (2.34 and later on ubuntu-24.04). Renovate updates the pinned commit when void-community/Actions changes.
+      - name: Prepare the glibc 2.17 sysroot
+        id: sysroot
+        if: runner.os == 'Linux'
+        uses: void-community/actions/glibc-sysroot@779ebfbf56a61e10114658c560da49324f0f2380 # main
+        with:
+          rid: ${{ matrix.rid }}
       - name: Publish the agent library and its jar
-        run: dotnet publish MyJvmAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained -o artifacts/agent/${{ matrix.rid }}
+        run: dotnet publish MyJvmAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained ${{ steps.sysroot.outputs.properties }} -o artifacts/agent/${{ matrix.rid }}
       # Runs the patch tests, then the JVM tests against the agent on every JDK they list, through -agentpath and through the jar.
       - name: Test
         run: dotnet test tests/MyJvmAgent.Tests -c Release

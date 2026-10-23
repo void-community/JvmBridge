@@ -10,6 +10,7 @@
 - **One agent per tooling environment.** Every load of an agent library gets its own JVMTI environment. Two copies of the same agent in one JVM start two NativeAOT runtimes; the second skips helper classes that the first already defined.
 - **A `-javaagent` jar is an attach.** The launcher runs after the VM has started, so the agent gets `OnAttach` and the capabilities HotSpot offers an attached agent. Use `-agentpath` for the startup-only capabilities.
 - **Helpers for the bootstrap loader are bootstrap helpers.** A patched class of the bootstrap loader (every `java.base` class) can call helpers defined with `ClassLoaderTarget.Bootstrap`; a `PatchedClassLoader` helper cannot be defined there.
+- **A Linux agent needs the glibc it was linked against.** Published on a current distribution it needs glibc 2.34 or newer; published against .NET's sysroot it needs 2.17 on x64 and arm64. See [**Publishing for Linux**](publishing.md).
 - **A NativeAOT library is never unloaded.** `OnUnload` performs logical cleanup, and the library stays mapped until the process exits.
 - **JNI is unavailable in `Agent_OnLoad`.** Do ordinary JNI work from `OnVmInit` or `OnAttach`. The class-file hook can run before JNI is permitted.
 - **OpenJ9 differs from HotSpot.** Checked JNI rejects a null-loader class definition, so bootstrap helpers go through a jar on the bootstrap search path, and some builds return `JNI_ERR` from `DestroyJavaVM`. The CI reports record these baselines rather than hiding them.
