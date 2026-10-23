@@ -87,6 +87,11 @@ public final class Launcher {
     }
 
     private static void restrictToOwner(File directory) throws IOException {
+        // Windows keeps each user's temporary directory private to that user, and File cannot take read access away there.
+        if (System.getProperty("os.name", "").toLowerCase().startsWith("windows")) {
+            return;
+        }
+
         boolean closed = directory.setReadable(false, false) && directory.setWritable(false, false) && directory.setExecutable(false, false);
         boolean opened = directory.setReadable(true, true) && directory.setWritable(true, true) && directory.setExecutable(true, true);
 
