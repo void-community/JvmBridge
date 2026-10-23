@@ -6,6 +6,8 @@ using JvmBridge.Build.Infrastructure;
 
 using Microsoft.Build.Framework;
 
+using BuildTask = Microsoft.Build.Utilities.Task;
+
 namespace JvmBridge.Tasks;
 
 /// <summary>
@@ -13,7 +15,7 @@ namespace JvmBridge.Tasks;
 /// (<c>com/acme/*</c>) or a package and its subpackages (<c>com/acme/**</c>), separated by semicolons. Nested classes are not wrapped. The proxies are written by the source writer of the generator assembly, which the task loads from
 /// <see cref="GeneratorAssembly"/>, so the writer is tested next to the other generators.
 /// </summary>
-public sealed class GenerateJavaProxies : Microsoft.Build.Utilities.Task
+public sealed class GenerateJavaProxies : BuildTask
 {
     private const int BridgeFlag = 0x0040;
     private const int PublicFlag = 0x0001;

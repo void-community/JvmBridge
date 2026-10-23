@@ -138,7 +138,7 @@ public sealed class ClassFileEditorTests
         );
     }
 
-    /// <summary>Long and Double constants take two slots.</summary>
+    /// <summary>An added long or double constant uses two constant pool indices, so the next constant lands two indices further on, as the JVM expects.</summary>
     [Fact]
     public void LongAndDoubleConstantsTakeTwoSlots()
     {

@@ -5,13 +5,15 @@ using JvmBridge.Build.Models;
 
 using Microsoft.Build.Framework;
 
+using BuildTask = Microsoft.Build.Utilities.Task;
+
 namespace JvmBridge.Tasks;
 
 /// <summary>
 /// Provides a JDK to a build that has none: the checksum-pinned archive from JvmBridge's inventory for this machine, downloaded and unpacked once into a cache under the temporary directory that
 /// <c>JvmBridge.Testing</c> shares.
 /// </summary>
-public sealed class ProvisionJdk : Microsoft.Build.Utilities.Task, ICancelableTask, IDisposable
+public sealed class ProvisionJdk : BuildTask, ICancelableTask, IDisposable
 {
     private readonly CancellationTokenSource _cancellation = new();
 

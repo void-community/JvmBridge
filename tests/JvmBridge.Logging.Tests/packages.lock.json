@@ -14,9 +14,9 @@
       },
       "NetAgents.Analyzers": {
         "type": "Direct",
-        "requested": "[26.10.12.1864, )",
-        "resolved": "26.10.12.1864",
-        "contentHash": "uvkPM5vpFqGRDPPiPH1e5x/3Yr7ZpsED4CM1txUvpq9pAs7oJS9gXDp7GzgAEmh9Tc+D1Xc51p70KMblbYZ5ww=="
+        "requested": "[26.10.19.3743, )",
+        "resolved": "26.10.19.3743",
+        "contentHash": "szH86n6qU2sRIRjMYdq+fzOh+tvXEejkmL4uiEi1nGypS06hSZ0N8nDxOOyKR/6BYMYwPMapiGIu0ZmkwC8jCg=="
       },
       "xunit.runner.visualstudio": {
         "type": "Direct",
@@ -188,7 +188,7 @@
       "jvmbridge.logging": {
         "type": "Project",
         "dependencies": {
-          "JvmBridge": "[26.10.23.2827, )",
+          "JvmBridge": "[26.10.23.2828, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.13, )"
         }
       }

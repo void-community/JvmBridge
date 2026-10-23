@@ -3,10 +3,12 @@ using JvmBridge.Build.Models;
 
 using Microsoft.Build.Framework;
 
+using BuildTask = Microsoft.Build.Utilities.Task;
+
 namespace JvmBridge.Build;
 
 /// <summary>Runs deterministic repository generation and validation within MSBuild.</summary>
-public sealed class RepositoryTask : Microsoft.Build.Utilities.Task, ICancelableTask, IDisposable
+public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
 {
     private readonly CancellationTokenSource _cancellation = new();
 
@@ -49,7 +51,7 @@ public sealed class RepositoryTask : Microsoft.Build.Utilities.Task, ICancelable
         return failure is InvalidOperationException or IOException or HttpRequestException or OperationCanceledException or TimeoutException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException;
     }
 
-    private async System.Threading.Tasks.Task ExecuteAsync(CancellationToken cancellationToken)
+    private async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         RepositoryContext repository = RepositoryContext.Discover();
         ProcessRunner processes = new(repository);

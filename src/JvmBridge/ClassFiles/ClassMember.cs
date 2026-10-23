@@ -56,7 +56,7 @@ public sealed class ClassMember
     /// <summary>Gets the member descriptor.</summary>
     public string Descriptor { get; }
 
-    /// <summary>Gets the access flags.</summary>
+    /// <summary>Gets the <c>ACC_</c> bits: visibility, <c>static</c>, <c>final</c> and the rest.</summary>
     public int AccessFlags { get; }
 
     /// <summary>Gets the method's code, or <see langword="null"/> for fields and for abstract and native methods.</summary>

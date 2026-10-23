@@ -10,7 +10,7 @@ namespace JvmBridge.Testing;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class JdkDataAttribute : DataAttribute
 {
-    /// <summary>Initializes the attribute.</summary>
+    /// <summary>Lists the Java major versions the theory runs on.</summary>
     /// <param name="major">The first Java major version.</param>
     /// <param name="additionalMajors">Further major versions, each run as its own test.</param>
     public JdkDataAttribute(int major, params int[] additionalMajors)

@@ -22,7 +22,7 @@ public sealed class ClassFileWriter
     private readonly int _thisClass;
     private readonly int _superClass;
 
-    /// <summary>Initializes a writer for a new class.</summary>
+    /// <summary>Starts an empty class with no fields or methods, to add members to and write out with <see cref="ToArray"/>.</summary>
     /// <param name="name">The internal name of the class, for example <c>pkg/Helper</c>.</param>
     /// <param name="superName">The internal name of the superclass.</param>
     /// <param name="accessFlags">The class access flags.</param>
@@ -61,53 +61,53 @@ public sealed class ClassFileWriter
     public int AddString(string value) => _pool.String(value);
 
     /// <summary>Adds an Integer constant.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds.</param>
     /// <returns>The constant pool index.</returns>
     public int AddInteger(int value) => _pool.Integer(value);
 
     /// <summary>Adds a Float constant.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds.</param>
     /// <returns>The constant pool index.</returns>
     public int AddFloat(float value) => _pool.Float(value);
 
     /// <summary>Adds a Long constant, which occupies two slots.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds.</param>
     /// <returns>The constant pool index.</returns>
     public int AddLong(long value) => _pool.Long(value);
 
     /// <summary>Adds a Double constant, which occupies two slots.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds.</param>
     /// <returns>The constant pool index.</returns>
     public int AddDouble(double value) => _pool.Double(value);
 
     /// <summary>Adds a field reference.</summary>
     /// <param name="owner">The internal name of the owner.</param>
-    /// <param name="name">The field name.</param>
-    /// <param name="descriptor">The field descriptor.</param>
+    /// <param name="name">The name the field is declared with.</param>
+    /// <param name="descriptor">Its type in JVM notation, for example <c>I</c> or <c>Ljava/lang/String;</c>.</param>
     /// <returns>The constant pool index.</returns>
     public int AddFieldReference(string owner, string name, string descriptor) => _pool.MemberReference(ConstantTag.Fieldref, owner, name, descriptor);
 
     /// <summary>Adds a method reference of a class.</summary>
     /// <param name="owner">The internal name of the owner.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The constant pool index.</returns>
     public int AddMethodReference(string owner, string name, string descriptor) => _pool.MemberReference(ConstantTag.Methodref, owner, name, descriptor);
 
     /// <summary>Adds a method reference of an interface.</summary>
     /// <param name="owner">The internal name of the interface.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The constant pool index.</returns>
     public int AddInterfaceMethodReference(string owner, string name, string descriptor) => _pool.MemberReference(ConstantTag.InterfaceMethodref, owner, name, descriptor);
 
     /// <summary>Adds a method with a body of straight-line code.</summary>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <param name="maxStack">The maximum operand stack depth.</param>
     /// <param name="maxLocals">The number of local variable slots, including parameters.</param>
     /// <param name="code">The bytecode. It must not contain branches, switches or exception handlers.</param>
-    /// <param name="accessFlags">The method access flags.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits; public and static by default, so that patched code can call it.</param>
     /// <returns>This writer.</returns>
     public ClassFileWriter AddMethod(string name, string descriptor, int maxStack, int maxLocals, ReadOnlySpan<byte> code, int accessFlags = PublicStatic)
     {
@@ -127,8 +127,8 @@ public sealed class ClassFileWriter
     }
 
     /// <summary>Adds a <c>public static native</c> method without a body, for registration with RegisterNatives.</summary>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <param name="accessFlags">The method access flags; it should include <c>ACC_NATIVE</c>.</param>
     /// <returns>This writer.</returns>
     public ClassFileWriter AddNativeMethod(string name, string descriptor, int accessFlags = PublicStaticNative)

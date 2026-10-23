@@ -12,7 +12,7 @@ public sealed class AgentLoggerProvider : ILoggerProvider
 {
     private readonly AgentContext _context;
 
-    /// <summary>Initializes a provider for an agent.</summary>
+    /// <summary>Connects Microsoft.Extensions.Logging to an agent, so that the loggers it creates write to the agent's log.</summary>
     /// <param name="context">The agent whose log the loggers write to.</param>
     public AgentLoggerProvider(AgentContext context)
     {

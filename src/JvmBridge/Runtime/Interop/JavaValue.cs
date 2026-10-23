@@ -6,7 +6,7 @@ namespace JvmBridge.Runtime;
 public static unsafe class JavaValue
 {
     /// <summary>Creates a Java <c>boolean</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>boolean</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Boolean(bool value)
     {
@@ -17,7 +17,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>byte</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>byte</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Byte(sbyte value)
     {
@@ -28,7 +28,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>char</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>char</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Char(char value)
     {
@@ -39,7 +39,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>double</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>double</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Double(double value)
     {
@@ -50,7 +50,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>float</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>float</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Float(float value)
     {
@@ -61,7 +61,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>int</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>int</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Int(int value)
     {
@@ -72,7 +72,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>long</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>long</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Long(long value)
     {
@@ -94,7 +94,7 @@ public static unsafe class JavaValue
     }
 
     /// <summary>Creates a Java <c>short</c> argument.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The Java <c>short</c> to pass in the argument slot.</param>
     /// <returns>The argument.</returns>
     public static jvalue Short(short value)
     {

@@ -8,6 +8,7 @@ using JvmBridge.Generator;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 
 using Xunit;
 
@@ -113,7 +114,7 @@ public sealed class JavaClassSourceWriterTests
 
         using MemoryStream stream = new();
 
-        Microsoft.CodeAnalysis.Emit.EmitResult result = compilation.Emit(stream);
+        EmitResult result = compilation.Emit(stream);
         ImmutableArray<Diagnostic> errors = [.. result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
 
         Assert.True(result.Success, string.Join(Environment.NewLine, errors.Select(static diagnostic => diagnostic.ToString())));

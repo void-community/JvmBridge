@@ -66,7 +66,7 @@ internal static class AdviceStub
 
     /// <summary>Encodes a <c>Code</c> attribute around the stub, with no exception table and no nested attributes.</summary>
     /// <param name="nameIndex">The constant pool index of the Utf8 constant <c>Code</c>.</param>
-    /// <param name="stub">The stub.</param>
+    /// <param name="stub">The bytecode and stack sizes that the Code attribute is to carry.</param>
     /// <returns>The attribute, starting with its name index.</returns>
     internal static byte[] CodeAttribute(int nameIndex, StubCode stub)
     {

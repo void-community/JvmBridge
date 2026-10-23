@@ -46,7 +46,7 @@ public sealed class JavaClassFile
 
     internal int ConstantPoolEnd { get; private set; }
 
-    /// <summary>Gets the offset of the <c>methods_count</c> field.</summary>
+    /// <summary>Gets where the count of methods sits in the class file, where an added method is counted.</summary>
     internal int MethodsCountOffset { get; private set; }
 
     /// <summary>Gets the offset just after the last method.</summary>
@@ -119,7 +119,7 @@ public sealed class JavaClassFile
     }
 
     /// <summary>Finds a declared method.</summary>
-    /// <param name="name">The method name.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">The method descriptor, or <see langword="null"/> to accept any overload.</param>
     /// <returns>The first matching method, or <see langword="null"/>.</returns>
     public ClassMember? FindMethod(string name, string? descriptor = null) => Methods.FirstOrDefault(method => method.Name == name && (descriptor is null || method.Descriptor == descriptor));

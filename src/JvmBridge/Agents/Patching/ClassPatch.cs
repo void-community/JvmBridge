@@ -123,7 +123,7 @@ public sealed class ClassPatch
     }
 
     /// <summary>Scopes the redirects and access changes that follow to one method, until <see cref="AnyMethod"/> or another call to this method.</summary>
-    /// <param name="name">The method name.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">The method descriptor, or <see langword="null"/> to match every overload.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch Method(string name, string? descriptor = null)
@@ -175,7 +175,7 @@ public sealed class ClassPatch
 
     /// <summary>Replaces a String constant. Every use of the constant changes.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(string oldValue, string newValue)
     {
@@ -187,30 +187,30 @@ public sealed class ClassPatch
 
     /// <summary>Replaces an Integer constant. Values the compiler encodes inline, such as small numbers, are not constants.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(int oldValue, int newValue) => ReplacingConstant($"int {oldValue}", editor => editor.ReplaceInteger(oldValue, newValue));
 
     /// <summary>Replaces a Long constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(long oldValue, long newValue) => ReplacingConstant($"long {oldValue}", editor => editor.ReplaceLong(oldValue, newValue));
 
     /// <summary>Replaces a Float constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(float oldValue, float newValue) => ReplacingConstant($"float {oldValue}", editor => editor.ReplaceFloat(oldValue, newValue));
 
     /// <summary>Replaces a Double constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(double oldValue, double newValue) => ReplacingConstant($"double {oldValue}", editor => editor.ReplaceDouble(oldValue, newValue));
 
     /// <summary>Replaces access flags: the scoped method's when <see cref="Method"/> is active, otherwise the class's.</summary>
-    /// <param name="accessFlags">The new flags.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch SetAccess(int accessFlags)
     {
@@ -232,8 +232,8 @@ public sealed class ClassPatch
     }
 
     /// <summary>Replaces the access flags of a field. Fields are shared by the whole class, so no method scope may be active.</summary>
-    /// <param name="name">The field name.</param>
-    /// <param name="accessFlags">The new flags.</param>
+    /// <param name="name">The name the field is declared with.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
     /// <param name="descriptor">The field descriptor, or <see langword="null"/> to match any.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch SetFieldAccess(string name, int accessFlags, string? descriptor = null)

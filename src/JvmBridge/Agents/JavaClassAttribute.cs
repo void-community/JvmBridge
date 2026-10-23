@@ -33,6 +33,6 @@ public sealed class JavaMethodAttribute : Attribute
 [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.ReturnValue, AllowMultiple = false, Inherited = false)]
 public sealed class JavaTypeAttribute(string descriptor) : Attribute
 {
-    /// <summary>Gets the field descriptor.</summary>
+    /// <summary>Gets the field's type in JVM notation, for example <c>Ljava/lang/String;</c>.</summary>
     public string Descriptor { get; } = descriptor;
 }

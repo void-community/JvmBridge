@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 using JvmBridge.Agents;
@@ -106,7 +107,7 @@ internal sealed unsafe class FakeJvm : IDisposable
         return jvmtiError.JVMTI_ERROR_NONE;
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static jvmtiError AcceptMode(jvmtiInterface_1_** environment, jvmtiEventMode mode, jvmtiEvent notification, _jobject* thread)
     {
         RecordedToggles.Add(new EventToggle(notification, mode == jvmtiEventMode.JVMTI_ENABLE));

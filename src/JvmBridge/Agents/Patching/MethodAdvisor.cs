@@ -21,16 +21,16 @@ internal static class MethodAdvisor
     internal static string BodyName(string name) => name + "$jvmbridge$body";
 
     /// <summary>Gets the key that identifies a method in the record of what was advised.</summary>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The key.</returns>
     internal static string Key(string name, string descriptor) => name + descriptor;
 
     /// <summary>Puts advice around a method.</summary>
     /// <param name="editor">The editor of the class.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
-    /// <param name="hooks">The hooks.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
+    /// <param name="hooks">The Before and After methods to call around the body.</param>
     /// <returns><see langword="null"/> when the method was advised, otherwise why not.</returns>
     internal static AdviceSkip? Advise(ClassFileEditor editor, string name, string descriptor, AdviceHooks hooks)
     {
@@ -67,8 +67,8 @@ internal static class MethodAdvisor
     /// Gives a method the body and the stub of advice, without hooks. A class that was advised when it was defined must keep its body methods for as long as it lives, so when its advice is removed the stub only calls the body.
     /// </summary>
     /// <param name="editor">The editor of the class, before any advice.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns><see langword="null"/> when the stub was written, otherwise why not.</returns>
     internal static AdviceSkip? Neutralize(ClassFileEditor editor, string name, string descriptor)
     {

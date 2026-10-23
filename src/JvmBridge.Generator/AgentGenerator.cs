@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -38,94 +39,94 @@ public sealed class AgentGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             agents.Collect().Combine(context.CompilationProvider).Combine(context.AnalyzerConfigOptionsProvider),
             static (production, input) =>
-        {
-            System.Collections.Generic.HashSet<INamedTypeSymbol> distinctTypes = new(SymbolEqualityComparer.Default);
-
-            foreach (INamedTypeSymbol candidate in input.Left.Left)
             {
-                if (!distinctTypes.Add(candidate))
-                    continue;
-            }
+                HashSet<INamedTypeSymbol> distinctTypes = new(SymbolEqualityComparer.Default);
 
-            ImmutableArray<INamedTypeSymbol> types = [.. distinctTypes];
-            bool agentEnabled = input.Right.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAgent", out string? setting) && string.Equals(setting, b: "true", StringComparison.OrdinalIgnoreCase);
-
-            if (types.Length == 0 && !agentEnabled)
-                return;
-
-            if (types.Length != 1)
-            {
-                production.ReportDiagnostic(
-                    Diagnostic.Create(InvalidAgent, Location.None, messageArgs: ["Exactly one concrete JavaAgent subclass is required per native library."])
-                );
-
-                return;
-            }
-
-            INamedTypeSymbol type = types[index: 0];
-            bool derivesAgent = DerivesAgent(type);
-            bool accessible = input.Left.Right.IsSymbolAccessibleWithin(type, input.Left.Right.Assembly) && !type.IsFileLocal;
-
-            for (INamedTypeSymbol? current = type; current != null; current = current.ContainingType)
-                accessible &= current.Arity == 0 && !current.IsFileLocal;
-
-            bool constructor = type.InstanceConstructors.Any(value => value.Parameters.Length == 0 && input.Left.Right.IsSymbolAccessibleWithin(value, input.Left.Right.Assembly));
-
-            if (!derivesAgent || type.IsAbstract || !accessible || !constructor)
-            {
-                production.ReportDiagnostic(
-                    Diagnostic.Create(
-                        InvalidAgent,
-                        type.Locations.FirstOrDefault(),
-                        messageArgs: ["Agent must derive from JavaAgent, be non-generic and non-abstract, and have an accessible parameterless constructor."]
-                    )
-                );
-
-                return;
-            }
-
-            if (!agentEnabled)
-            {
-                production.ReportDiagnostic(
-                    Diagnostic.Create(InvalidAgent, type.Locations.FirstOrDefault(), messageArgs: ["Set <JvmBridgeAgent>true</JvmBridgeAgent> in the agent project."])
-                );
-
-                return;
-            }
-
-            foreach (INamedTypeSymbol candidate in AllTypes(input.Left.Right.Assembly.GlobalNamespace))
-            {
-                foreach (IMethodSymbol method in candidate.GetMembers().OfType<IMethodSymbol>())
+                foreach (INamedTypeSymbol candidate in input.Left.Left)
                 {
-                    foreach (AttributeData attribute in method.GetAttributes())
+                    if (!distinctTypes.Add(candidate))
+                        continue;
+                }
+
+                ImmutableArray<INamedTypeSymbol> types = [.. distinctTypes];
+                bool agentEnabled = input.Right.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAgent", out string? setting) && string.Equals(setting, b: "true", StringComparison.OrdinalIgnoreCase);
+
+                if (types.Length == 0 && !agentEnabled)
+                    return;
+
+                if (types.Length != 1)
+                {
+                    production.ReportDiagnostic(
+                        Diagnostic.Create(InvalidAgent, Location.None, messageArgs: ["Exactly one concrete JavaAgent subclass is required per native library."])
+                    );
+
+                    return;
+                }
+
+                INamedTypeSymbol type = types[index: 0];
+                bool derivesAgent = DerivesAgent(type);
+                bool accessible = input.Left.Right.IsSymbolAccessibleWithin(type, input.Left.Right.Assembly) && !type.IsFileLocal;
+
+                for (INamedTypeSymbol? current = type; current != null; current = current.ContainingType)
+                    accessible &= current.Arity == 0 && !current.IsFileLocal;
+
+                bool constructor = type.InstanceConstructors.Any(value => value.Parameters.Length == 0 && input.Left.Right.IsSymbolAccessibleWithin(value, input.Left.Right.Assembly));
+
+                if (!derivesAgent || type.IsAbstract || !accessible || !constructor)
+                {
+                    production.ReportDiagnostic(
+                        Diagnostic.Create(
+                            InvalidAgent,
+                            type.Locations.FirstOrDefault(),
+                            messageArgs: ["Agent must derive from JavaAgent, be non-generic and non-abstract, and have an accessible parameterless constructor."]
+                        )
+                    );
+
+                    return;
+                }
+
+                if (!agentEnabled)
+                {
+                    production.ReportDiagnostic(
+                        Diagnostic.Create(InvalidAgent, type.Locations.FirstOrDefault(), messageArgs: ["Set <JvmBridgeAgent>true</JvmBridgeAgent> in the agent project."])
+                    );
+
+                    return;
+                }
+
+                foreach (INamedTypeSymbol candidate in AllTypes(input.Left.Right.Assembly.GlobalNamespace))
+                {
+                    foreach (IMethodSymbol method in candidate.GetMembers().OfType<IMethodSymbol>())
                     {
-                        if (attribute.AttributeClass?.ToDisplayString() == "System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute")
+                        foreach (AttributeData attribute in method.GetAttributes())
                         {
-                            foreach (System.Collections.Generic.KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
+                            if (attribute.AttributeClass?.ToDisplayString() == "System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute")
                             {
-                                bool isGeneratedEntryPoint = argument.Key == "EntryPoint" && IsGeneratedEntryPoint(argument.Value);
-
-                                if (isGeneratedEntryPoint)
+                                foreach (KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
                                 {
-                                    production.ReportDiagnostic(
-                                        Diagnostic.Create(
-                                            InvalidAgent,
-                                            method.Locations.FirstOrDefault(),
-                                            messageArgs: ["Agent entry points are generated; remove conflicting manual exports."]
-                                        )
-                                    );
+                                    bool isGeneratedEntryPoint = argument.Key == "EntryPoint" && IsGeneratedEntryPoint(argument.Value);
 
-                                    return;
+                                    if (isGeneratedEntryPoint)
+                                    {
+                                        production.ReportDiagnostic(
+                                            Diagnostic.Create(
+                                                InvalidAgent,
+                                                method.Locations.FirstOrDefault(),
+                                                messageArgs: ["Agent entry points are generated; remove conflicting manual exports."]
+                                            )
+                                        );
+
+                                        return;
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            string agent = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                string agent = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-            string source = """
+                string source = """
                 // <auto-generated/>
                 #nullable enable
                 namespace JvmBridge.Generated
@@ -147,18 +148,18 @@ public sealed class AgentGenerator : IIncrementalGenerator
                 }
                 """;
 
-            production.AddSource(
-                hintName: "NativeAgentExports.g.cs",
-                SourceText.From(
-                    source.Replace(oldValue: "AGENT_TYPE", agent).Replace(oldValue: "AGENT_NAME", SymbolDisplay.FormatLiteral(input.Left.Right.AssemblyName ?? type.Name, quote: true)),
-                    Encoding.UTF8
-                )
-            );
-        }
+                production.AddSource(
+                    hintName: "NativeAgentExports.g.cs",
+                    SourceText.From(
+                        source.Replace(oldValue: "AGENT_TYPE", agent).Replace(oldValue: "AGENT_NAME", SymbolDisplay.FormatLiteral(input.Left.Right.AssemblyName ?? type.Name, quote: true)),
+                        Encoding.UTF8
+                    )
+                );
+            }
         );
     }
 
-    private static System.Collections.Generic.IEnumerable<INamedTypeSymbol> AllTypes(INamespaceSymbol scope)
+    private static IEnumerable<INamedTypeSymbol> AllTypes(INamespaceSymbol scope)
     {
         foreach (INamedTypeSymbol type in scope.GetTypeMembers())
         {
@@ -193,7 +194,7 @@ public sealed class AgentGenerator : IIncrementalGenerator
         return sourceValue is "\"Agent_OnLoad\"" or "\"Agent_OnAttach\"" or "\"Agent_OnUnload\"" or "\"JNI_OnLoad\"";
     }
 
-    private static System.Collections.Generic.IEnumerable<INamedTypeSymbol> NestedTypes(INamedTypeSymbol parent)
+    private static IEnumerable<INamedTypeSymbol> NestedTypes(INamedTypeSymbol parent)
     {
         foreach (INamedTypeSymbol type in parent.GetTypeMembers())
         {

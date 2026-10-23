@@ -36,10 +36,10 @@ public enum ConstantTag : byte
     /// <summary>A member name and descriptor.</summary>
     NameAndType = 12,
 
-    /// <summary>A method handle.</summary>
+    /// <summary>A reference to a field or method that <c>invokedynamic</c> and <c>ldc</c> can use (Java 7).</summary>
     MethodHandle = 15,
 
-    /// <summary>A method type.</summary>
+    /// <summary>A method's parameter and return types, for <c>invokedynamic</c> and <c>ldc</c> (Java 7).</summary>
     MethodType = 16,
 
     /// <summary>A dynamically computed constant.</summary>
@@ -48,10 +48,10 @@ public enum ConstantTag : byte
     /// <summary>A dynamically bound call site.</summary>
     InvokeDynamic = 18,
 
-    /// <summary>A module.</summary>
+    /// <summary>The name of a module, in a <c>module-info</c> class (Java 9).</summary>
     Module = 19,
 
-    /// <summary>A package.</summary>
+    /// <summary>The name of a package that a module exports or opens, in a <c>module-info</c> class (Java 9).</summary>
     Package = 20,
 }
 

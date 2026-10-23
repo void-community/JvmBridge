@@ -23,17 +23,17 @@ public sealed class AbiInspectorGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             context.CompilationProvider.Combine(enabled),
             static (production, input) =>
-        {
-            if (!input.Right)
-                return;
+            {
+                if (!input.Right)
+                    return;
 
-            INamedTypeSymbol? nativeValue = input.Left.GetTypeByMetadataName(fullyQualifiedMetadataName: "JvmBridge.Native.jvalue");
+                INamedTypeSymbol? nativeValue = input.Left.GetTypeByMetadataName(fullyQualifiedMetadataName: "JvmBridge.Native.jvalue");
 
-            if (nativeValue is null)
-                return;
+                if (nativeValue is null)
+                    return;
 
-            production.AddSource(hintName: "AbiInspector.g.cs", SourceText.From(Generate(nativeValue.ContainingNamespace), Encoding.UTF8));
-        }
+                production.AddSource(hintName: "AbiInspector.g.cs", SourceText.From(Generate(nativeValue.ContainingNamespace), Encoding.UTF8));
+            }
         );
     }
 

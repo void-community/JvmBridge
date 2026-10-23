@@ -8,7 +8,7 @@ internal static class ClassInputs
     private const string ClassExtension = ".class";
 
     /// <summary>Gets whether a path names a jar or zip archive by its extension.</summary>
-    /// <param name="path">The path.</param>
+    /// <param name="path">A file name, absolute or relative; only its extension is read.</param>
     /// <returns><see langword="true"/> for a .jar or .zip file name.</returns>
     internal static bool IsArchive(string path)
     {
@@ -19,7 +19,7 @@ internal static class ClassInputs
     }
 
     /// <summary>Adds the classes of a path: a class file, a directory searched recursively, or a jar.</summary>
-    /// <param name="path">The path.</param>
+    /// <param name="path">A class file, a directory or a jar on disk, as the command line named it.</param>
     /// <param name="classes">The list to add to.</param>
     /// <param name="error">Where problems are written.</param>
     /// <returns><see langword="false"/> when the path does not exist or cannot be read.</returns>

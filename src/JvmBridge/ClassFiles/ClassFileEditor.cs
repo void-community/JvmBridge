@@ -75,42 +75,42 @@ public sealed class ClassFileEditor
 
     /// <summary>Adds a field reference once.</summary>
     /// <param name="owner">The internal name of the owner.</param>
-    /// <param name="name">The field name.</param>
-    /// <param name="descriptor">The field descriptor.</param>
+    /// <param name="name">The name the field is declared with.</param>
+    /// <param name="descriptor">Its type in JVM notation, for example <c>I</c> or <c>Ljava/lang/String;</c>.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddFieldReference(string owner, string name, string descriptor) => AddMemberReference(ConstantTag.Fieldref, owner, name, descriptor);
 
     /// <summary>Adds a method reference of a class once.</summary>
     /// <param name="owner">The internal name of the owner.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddMethodReference(string owner, string name, string descriptor) => AddMemberReference(ConstantTag.Methodref, owner, name, descriptor);
 
     /// <summary>Adds a method reference of an interface once.</summary>
     /// <param name="owner">The internal name of the interface.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddInterfaceMethodReference(string owner, string name, string descriptor) => AddMemberReference(ConstantTag.InterfaceMethodref, owner, name, descriptor);
 
     /// <summary>Adds an Integer constant once.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds; an equal entry that exists is reused.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddInteger(int value) => Find<IntegerEntry>(entry => entry.Value == value) ?? Append(ConstantEncoding.Integer(value), slots: 1);
 
     /// <summary>Adds a Float constant once.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds; an equal entry that exists is reused.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddFloat(float value) => Find<FloatEntry>(entry => BitConverter.SingleToInt32Bits(entry.Value) == BitConverter.SingleToInt32Bits(value)) ?? Append(ConstantEncoding.Float(value), slots: 1);
 
     /// <summary>Adds a Long constant once. It occupies two slots.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds; an equal entry that exists is reused.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddLong(long value) => Find<LongEntry>(entry => entry.Value == value) ?? Append(ConstantEncoding.Long(value), slots: 2);
 
     /// <summary>Adds a Double constant once. It occupies two slots.</summary>
-    /// <param name="value">The value.</param>
+    /// <param name="value">The number the constant pool entry holds; an equal entry that exists is reused.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddDouble(double value) => Find<DoubleEntry>(entry => BitConverter.DoubleToInt64Bits(entry.Value) == BitConverter.DoubleToInt64Bits(value)) ?? Append(ConstantEncoding.Double(value), slots: 2);
 
@@ -208,7 +208,7 @@ public sealed class ClassFileEditor
     }
 
     /// <summary>Rewrites bytes of a method's code at the same length when they match what the caller expects. The result must still decode as instructions, or nothing changes and an exception is thrown; keeping it verifiable is the caller's responsibility.</summary>
-    /// <param name="methodName">The method name.</param>
+    /// <param name="methodName">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="methodDescriptor">The method descriptor, or <see langword="null"/> when the name is not overloaded.</param>
     /// <param name="codeOffset">The offset from the start of the method's code.</param>
     /// <param name="expected">The bytes that must be there.</param>
@@ -236,7 +236,7 @@ public sealed class ClassFileEditor
 
     /// <summary>Makes String constants with one value point at another value. Every use of the constant changes.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>The number of String constants changed.</returns>
     public int ReplaceString(string oldValue, string newValue)
     {
@@ -253,30 +253,30 @@ public sealed class ClassFileEditor
 
     /// <summary>Changes an Integer constant. Small values that the compiler encodes as <c>bipush</c> or <c>sipush</c> are not constants and are not affected.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>The number of constants changed.</returns>
     public int ReplaceInteger(int oldValue, int newValue) => Rewrite<IntegerEntry>(entry => entry.Value == oldValue, offset => BinaryPrimitives.WriteInt32BigEndian(_bytes.AsSpan(offset), newValue));
 
     /// <summary>Changes a Float constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>The number of constants changed.</returns>
     public int ReplaceFloat(float oldValue, float newValue) => Rewrite<FloatEntry>(entry => BitConverter.SingleToInt32Bits(entry.Value) == BitConverter.SingleToInt32Bits(oldValue), offset => BinaryPrimitives.WriteInt32BigEndian(_bytes.AsSpan(offset), BitConverter.SingleToInt32Bits(newValue)));
 
     /// <summary>Changes a Long constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>The number of constants changed.</returns>
     public int ReplaceLong(long oldValue, long newValue) => Rewrite<LongEntry>(entry => entry.Value == oldValue, offset => BinaryPrimitives.WriteInt64BigEndian(_bytes.AsSpan(offset), newValue));
 
     /// <summary>Changes a Double constant.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The new value.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
     /// <returns>The number of constants changed.</returns>
     public int ReplaceDouble(double oldValue, double newValue) => Rewrite<DoubleEntry>(entry => BitConverter.DoubleToInt64Bits(entry.Value) == BitConverter.DoubleToInt64Bits(oldValue), offset => BinaryPrimitives.WriteInt64BigEndian(_bytes.AsSpan(offset), BitConverter.DoubleToInt64Bits(newValue)));
 
     /// <summary>Replaces the class access flags.</summary>
-    /// <param name="accessFlags">The new flags.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
     public void SetAccess(int accessFlags)
     {
         WriteUInt16(Model.AccessFlagsOffset, accessFlags);
@@ -284,16 +284,16 @@ public sealed class ClassFileEditor
     }
 
     /// <summary>Replaces the access flags of matching fields.</summary>
-    /// <param name="name">The field name.</param>
+    /// <param name="name">The name the field is declared with.</param>
     /// <param name="descriptor">The field descriptor, or <see langword="null"/> to match any.</param>
-    /// <param name="accessFlags">The new flags.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
     /// <returns>The number of fields changed.</returns>
     public int SetFieldAccess(string name, string? descriptor, int accessFlags) => SetMemberAccess(Model.Fields, name, descriptor, accessFlags);
 
     /// <summary>Replaces the access flags of matching methods.</summary>
-    /// <param name="name">The method name.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">The method descriptor, or <see langword="null"/> to match every overload.</param>
-    /// <param name="accessFlags">The new flags.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
     /// <returns>The number of methods changed.</returns>
     public int SetMethodAccess(string name, string? descriptor, int accessFlags) => SetMemberAccess(Model.Methods, name, descriptor, accessFlags);
 
@@ -301,8 +301,8 @@ public sealed class ClassFileEditor
     /// Moves the code of a method into a new private synthetic method and gives the method the code of a stub that calls it. The method keeps its flags, signature and annotations; the new method is <c>static</c> when it is. This is the one edit that adds a method, so it
     /// is only valid for a class that has not been defined yet: a loaded class cannot gain methods.
     /// </summary>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <param name="bodyName">The name of the new method, which holds a verbatim copy of the old <c>Code</c> attribute.</param>
     /// <param name="stub">The code of the method from now on.</param>
     internal void ReplaceBodyWithStub(string name, string descriptor, string bodyName, StubCode stub)

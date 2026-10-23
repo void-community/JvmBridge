@@ -1,6 +1,7 @@
 using JvmBridge.ClassFiles;
 
 using Xunit;
+using Xunit.Sdk;
 
 namespace JvmBridge.Testing;
 
@@ -75,8 +76,8 @@ public static class ClassFileAssert
     {
         ArgumentNullException.ThrowIfNull(classBytes);
         JavaClassFile file = JavaClassFile.Read(classBytes);
-        ClassMember member = file.FindMethod(method) ?? throw new Xunit.Sdk.XunitException($"The class {file.Name} has no method {method}.");
-        CodeAttribute code = member.Code ?? throw new Xunit.Sdk.XunitException($"{method} has no code.");
+        ClassMember member = file.FindMethod(method) ?? throw new XunitException($"The class {file.Name} has no method {method}.");
+        CodeAttribute code = member.Code ?? throw new XunitException($"{method} has no code.");
 
         return
         [

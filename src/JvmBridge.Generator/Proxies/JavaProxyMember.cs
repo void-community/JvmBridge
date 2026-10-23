@@ -3,7 +3,7 @@ namespace JvmBridge.Generator.Proxies;
 /// <summary>A public method or constructor of a Java class that a typed proxy exposes.</summary>
 public sealed class JavaProxyMember
 {
-    /// <summary>Initializes a member.</summary>
+    /// <summary>Describes a method or constructor for the proxy generator to wrap.</summary>
     /// <param name="name">The Java name, or <c>&lt;init&gt;</c> for a constructor.</param>
     /// <param name="descriptor">The JNI descriptor, for example <c>(ILjava/lang/String;)V</c>.</param>
     /// <param name="isStatic">Whether the method is static.</param>

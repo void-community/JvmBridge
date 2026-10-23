@@ -1,6 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+
 using JvmBridge.Launcher;
 
 using Microsoft.Build.Framework;
+
+using BuildTask = Microsoft.Build.Utilities.Task;
 
 namespace JvmBridge.Tasks;
 
@@ -8,10 +12,10 @@ namespace JvmBridge.Tasks;
 /// Writes a jar that <c>java -javaagent</c> starts, from native agent libraries and from the libraries of other such jars: the same jar that <c>jvmbridge pack</c> writes. <c>JvmBridgeAgentJar</c> uses it after a publish, and <c>JvmBridgeMergeAgentJars</c> to combine the jars
 /// of several platforms.
 /// </summary>
-public sealed class PackAgentJar : Microsoft.Build.Utilities.Task
+public sealed class PackAgentJar : BuildTask
 {
     /// <summary>Gets or sets the jars whose libraries go into the new jar.</summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+    [SuppressMessage(
         "Performance",
         "CA1819:Properties should not return arrays",
         Justification = "MSBuild passes an item list to a task as ITaskItem[]."
@@ -19,7 +23,7 @@ public sealed class PackAgentJar : Microsoft.Build.Utilities.Task
     public ITaskItem[] Jars { get; set; } = [];
 
     /// <summary>Gets or sets the native libraries, each with the <c>Rid</c> metadata of the platform it runs on.</summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+    [SuppressMessage(
         "Performance",
         "CA1819:Properties should not return arrays",
         Justification = "MSBuild passes an item list to a task as ITaskItem[]."

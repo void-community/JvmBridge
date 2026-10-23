@@ -496,12 +496,8 @@ internal sealed unsafe class BridgeAgent : JavaAgent
                 Require(empty.Handle == 0 && environment.CallLong(created.Handle, repeatMethod, []) == 1234567890123L, message: "Repeated calls failed");
             }
 
-            ExpectJavaException(
-                () => { nint missingField = environment.GetField(owner, name: "absent", descriptor: "I"); Require(missingField == 0, message: "Missing field unexpectedly resolved"); }
-            );
-            ExpectJavaException(
-                () => { nint missingMethod = environment.GetMethod(owner, name: "absent", signature: "()V"); Require(missingMethod == 0, message: "Missing method unexpectedly resolved"); }
-            );
+            ExpectJavaException(() => Require(environment.GetField(owner, name: "absent", descriptor: "I") == 0, message: "Field found"));
+            ExpectJavaException(() => Require(environment.GetMethod(owner, name: "absent", signature: "()V") == 0, message: "Method found"));
             ExpectJavaException(() => environment.CallVoid(created.Handle, environment.GetMethod(owner, name: "fail", signature: "()V"), []));
             ExpectJavaException(() => { using JavaLocalReference ignored = environment.NewObject(owner, constructor, [new jvalue { i = -1 }]); });
             JavaException detailed = CaptureJavaException(() => environment.CallVoid(created.Handle, environment.GetMethod(owner, name: "failDetailed", signature: "()V"), []));
@@ -519,9 +515,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
                 message: "Java cause was lost"
             );
 
-            JavaException lookup = CaptureJavaException(
-                () => { nint missingMethod = environment.GetMethod(owner, name: "absentDiagnostic", signature: "()V"); Require(missingMethod == 0, message: "Missing method unexpectedly resolved"); }
-            );
+            JavaException lookup = CaptureJavaException(() => Require(environment.GetMethod(owner, name: "absentDiagnostic", signature: "()V") == 0, message: "Found"));
 
             Require(
                 lookup.Operation == nameof(JavaEnvironment.GetMethod) && lookup.JavaTypeName == "java.lang.NoSuchMethodError",
@@ -636,29 +630,29 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
                 Thread worker = new(
                     () =>
-                {
-                    try
                     {
-                        using JavaThreadAttachment attachment = machine.AttachCurrentThread();
+                        try
+                        {
+                            using JavaThreadAttachment attachment = machine.AttachCurrentThread();
 
-                        JavaEnvironment currentEnvironment = attachment.Environment;
+                            JavaEnvironment currentEnvironment = attachment.Environment;
 
-                        using JavaLocalReference? promoted = weak.TryPromote(currentEnvironment);
+                            using JavaLocalReference? promoted = weak.TryPromote(currentEnvironment);
 
-                        if (promoted is null)
-                            throw new InvalidOperationException(message: "Weak reference was collected while strongly reachable.");
+                            if (promoted is null)
+                                throw new InvalidOperationException(message: "Weak reference was collected while strongly reachable.");
 
-                        using JavaLocalReference duplicate = currentEnvironment.NewLocalReference(global.Handle);
+                            using JavaLocalReference duplicate = currentEnvironment.NewLocalReference(global.Handle);
 
-                        using JavaLocalReference different = currentEnvironment.NewString(value: "different");
+                            using JavaLocalReference different = currentEnvironment.NewString(value: "different");
 
-                        Require(currentEnvironment.IsSameObject(promoted.Handle, duplicate.Handle), message: "Separate handles lost Java identity.");
-                        Require(!currentEnvironment.IsSameObject(promoted.Handle, different.Handle), message: "Different objects share Java identity.");
-                        Require(currentEnvironment.IsSameObject(first: 0, second: 0), message: "Two Java nulls did not compare equal.");
-                        Require(!currentEnvironment.IsSameObject(promoted.Handle, second: 0), message: "A live object compared equal to Java null.");
+                            Require(currentEnvironment.IsSameObject(promoted.Handle, duplicate.Handle), message: "Separate handles lost Java identity.");
+                            Require(!currentEnvironment.IsSameObject(promoted.Handle, different.Handle), message: "Different objects share Java identity.");
+                            Require(currentEnvironment.IsSameObject(first: 0, second: 0), message: "Two Java nulls did not compare equal.");
+                            Require(!currentEnvironment.IsSameObject(promoted.Handle, second: 0), message: "A live object compared equal to Java null.");
+                        }
+                        catch (Exception exception) when (ContainLoggingFailure(exception)) { failure = exception; }
                     }
-                    catch (Exception exception) when (ContainLoggingFailure(exception)) { failure = exception; }
-                }
                 );
 
                 worker.Start();
@@ -880,15 +874,15 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
             Thread worker = new(
                 () =>
-            {
-                try
                 {
-                    using JavaThreadAttachment attachment = machine.AttachCurrentThread();
+                    try
+                    {
+                        using JavaThreadAttachment attachment = machine.AttachCurrentThread();
 
-                    result = attachment.Environment.GetString(global.Handle);
+                        result = attachment.Environment.GetString(global.Handle);
+                    }
+                    catch (Exception exception) when (ContainLoggingFailure(exception)) { failure = exception; }
                 }
-                catch (Exception exception) when (ContainLoggingFailure(exception)) { failure = exception; }
-            }
             );
 
             worker.Start();

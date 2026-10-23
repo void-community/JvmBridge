@@ -1,3 +1,4 @@
+using JvmBridge.Agents;
 using JvmBridge.Generator.Proxies;
 
 using Microsoft.CodeAnalysis;
@@ -125,7 +126,7 @@ public sealed class JavaProxySourceWriterTests
     {
         string runtimeDirectory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
         List<MetadataReference> references = [.. Directory.EnumerateFiles(runtimeDirectory, searchPattern: "*.dll").Select(static path => MetadataReference.CreateFromFile(path))];
-        references.Add(MetadataReference.CreateFromFile(typeof(JvmBridge.Agents.JavaAgent).Assembly.Location));
+        references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
         return CSharpCompilation.Create(
             "Proxies" + Guid.NewGuid().ToString(format: "N"),

@@ -8,7 +8,7 @@ public sealed class JavaClassDefinition
 {
     private readonly byte[] _bytes;
 
-    /// <summary>Initializes a definition.</summary>
+    /// <summary>Prepares a class for <see cref="AgentContext.DefineClass"/> from its class file bytes.</summary>
     /// <param name="name">The internal class name, for example <c>pkg/Helper</c>.</param>
     /// <param name="bytes">The class-file bytes; the class they describe must be named <paramref name="name"/>.</param>
     /// <param name="nestedClasses">Classes that must be defined together with this one, such as inner and anonymous classes.</param>

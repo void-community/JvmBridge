@@ -6,6 +6,7 @@ using JvmBridge.Build.Models;
 using JvmBridge.ClassFiles;
 
 using Xunit;
+using Xunit.Sdk;
 
 namespace JvmBridge.Testing.Tests;
 
@@ -171,7 +172,7 @@ public sealed class JdkTests
     public async Task TheDataAttributeSuppliesOneJdkPerVersionAsync()
     {
         JdkDataAttribute attribute = new(major: 8, additionalMajors: [17, 21]) { Implementation = "openj9" };
-        Xunit.Sdk.DisposalTracker tracker = new();
+        DisposalTracker tracker = new();
 
         try
         {

@@ -9,7 +9,7 @@ namespace JvmBridge.Logging.Tests;
 /// <summary>Verifies the ILogger that writes to the agent's log.</summary>
 public sealed class AgentLoggerTests
 {
-    /// <summary>An empty category adds no prefix.</summary>
+    /// <summary>A logger created for no category writes the message alone, without a leading "category: ".</summary>
     [Fact]
     public void AnEmptyCategoryAddsNoPrefix()
     {

@@ -85,18 +85,18 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             helpers.Combine(classVersion),
             static (production, input) =>
-        {
-            HelperOutput helper = input.Left;
-
-            foreach (Diagnostic diagnostic in helper.Diagnostics)
-                production.ReportDiagnostic(diagnostic);
-
-            if (helper.Source is { } source)
             {
-                string versioned = source.Replace(ClassVersionPlaceholder, input.Right.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                production.AddSource(helper.HintName, SourceText.From(versioned, Encoding.UTF8));
+                HelperOutput helper = input.Left;
+
+                foreach (Diagnostic diagnostic in helper.Diagnostics)
+                    production.ReportDiagnostic(diagnostic);
+
+                if (helper.Source is { } source)
+                {
+                    string versioned = source.Replace(ClassVersionPlaceholder, input.Right.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    production.AddSource(helper.HintName, SourceText.From(versioned, Encoding.UTF8));
+                }
             }
-        }
         );
     }
 

@@ -1,6 +1,6 @@
 namespace JvmBridge.Testing;
 
-/// <summary>Options for <see cref="Jdk.RunAsync"/>.</summary>
+/// <summary>How <see cref="Jdk.RunAsync"/> starts the JVM: program and JVM arguments, agent options, checked JNI, signal chaining and the time limit.</summary>
 public sealed class JavaRunOptions
 {
     /// <summary>Gets the options passed to the agent after <c>=</c> in <c>-agentpath</c> or <c>-javaagent</c>.</summary>

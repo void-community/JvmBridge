@@ -128,7 +128,15 @@ public sealed unsafe class WeakReferenceTests
         Assert.Equal(expected: 1, s_detachCount);
         ObjectDisposedException disposedPromotion = Assert.Throws<ObjectDisposedException>(() => weak.TryPromote(environment));
         Assert.Equal(typeof(JavaWeakGlobalReference).FullName, disposedPromotion.ObjectName);
-        ObjectDisposedException disposedHandle = Assert.Throws<ObjectDisposedException>(() => { nint handle = weak.Handle; Assert.Equal(expected: 456, handle); });
+
+        ObjectDisposedException disposedHandle = Assert.Throws<ObjectDisposedException>(
+            () =>
+            {
+                nint handle = weak.Handle;
+                Assert.Equal(expected: 456, handle);
+            }
+        );
+
         Assert.Equal(nameof(JavaWeakGlobalReference), disposedHandle.ObjectName);
     }
 

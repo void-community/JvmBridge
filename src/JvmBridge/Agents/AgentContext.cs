@@ -440,7 +440,7 @@ public sealed unsafe class AgentContext
     private int _granted;
 
     /// <summary>Gets whether a capability has been granted to this agent.</summary>
-    /// <param name="capability">The capability.</param>
+    /// <param name="capability">The JVMTI capability to look up among those the JVM gave this agent.</param>
     /// <returns><see langword="true"/> when the JVM granted it.</returns>
     public bool IsGranted(JavaCapability capability)
     {
@@ -451,7 +451,7 @@ public sealed unsafe class AgentContext
     /// Asks the JVM for a capability, which it grants only if it offers it in its current phase. A JVM that started the agent through <c>-agentpath</c> offers more than one that the agent was attached to.
     /// Retransformation must be requested before events are enabled, so request it from <see cref="JavaAgent.Configure"/>; the other capabilities can be requested later.
     /// </summary>
-    /// <param name="capability">The capability.</param>
+    /// <param name="capability">The JVMTI capability to ask the JVM for; the JVM decides whether it can grant it.</param>
     /// <returns><see langword="true"/> when the capability was granted, now or earlier.</returns>
     public bool TryRequest(JavaCapability capability)
     {

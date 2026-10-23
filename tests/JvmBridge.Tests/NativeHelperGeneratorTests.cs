@@ -11,6 +11,7 @@ using JvmBridge.Tests.ClassFiles;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 using Xunit;
 
@@ -385,7 +386,7 @@ public sealed unsafe class NativeHelperGeneratorTests
 
     private sealed record RegisteredNative(string Name, string Signature, nint Function);
 
-    private sealed class ReleaseOptions(string? javaRelease) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions
+    private sealed class ReleaseOptions(string? javaRelease) : AnalyzerConfigOptions
     {
         public override bool TryGetValue(string key, out string value)
         {
@@ -395,16 +396,16 @@ public sealed unsafe class NativeHelperGeneratorTests
         }
     }
 
-    private sealed class ReleaseOptionsProvider(string? javaRelease) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider
+    private sealed class ReleaseOptionsProvider(string? javaRelease) : AnalyzerConfigOptionsProvider
     {
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GlobalOptions { get; } = new ReleaseOptions(javaRelease);
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new ReleaseOptions(javaRelease);
 
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
         {
             return GlobalOptions;
         }
 
-        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
         {
             return GlobalOptions;
         }

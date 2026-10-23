@@ -199,7 +199,13 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void ModifiedUtf8RejectsStandardFourByteEncoding()
     {
-        FormatException exception = Assert.Throws<FormatException>(static () => { string unexpectedValue = ModifiedUtf8.Decode([0xf0, 0x9f, 0x98, 0x80]); GC.KeepAlive(unexpectedValue); });
+        FormatException exception = Assert.Throws<FormatException>(
+            static () =>
+            {
+                string unexpectedValue = ModifiedUtf8.Decode([0xf0, 0x9f, 0x98, 0x80]);
+                GC.KeepAlive(unexpectedValue);
+            }
+        );
 
         Assert.NotEmpty(exception.Message);
     }

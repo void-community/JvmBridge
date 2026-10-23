@@ -6,12 +6,12 @@ internal static class ManifestValidator
 {
     internal static void ValidateManifest(CompatibilityConfiguration configuration, IReadOnlyCollection<JdkEntry> entries)
     {
-        HashSet<JvmMatrixCell> expected = [.. (
+        HashSet<JvmMatrixCell> expected = [..
             from target in configuration.Targets
             where target.Agent
             from major in configuration.JavaMajors
             from implementation in configuration.Implementations
-            select new JvmMatrixCell(target.Rid, major, implementation))];
+            select new JvmMatrixCell(target.Rid, major, implementation)];
 
         List<JvmMatrixCell> actual = [.. entries.Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
 

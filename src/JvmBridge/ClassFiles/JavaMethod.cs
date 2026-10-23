@@ -16,28 +16,28 @@ public enum JavaMethodKind
 /// <summary>Identifies an invoked method by invocation kind, owner, name and descriptor.</summary>
 /// <param name="Kind">How the method is invoked.</param>
 /// <param name="Owner">The internal name of the class the call site references.</param>
-/// <param name="Name">The method name.</param>
-/// <param name="Descriptor">The method descriptor.</param>
+/// <param name="Name">The name the method is declared with, for example <c>toString</c>.</param>
+/// <param name="Descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
 public readonly record struct JavaMethod(JavaMethodKind Kind, string Owner, string Name, string Descriptor)
 {
     /// <summary>Identifies a method called with <c>invokestatic</c>.</summary>
     /// <param name="owner">The internal name of the class the call site references.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The method identity.</returns>
     public static JavaMethod Static(string owner, string name, string descriptor) => new(JavaMethodKind.Static, owner, name, descriptor);
 
     /// <summary>Identifies a method called with <c>invokevirtual</c>.</summary>
     /// <param name="owner">The internal name of the class the call site references.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The method identity.</returns>
     public static JavaMethod Virtual(string owner, string name, string descriptor) => new(JavaMethodKind.Virtual, owner, name, descriptor);
 
     /// <summary>Identifies a method called with <c>invokeinterface</c>.</summary>
     /// <param name="owner">The internal name of the interface the call site references.</param>
-    /// <param name="name">The method name.</param>
-    /// <param name="descriptor">The method descriptor.</param>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <returns>The method identity.</returns>
     public static JavaMethod Interface(string owner, string name, string descriptor) => new(JavaMethodKind.Interface, owner, name, descriptor);
 

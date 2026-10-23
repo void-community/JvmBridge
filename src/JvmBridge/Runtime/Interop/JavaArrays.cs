@@ -221,7 +221,7 @@ public static unsafe class JavaArrays
         return new JavaLocalReference(environment, (nint)array);
     }
 
-    /// <summary>Creates a <c>String[]</c>.</summary>
+    /// <summary>Copies .NET strings into a new Java <c>String[]</c>; a <see langword="null"/> element stays null.</summary>
     /// <param name="environment">The JNI environment of the current thread.</param>
     /// <param name="values">The strings; a null entry becomes a null element.</param>
     /// <returns>The new array as a local reference that the caller owns.</returns>
@@ -244,7 +244,7 @@ public static unsafe class JavaArrays
         return array;
     }
 
-    /// <summary>Sets an element of an object array.</summary>
+    /// <summary>Stores a reference into one slot of a Java object array, as <c>array[index] = value</c> does.</summary>
     /// <param name="environment">The JNI environment of the current thread.</param>
     /// <param name="array">The object array reference.</param>
     /// <param name="index">The element index.</param>
