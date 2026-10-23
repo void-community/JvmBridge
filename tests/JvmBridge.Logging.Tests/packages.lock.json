@@ -188,7 +188,7 @@
       "jvmbridge.logging": {
         "type": "Project",
         "dependencies": {
-          "JvmBridge": "[26.10.22.2853, )",
+          "JvmBridge": "[26.10.23.2928, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.13, )"
         }
       }

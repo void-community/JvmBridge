@@ -188,7 +188,7 @@
       "jvmbridge.tasks": {
         "type": "Project",
         "dependencies": {
-          "JvmBridge.Launcher": "[26.10.22.4549, )",
+          "JvmBridge.Launcher": "[26.10.23.2928, )",
           "Nito.AsyncEx.Context": "[5.1.2, )"
         }
       },
