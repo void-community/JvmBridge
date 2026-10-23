@@ -576,7 +576,10 @@ public sealed unsafe class JavaEnvironment : IDisposable
             return Own(Functions->NewString(_environment, (ushort*)characters, value.Length), nameof(NewString));
     }
 
-    /// <summary>Registers one unmanaged function as a native implementation of a Java method.</summary>
+    /// <summary>
+    /// Registers one unmanaged function as a native implementation of a Java method. The method is looked up first, which initializes the class and so links it: Java 6 resets the native methods of a class when it links the class,
+    /// and would drop a function registered on a class that was only defined.
+    /// </summary>
     /// <param name="type">The declaring Java class reference.</param>
     /// <param name="name">The Java method name.</param>
     /// <param name="signature">The JNI method descriptor.</param>
@@ -588,6 +591,17 @@ public sealed unsafe class JavaEnvironment : IDisposable
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* encodedSignature = ModifiedUtf8.Encode(signature))
         {
+            JNINativeInterface_* functions = Functions;
+
+            // A static method is the usual case; an instance method makes the static lookup fail, and then the instance one links the class. A lookup that still fails leaves the error to RegisterNatives.
+            if (functions->GetStaticMethodID(_environment, (_jobject*)type, encodedName, encodedSignature) == null)
+            {
+                functions->ExceptionClear(_environment);
+
+                if (functions->GetMethodID(_environment, (_jobject*)type, encodedName, encodedSignature) == null)
+                    functions->ExceptionClear(_environment);
+            }
+
             JNINativeMethod method = new() { name = encodedName, signature = encodedSignature, fnPtr = (void*)function };
             int result = Functions->RegisterNatives(_environment, (_jobject*)type, &method, 1);
             ThrowIfException(nameof(RegisterNative));

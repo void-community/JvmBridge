@@ -70,6 +70,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         """;
 
     private static readonly List<RegisteredNative> Registered = [];
+    private static readonly List<string> Steps = [];
 
     private static readonly List<string> Thrown = [];
 
@@ -105,6 +106,26 @@ public sealed unsafe class NativeHelperGeneratorTests
         Assert.DoesNotContain(expectedSubstring: "JVMBRIDGE_CLASS_VERSION", defaulted, StringComparison.Ordinal);
     }
 
+    /// <summary>Each native method is looked up before it is registered, which links the class first: Java 6 drops natives registered on a class it has not linked.</summary>
+    [Fact]
+    public void LooksUpEachMethodBeforeRegisteringIt()
+    {
+        Registered.Clear();
+        Steps.Clear();
+        ProbeAccess probe = Load(Helpers);
+        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException };
+        JNINativeInterface_* tablePointer = &table;
+        JNINativeInterface_** environment = &tablePointer;
+
+        using JavaEnvironment javaEnvironment = new((nint)environment);
+
+        probe.Definition().RegisterNatives?.Invoke(javaEnvironment, arg2: 1);
+
+        string[] expected = [.. Registered.SelectMany(static native => new[] { "look up " + native.Name, "register " + native.Name })];
+        Assert.NotEmpty(expected);
+        Assert.Equal(expected, Steps);
+    }
+
     /// <summary>Primitive and string arrays map to Java array descriptors.</summary>
     [Fact]
     public void MapsArraysToJavaArrayDescriptors()
@@ -122,7 +143,7 @@ public sealed unsafe class NativeHelperGeneratorTests
     {
         Registered.Clear();
         ProbeAccess probe = Load(Helpers);
-        JNINativeInterface_ table = new() { RegisterNatives = &Register, ExceptionCheck = &NoException, GetArrayLength = &ThreeElements, GetIntArrayRegion = &FillOneTwoThree };
+        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException, GetArrayLength = &ThreeElements, GetIntArrayRegion = &FillOneTwoThree };
         JNINativeInterface_* tablePointer = &table;
         JNINativeInterface_** environment = &tablePointer;
 
@@ -163,6 +184,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         JNINativeInterface_ table = new()
         {
             RegisterNatives = &Register,
+            GetStaticMethodID = &LookUp,
             ExceptionCheck = &NoException,
             FindClass = &FindAnyClass,
             DeleteLocalRef = &DeleteReference,
@@ -194,7 +216,7 @@ public sealed unsafe class NativeHelperGeneratorTests
     {
         Registered.Clear();
         ProbeAccess probe = Load(Helpers);
-        JNINativeInterface_ table = new() { RegisterNatives = &Register, ExceptionCheck = &NoException };
+        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException };
         JNINativeInterface_* tablePointer = &table;
         JNINativeInterface_** environment = &tablePointer;
 
@@ -342,6 +364,14 @@ public sealed unsafe class NativeHelperGeneratorTests
     }
 
     [UnmanagedCallersOnly]
+    private static _jmethodID* LookUp(JNINativeInterface_** environment, _jobject* type, byte* name, byte* signature)
+    {
+        Steps.Add("look up " + Marshal.PtrToStringUTF8((nint)name));
+
+        return (_jmethodID*)1;
+    }
+
+    [UnmanagedCallersOnly]
     private static byte NoException(JNINativeInterface_** environment)
     {
         return 0;
@@ -363,6 +393,7 @@ public sealed unsafe class NativeHelperGeneratorTests
             string name = Marshal.PtrToStringUTF8((nint)methods[index].name) ?? string.Empty;
             string signature = Marshal.PtrToStringUTF8((nint)methods[index].signature) ?? string.Empty;
             Registered.Add(new RegisteredNative(name, signature, (nint)methods[index].fnPtr));
+            Steps.Add("register " + name);
         }
 
         return 0;
