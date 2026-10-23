@@ -649,10 +649,15 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
         string redirected = Path.Combine(directory, path2: "startup-redirected.log");
 
+        // The shell is a system binary, which on Apple silicon is arm64e and cannot take HotSpot's arm64 libjsig, so the shell starts without the inserted library and passes it to java alone.
+        Dictionary<string, string?> shellEnvironment = new(environment, StringComparer.Ordinal);
+        string inserted = shellEnvironment.GetValueOrDefault(key: "DYLD_INSERT_LIBRARIES") ?? string.Empty;
+        shellEnvironment[key: "DYLD_INSERT_LIBRARIES"] = null;
+
         ProcessResult shell = await _processRunner.RunAsync(
-            ["sh", "-c", "\"$0\" -agentpath:\"$1\" -cp \"$2\" BridgeFixture > \"$3\" 2>&1", java, agent, fixture, redirected],
+            ["sh", "-c", "[ -z \"$4\" ] || export DYLD_INSERT_LIBRARIES=\"$4\"; \"$0\" -agentpath:\"$1\" -cp \"$2\" BridgeFixture > \"$3\" 2>&1", java, agent, fixture, redirected, inserted],
             Path.Combine(directory, path2: "startup-redirected-shell.log"),
-            environment: environment,
+            environment: shellEnvironment,
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
