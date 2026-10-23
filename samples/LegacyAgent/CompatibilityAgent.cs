@@ -16,8 +16,12 @@ internal sealed class CompatibilityAgent : JavaAgent
 
     private const string Fixture = "legacy/LegacyFixture";
 
-    // A typed helper in the application's loader and package reads the account's private balance, which this patch opens, instead of the deposit running.
-    private static readonly ClassPatch OpenAccount = ClassPatch.For(Account).SetFieldAccess(name: "balance", accessFlags: 0x0001);
+    private static readonly JavaMethod Deposit = JavaMethod.Virtual(Account, name: "deposit", descriptor: "(I)I");
+
+    // A typed helper in the application's loader and package reads the account's private balance, which this patch opens, and calls its private bonus() through the invoker it adds, instead of the deposit running.
+    private static readonly ClassPatch OpenAccount = ClassPatch.For(Account)
+        .SetFieldAccess(name: "balance", accessFlags: 0x0001)
+        .AddInvoker(method: "bonus", descriptor: "()I", name: "legacy$bonus");
 
     private static readonly ClassPatch Typed = ClassPatch.For(Fixture)
         .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/concurrent/CopyOnWriteArrayList", storedIn: "SENT")
@@ -27,12 +31,16 @@ internal sealed class CompatibilityAgent : JavaAgent
             storedIn: "NAMES"
         )
         .Method(name: "deposited", descriptor: "()I")
-        .RedirectInvocation(
-            JavaMethod.Virtual(Account, name: "deposit", descriptor: "(I)I"),
-            JavaMethod.Static(owner: "legacy/TypedHelpers", name: "deposit", descriptor: "(Llegacy/LegacyFixture$Account;I)I")
-        )
+        .When(static body => body.Calls(Deposit) && body.Creates(Account))
+        .RedirectInvocation(Deposit, JavaMethod.Static(owner: "legacy/TypedHelpers", name: "deposit", descriptor: "(Llegacy/LegacyFixture$Account;I)I"))
         .Method(name: "main", descriptor: "([Ljava/lang/String;)V")
         .RemoveInvocation(JavaMethod.Virtual(owner: "legacy/LegacyFixture$Settings", name: "autosave", descriptor: "()Llegacy/LegacyFixture$Settings;"));
+
+    // A condition that the fixture does not meet: the patch skips the class and the log prints why.
+    private static readonly ClassPatch Unmet = ClassPatch.For(Fixture)
+        .Method(name: "add", descriptor: "(II)I")
+        .When(static body => body.Creates(className: "java/util/HashMap") || body.Calls(Deposit))
+        .RedirectInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"), toOwner: "jvmbridge/legacy/Interop");
 
     private static readonly ClassPatch Patch = ClassPatch.For(Fixture)
         .ReplaceConstant(oldValue: "legacy-original", newValue: "legacy-patched")
@@ -51,6 +59,7 @@ internal sealed class CompatibilityAgent : JavaAgent
         context.DefineClass(JavaClasses.Legacy.TypedHelpers, ClassLoaderTarget.PatchedClassLoader);
         context.Patch(OpenAccount);
         context.Patch(Typed);
+        context.Patch(Unmet);
         Interop.Subscription = context.Events.Subscribe(JavaEvents.ThreadStart | JavaEvents.ClassLoad).ToString();
     }
 

@@ -115,7 +115,7 @@ public sealed class LegacyJavaTests
 
     private static void AssertRan(string output, string expectedVersion, string route, string start)
     {
-        foreach (string marker in new[] { expectedVersion, start, "PATCH_OK", "HELPER_OK", "ADVICE_OK", "TYPED_OK", "CONSTRUCTION_OK", "FACTORY_OK", "REMOVAL_OK", "EVENTS_OK", "UNLOAD" })
+        foreach (string marker in new[] { expectedVersion, start, "PATCH_OK", "HELPER_OK", "ADVICE_OK", "TYPED_OK", "requires new HashMap || deposit()", "CONSTRUCTION_OK", "FACTORY_OK", "REMOVAL_OK", "EVENTS_OK", "UNLOAD" })
             Assert.True(output.Contains(marker, StringComparison.Ordinal), $"Missing {marker} with {route}:\n{output}");
     }
 

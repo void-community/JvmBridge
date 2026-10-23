@@ -22,6 +22,10 @@ public final class LegacyFixture {
             balance += amount;
             return balance;
         }
+
+        private int bonus() {
+            return 7;
+        }
     }
 
     /** A builder with a fluent setter, which a patch removes. */
@@ -55,7 +59,7 @@ public final class LegacyFixture {
         System.out.println("legacy-patched".equals(greeting()) ? "PATCH_OK" : "PATCH_FAIL " + greeting());
         System.out.println(length("abc") == 1003 ? "HELPER_OK" : "HELPER_FAIL " + length("abc"));
         System.out.println(add(2, 3) == 1005 ? "ADVICE_OK" : "ADVICE_FAIL " + add(2, 3));
-        System.out.println(deposited() == 510 ? "TYPED_OK" : "TYPED_FAIL " + deposited());
+        System.out.println(deposited() == 517 ? "TYPED_OK" : "TYPED_FAIL " + deposited());
         System.out.println("java.util.concurrent.CopyOnWriteArrayList".equals(SENT.getClass().getName()) ? "CONSTRUCTION_OK" : "CONSTRUCTION_FAIL " + SENT.getClass().getName());
         System.out.println("java.util.Collections$SynchronizedSet".equals(NAMES.getClass().getName()) ? "FACTORY_OK" : "FACTORY_FAIL " + NAMES.getClass().getName());
         Settings settings = new Settings().autosave();

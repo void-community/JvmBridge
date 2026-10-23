@@ -12,7 +12,7 @@ public final class TypedHelpers {
     }
 
     public static int deposit(LegacyFixture.Account account, int amount) {
-        return account.balance + amount * 100;
+        return account.balance + amount * 100 + account.legacy$bonus();
     }
 
     public static Set<String> newNames() {
