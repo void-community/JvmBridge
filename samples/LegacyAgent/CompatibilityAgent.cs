@@ -8,11 +8,31 @@ namespace LegacyAgent;
 
 /// <summary>
 /// An agent for Java 6 and later, from one build: it patches a constant, redirects a call to a C# helper, advises a method with a hook compiled from Java, counts events, and attaches a thread of its own, which are the parts that
-/// depend on the JNI and JVMTI versions and the class file versions that JvmBridge negotiates and writes.
+/// depend on the JNI and JVMTI versions and the class file versions that JvmBridge negotiates and writes. It also redirects a call to a typed Java helper in the application's own loader, replaces two constructions and removes a fluent call.
 /// </summary>
 internal sealed class CompatibilityAgent : JavaAgent
 {
-    private const string Fixture = "LegacyFixture";
+    private const string Account = "legacy/LegacyFixture$Account";
+
+    private const string Fixture = "legacy/LegacyFixture";
+
+    // A typed helper in the application's loader and package reads the account's private balance, which this patch opens, instead of the deposit running.
+    private static readonly ClassPatch OpenAccount = ClassPatch.For(Account).SetFieldAccess(name: "balance", accessFlags: 0x0001);
+
+    private static readonly ClassPatch Typed = ClassPatch.For(Fixture)
+        .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/concurrent/CopyOnWriteArrayList", storedIn: "SENT")
+        .ReplaceConstruction(
+            fromClass: "java/util/HashSet",
+            JavaMethod.Static(owner: "legacy/TypedHelpers", name: "newNames", descriptor: "()Ljava/util/Set;"),
+            storedIn: "NAMES"
+        )
+        .Method(name: "deposited", descriptor: "()I")
+        .RedirectInvocation(
+            JavaMethod.Virtual(Account, name: "deposit", descriptor: "(I)I"),
+            JavaMethod.Static(owner: "legacy/TypedHelpers", name: "deposit", descriptor: "(Llegacy/LegacyFixture$Account;I)I")
+        )
+        .Method(name: "main", descriptor: "([Ljava/lang/String;)V")
+        .RemoveInvocation(JavaMethod.Virtual(owner: "legacy/LegacyFixture$Settings", name: "autosave", descriptor: "()Llegacy/LegacyFixture$Settings;"));
 
     private static readonly ClassPatch Patch = ClassPatch.For(Fixture)
         .ReplaceConstant(oldValue: "legacy-original", newValue: "legacy-patched")
@@ -28,6 +48,9 @@ internal sealed class CompatibilityAgent : JavaAgent
         context.DefineClass(Interop.Definition, ClassLoaderTarget.Bootstrap);
         context.DefineClass(JavaClasses.Jvmbridge.Legacy.Hooks, ClassLoaderTarget.Bootstrap);
         context.Patch(Patch);
+        context.DefineClass(JavaClasses.Legacy.TypedHelpers, ClassLoaderTarget.PatchedClassLoader);
+        context.Patch(OpenAccount);
+        context.Patch(Typed);
         Interop.Subscription = context.Events.Subscribe(JavaEvents.ThreadStart | JavaEvents.ClassLoad).ToString();
     }
 

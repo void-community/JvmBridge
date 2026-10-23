@@ -43,6 +43,33 @@ ClassPatch.For("com/acme/Engine").Method("start", "()V").SetAccess(0x0001);
 
 The flag word is replaced as given, so pass every flag the member should have (`0x0009` for `public static`).
 
+## Make a collection thread-safe
+
+```csharp
+ClassPatch.For("com/acme/Handshake")
+    .ReplaceConstruction("java/util/ArrayList", "java/util/concurrent/CopyOnWriteArrayList", storedIn: "sentMessages");
+ClassPatch.For("com/acme/Registry")
+    .ReplaceConstruction("java/util/HashSet",
+        JavaMethod.Static("java/util/concurrent/ConcurrentHashMap", "newKeySet", "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;"),
+        storedIn: "holders");
+```
+
+The first keeps the constructor's arguments, so the new class needs a constructor with the same parameters; the second takes a factory for a construction without arguments. `storedIn` picks the construction whose object goes into that field. The new object must fit the field's type, which the JVM checks when the class loads. See [**Replacing a construction or removing a call**](patching.md#replacing-a-construction-or-removing-a-call).
+
+## Drop a fluent call
+
+```csharp
+ClassPatch.For("com/acme/Settings")
+    .Method("open", "()V")
+    .RemoveInvocation(JavaMethod.Virtual("com/acme/ConfigBuilder", "autosave", "()Lcom/acme/ConfigBuilder;"));
+```
+
+A call that takes no arguments and returns its receiver becomes `nop`s; the receiver it leaves stands for its result.
+
+## Use the application's types in a helper
+
+Compile the helper against the application with `JavaCompileReference` items, or against `JavaStubSource` stand-ins, define it with `ClassLoaderTarget.PatchedClassLoader`, and redirect the call with its own descriptor. Put it in the application's package to reach package-private members, and open a private one with `SetFieldAccess`. See [**A helper that names the application's types**](patching.md#a-helper-that-names-the-applications-types).
+
 ## Call back into C# from patched code
 
 Declare a C# helper whose methods become `native` methods of a generated Java class, and redirect the patched call to it:

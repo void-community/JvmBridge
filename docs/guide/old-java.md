@@ -10,7 +10,7 @@ One agent build runs on Java 6 and 7 as well as on Java 8 to 26. The runtime ask
 </PropertyGroup>
 ```
 
-The [**LegacyAgent**](../../samples/LegacyAgent) sample is such an agent: a constant patch, a call redirected to a C# helper, `After` advice with a hook compiled from Java, event counts, and a thread of its own attached to the JVM.
+The [**LegacyAgent**](../../samples/LegacyAgent) sample is such an agent: a constant patch, a call redirected to a C# helper and another to a Java helper that names the application's types, two replaced constructions and a removed fluent call, `After` advice with a hook compiled from Java, event counts, and a thread of its own attached to the JVM.
 
 ## What JvmBridge negotiates
 

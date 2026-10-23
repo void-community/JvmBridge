@@ -73,8 +73,8 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 - **Generated native API:** JNI/JVMTI types, constants, function-table entries, and callback signatures from pinned OpenJDK headers. C# raw declarations live in `JvmBridge.Native` and preserve native identifiers.
 - **Runtime helpers:** JVM creation, thread attachment, UTF-16 string conversion, modified UTF-8 names/options, checked field access, constructor and typed method calls, native registration, and owned local/global references.
 - **Agent lifecycle:** startup and late attachment, VM initialization/death, class preparation, copied JVMTI class/member metadata, capability negotiation, and retransformation.
-- **Class files and patches:** a read-only class-file model, an editor whose edits keep every constant index and code offset, a writer for small helper classes, and declarative `ClassPatch`es (redirects, constants, access flags, matchers and `Before`/`After` method advice) with results a test can assert on, all without a JVM.
-- **Helper classes:** written in Java (`JavaSource`, compiled with `javac`, with an optional pinned JDK download for machines that have none) or in C# (`[JavaClass]` and `[JavaMethod]`).
+- **Class files and patches:** a read-only class-file model with named opcodes and instruction matchers, an editor whose edits keep every constant index and code offset, a writer and code builder for helper classes without byte literals, and declarative `ClassPatch`es (redirects, constants, replaced constructions, removed fluent calls, access flags, matchers and `Before`/`After` method advice) with results a test can assert on, all without a JVM.
+- **Helper classes:** written in Java (`JavaSource`, compiled with `javac` against the application's jars or stub sources, with an optional pinned JDK download for machines that have none) or in C# (`[JavaClass]` and `[JavaMethod]`), in the bootstrap loader or the application's own.
 - **Events and JVM state:** thread, class-load, exception, method, garbage-collection and monitor events with capability negotiation, thread and stack wrappers, and class redefinition.
 - **Java interop:** arrays, exception throwing, monitors and local frames, `[JavaMethod]` with arrays, and typed proxies for the classes of a jar.
 - **Logging and options:** levels, a replaceable sink, an `ILogger` adapter and a parsed option string.
@@ -100,7 +100,7 @@ See the [**generated compatibility inventory**](docs/compatibility.md). It shows
 ## Examples
 
 - [**HelloAgent**](samples/HelloAgent): emits a Java 8-compatible native callback helper in C#, registers native methods, preserves Unicode across threads/global references, transforms fixture method bodies, and supports late attachment.
-- [**LegacyAgent**](samples/LegacyAgent): one build for Java 6 to 26 (`JavaRelease` 6): a constant patch, a redirect to a C# helper, advice with a hook compiled from Java, events, and a thread attached from .NET.
+- [**LegacyAgent**](samples/LegacyAgent): one build for Java 6 to 26 (`JavaRelease` 6): a constant patch, a redirect to a C# helper and to a typed Java helper in the application's loader, replaced constructions, a removed fluent call, advice with a hook compiled from Java, events, and a thread attached from .NET.
 - [**JavaHost**](samples/JavaHost): creates a JVM from an explicit native-library path, invokes Java, handles exceptions, and demonstrates ownership.
 
 See [**automation setup**](docs/automation.md) and [**agent instructions**](AGENTS.md). Original code is [**MIT licensed**](LICENSE); see [**upstream notices**](NOTICE.md) for header provenance.

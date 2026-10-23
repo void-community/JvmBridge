@@ -71,13 +71,13 @@ public sealed class LegacyJavaTests
         string expectedVersion = major < 9 ? "JAVA 1." + major.ToString(CultureInfo.InvariantCulture) : "JAVA " + major.ToString(CultureInfo.InvariantCulture);
 
         ProcessResult library = await processes.RunAsync(
-            [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "LegacyFixture"],
+            [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-agentpath.log"),
             cancellationToken: cancellationToken
         );
 
         ProcessResult launched = await processes.RunAsync(
-            [java, "-javaagent:" + jar, "-cp", fixture, "LegacyFixture"],
+            [java, "-javaagent:" + jar, "-cp", fixture, "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-javaagent.log"),
             cancellationToken: cancellationToken
         );
@@ -93,13 +93,13 @@ public sealed class LegacyJavaTests
         List<string> container = ["docker", "run", "--rm", "-v", home + ":/jdk:ro", "-v", Path.GetDirectoryName(agent) + ":/a:ro", "-v", work.Path + ":/j:ro", "-v", fixture + ":/f:ro", image];
 
         ProcessResult oldLibrary = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-agentpath:/a/LegacyAgent.so", "-cp", "/f", "LegacyFixture"],
+            [.. container, "/jdk/bin/java", "-agentpath:/a/LegacyAgent.so", "-cp", "/f", "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-image-agentpath.log"),
             cancellationToken: cancellationToken
         );
 
         ProcessResult oldLaunched = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-javaagent:/j/LegacyAgent.jar", "-cp", "/f", "LegacyFixture"],
+            [.. container, "/jdk/bin/java", "-javaagent:/j/LegacyAgent.jar", "-cp", "/f", "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-image-javaagent.log"),
             cancellationToken: cancellationToken
         );
@@ -115,7 +115,7 @@ public sealed class LegacyJavaTests
 
     private static void AssertRan(string output, string expectedVersion, string route, string start)
     {
-        foreach (string marker in new[] { expectedVersion, start, "PATCH_OK", "HELPER_OK", "ADVICE_OK", "EVENTS_OK", "UNLOAD" })
+        foreach (string marker in new[] { expectedVersion, start, "PATCH_OK", "HELPER_OK", "ADVICE_OK", "TYPED_OK", "CONSTRUCTION_OK", "FACTORY_OK", "REMOVAL_OK", "EVENTS_OK", "UNLOAD" })
             Assert.True(output.Contains(marker, StringComparison.Ordinal), $"Missing {marker} with {route}:\n{output}");
     }
 
@@ -124,7 +124,7 @@ public sealed class LegacyJavaTests
     {
         string output = Path.Combine(repository.Artifacts, path2: "legacy-fixture");
 
-        if (File.Exists(Path.Combine(output, path2: "LegacyFixture.class")))
+        if (File.Exists(Path.Combine(output, path2: "legacy", path3: "LegacyFixture.class")))
             return output;
 
         string java8 = await PinnedJdk.UnpackAsync(Pinned(repository, major: 8), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);

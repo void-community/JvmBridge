@@ -13,5 +13,7 @@
   <ItemGroup>
     <PackageReference Include="JvmBridge" />
     <JavaSource Include="java/**/*.java" />
+    <!-- Stand-ins for the application's classes that the typed helpers name: compiled first, never embedded. -->
+    <JavaStubSource Include="stubs/**/*.java" />
   </ItemGroup>
 </Project>
