@@ -1,3 +1,4 @@
+using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
 
 using Xunit;
@@ -32,6 +33,35 @@ public static class ClassFileAssert
     {
         if (CallsIn(classBytes, method).Any(call => Matches(call, owner, name, descriptor)))
             Assert.Fail($"{method} still calls {owner}.{name}{descriptor}.");
+    }
+
+    /// <summary>
+    /// Asserts that a helper links: every class, field and method it refers to exists, with that descriptor, in the classes of a class path or the JDK, walking superclasses and interfaces as the JVM does, and is accessible from the helper. The
+    /// application's classes are read with the given patches applied, so the members they add (<c>AddFieldGetter</c>, <c>AddInvoker</c>) or open (<c>SetFieldAccess</c>, <c>SetMethodAccess</c>) count. A stub that declares a member the real class lacks,
+    /// or with another type, fails here instead of with <c>NoSuchMethodError</c> or <c>NoSuchFieldError</c> on the version that differs.
+    /// </summary>
+    /// <param name="jdk">The JDK whose classes the helper may use; it runs a small program to look them up.</param>
+    /// <param name="helper">The helper, such as <c>JavaClasses.Acme.Agent.Network</c>, with its nested classes.</param>
+    /// <param name="classPath">Jars and class directories of the application, for example from <see cref="MavenArtifact.GetPathAsync"/>; their own dependencies need not be there.</param>
+    /// <param name="patches">The patches the agent registers, or none.</param>
+    /// <param name="cancellationToken">Cancels the check.</param>
+    /// <returns>A task that fails the test with one line per reference that does not link.</returns>
+    public static async Task LinksAsync(
+        Jdk jdk,
+        JavaClassDefinition helper,
+        IEnumerable<string> classPath,
+        IEnumerable<ClassPatch>? patches = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(jdk);
+        ArgumentNullException.ThrowIfNull(helper);
+        ArgumentNullException.ThrowIfNull(classPath);
+
+        IReadOnlyList<string> problems = await HelperLinks.FindProblemsAsync(jdk, helper, classPath, patches ?? [], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        if (problems.Count > 0)
+            Assert.Fail($"{helper.Name} does not link:" + Environment.NewLine + string.Join(Environment.NewLine, problems));
     }
 
     /// <summary>

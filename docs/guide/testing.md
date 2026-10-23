@@ -30,6 +30,25 @@ public async Task AgentChangesTheSort(Jdk jdk)
   ```
 - `ClassFileAssert.MatchesSnapshot(bytes, "Snapshots/run.txt", method: "run")` compares the disassembly of a class or method with a stored snapshot. The text is `javap -c`-style and deterministic (`ClassFileDisassembler.Disassemble` produces it), so a patch's effect on the bytecode shows up in a diff. A relative path is resolved against the test project's directory; a mismatch writes `<snapshot>.received` next to it (add `*.received` to `.gitignore`), and `JVMBRIDGE_UPDATE_SNAPSHOTS=1` accepts what a run produced.
 - `ClassFileAssert.Calls` and `DoesNotCall` check patched class bytes without a JVM. Give them a `descriptor` to match the call's whole member reference rather than only its owner and name.
+- `MavenArtifact` pins a jar of the application by checksum and caches it like a JDK; `[MavenArtifactData(repository, "group:artifact:version", sha256)]` supplies one per theory row, so a test runs against every version a patch has to handle:
+
+  ```csharp
+  [Theory]
+  [MavenArtifactData("https://maven.minecraftforge.net", "net.minecraftforge:eventbus:0.10.3", "<sha256>")]
+  [MavenArtifactData("https://maven.minecraftforge.net", "net.minecraftforge:eventbus:0.10.5", "<sha256>")]
+  public async Task PatchesTheVersionsThatNeedItAsync(MavenArtifact eventBus)
+  {
+      string jar = await eventBus.GetPathAsync(TestContext.Current.CancellationToken);
+
+      IReadOnlyList<ClassPatchResult> results = ListenerPatch.ApplyToJar(jar);
+
+      Assert.All(results, result => Assert.True(result.Changed, result.SkippedReason));
+  }
+  ```
+
+  Coordinates take an optional `:classifier` and `@extension`. A download whose checksum differs fails the test.
+- `patch.ApplyToJar(path)` (in the JvmBridge package) applies a patch to every class of a jar that it targets and returns one `ClassPatchResult` each, with the reason for each class it skips.
+- `ClassFileAssert.LinksAsync(jdk, helper, classPath, patches)` checks that a helper links against the real classes: every class, field and method it refers to must exist with that descriptor on the class path or in the JDK, found through superclasses and interfaces as the JVM finds them, and be accessible from the helper. The class path is read as the agent's patches leave it, so a getter or invoker they add, or a member they open, counts. A stub source that gets a member wrong fails here, with one line per reference, rather than as `NoSuchMethodError` on the version that differs. The application's classes are read from their class files, so their own dependencies need not be on the class path; the JDK's are looked up by a small Java program on `jdk`.
 
 Test patches on class bytes first (`patch.Apply(bytes)` returns a `ClassPatchResult` that says what changed, or why nothing did), and run a JVM only for behavior the bytes cannot show. Patch tests need no JDK, no published agent and no native toolchain.
 

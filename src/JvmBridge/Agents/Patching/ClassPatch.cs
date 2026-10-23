@@ -485,6 +485,47 @@ public sealed class ClassPatch
     }
 
     /// <summary>
+    /// Applies the patch to every class of a jar that it targets, without a JVM, so a test can assert which versions of an application a patch changes and which it skips: <c>patch.ApplyToJar("forge-1.12.2-universal.jar")</c>. Every class of the jar
+    /// counts towards the supertypes that <see cref="ForSubclassesOf"/> follows, and the definition-time edits apply as they do when a class is first defined.
+    /// </summary>
+    /// <param name="path">The jar, or any zip of class files.</param>
+    /// <returns>One result per class that the patch targets, in the order of the jar's entries; empty when it targets none.</returns>
+    /// <exception cref="IOException">The jar cannot be read.</exception>
+    public IReadOnlyList<ClassPatchResult> ApplyToJar(string path)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+
+        List<byte[]> classes = [];
+
+        using (System.IO.Compression.ZipArchive jar = System.IO.Compression.ZipFile.OpenRead(path))
+        {
+            foreach (System.IO.Compression.ZipArchiveEntry entry in jar.Entries)
+            {
+                bool isClass = entry.FullName.EndsWith(value: ".class", StringComparison.Ordinal) && !entry.FullName.StartsWith(value: "META-INF/", StringComparison.Ordinal);
+
+                if (!isClass || entry.FullName.EndsWith(value: "module-info.class", StringComparison.Ordinal))
+                    continue;
+
+                using Stream stream = entry.Open();
+                using MemoryStream copy = new();
+
+                stream.CopyTo(copy);
+                classes.Add(copy.ToArray());
+            }
+        }
+
+        ClassHierarchy hierarchy = new();
+
+        foreach (byte[] bytes in classes)
+        {
+            if (ClassHeader.TryRead(bytes, includeAnnotations: false, out ClassHeader? header))
+                hierarchy.Add(header.Name, header.SuperName, header.Interfaces);
+        }
+
+        return [.. classes.Where(bytes => Matches(bytes, hierarchy)).Select(bytes => Apply(bytes))];
+    }
+
+    /// <summary>
     /// Checks that helper classes the agent defines declare the static methods this patch calls in them: the targets of its redirects, its construction factories and its advice hooks. A target in a class that is not among the helpers, such as one of the
     /// JDK, is not checked. <see cref="AgentContext.Patch"/> and <see cref="AgentContext.DefineClass"/> run this check, and a test can run it without a JVM.
     /// </summary>
