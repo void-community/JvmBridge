@@ -77,7 +77,11 @@
       ]]></Code>
     </Task>
   </UsingTask>
-  <Target Name="_JvmBridgeCompileJava" Condition="'@(JavaSource)' != ''" Inputs="@(JavaSource);$(MSBuildProjectFullPath)" Outputs="$(IntermediateOutputPath)jvmbridge-java/javac.stamp">
+  <!--
+    JavaSource items are compiled and embedded. They compile against JavaCompileReference items (jars or class directories of the application, never embedded), the jars of JavaReference items, and JavaStubSource items: stand-ins for
+    application classes, compiled first and never embedded, which may declare a member public that SetFieldAccess or SetMethodAccess opens at run time.
+  -->
+  <Target Name="_JvmBridgeCompileJava" Condition="'@(JavaSource)' != ''" Inputs="@(JavaSource);@(JavaStubSource);@(JavaCompileReference);@(JavaReference);$(MSBuildProjectFullPath)" Outputs="$(IntermediateOutputPath)jvmbridge-java/javac.stamp">
     <PropertyGroup>
       <_JvmBridgeJavaDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'jvmbridge-java'))</_JvmBridgeJavaDirectory>
       <_JvmBridgeJdk>$(JvmBridgeJdkHome)</_JvmBridgeJdk>
@@ -108,10 +112,32 @@
         <Argument>&quot;$([System.String]::Copy('%(FullPath)').Replace('\', '/'))&quot;</Argument>
       </_JvmBridgeJavaSource>
     </ItemGroup>
-    <RemoveDir Directories="$(_JvmBridgeJavaDirectory)classes" />
+    <ItemGroup>
+      <_JvmBridgeJavaStubSource Include="@(JavaStubSource->'%(FullPath)')">
+        <Argument>&quot;$([System.String]::Copy('%(FullPath)').Replace('\', '/'))&quot;</Argument>
+      </_JvmBridgeJavaStubSource>
+      <_JvmBridgeJavaClassPath Include="@(JavaCompileReference->'%(FullPath)');@(JavaReference->'%(FullPath)')" />
+      <_JvmBridgeJavaClassPath Include="$(_JvmBridgeJavaDirectory)stubs" Condition="'@(JavaStubSource)' != ''" />
+      <_JvmBridgeJavaClassPath>
+        <Entry>$([System.String]::Copy('%(FullPath)').Replace('\', '/'))</Entry>
+      </_JvmBridgeJavaClassPath>
+    </ItemGroup>
+    <PropertyGroup>
+      <!-- javac's class path is one argument with the platform's separator; on Windows that is a semicolon, which the argument file gets unescaped. -->
+      <_JvmBridgeJavaPathSeparator Condition="'$(OS)' == 'Windows_NT'">%3B</_JvmBridgeJavaPathSeparator>
+      <_JvmBridgeJavaPathSeparator Condition="'$(OS)' != 'Windows_NT'">:</_JvmBridgeJavaPathSeparator>
+      <_JvmBridgeJavaClassPathText>@(_JvmBridgeJavaClassPath->'%(Entry)', '$(_JvmBridgeJavaPathSeparator)')</_JvmBridgeJavaClassPathText>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_JvmBridgeJavaDirectory)classes;$(_JvmBridgeJavaDirectory)stubs" />
     <MakeDir Directories="$(_JvmBridgeJavaDirectory)classes" />
+    <WriteLinesToFile File="$(_JvmBridgeJavaDirectory)options.txt" Lines="-classpath;&quot;$(_JvmBridgeJavaClassPathText)&quot;" Overwrite="true" Condition="'@(_JvmBridgeJavaClassPath)' != ''" />
+    <WriteLinesToFile File="$(_JvmBridgeJavaDirectory)options.txt" Lines="-classpath;&quot;&quot;" Overwrite="true" Condition="'@(_JvmBridgeJavaClassPath)' == ''" />
+    <MakeDir Directories="$(_JvmBridgeJavaDirectory)stubs" Condition="'@(JavaStubSource)' != ''" />
+    <WriteLinesToFile File="$(_JvmBridgeJavaDirectory)stub-sources.txt" Lines="@(_JvmBridgeJavaStubSource->'%(Argument)')" Overwrite="true" Condition="'@(JavaStubSource)' != ''" />
+    <Exec Condition="'@(JavaStubSource)' != ''" Command="&quot;$(_JvmBridgeJavac)&quot; --release $(JavaRelease) -encoding UTF-8 -proc:none -Xlint:-options -d &quot;$(_JvmBridgeJavaDirectory)stubs&quot; @&quot;$(_JvmBridgeJavaDirectory)options.txt&quot; @&quot;$(_JvmBridgeJavaDirectory)stub-sources.txt&quot;" />
     <WriteLinesToFile File="$(_JvmBridgeJavaDirectory)sources.txt" Lines="@(_JvmBridgeJavaSource->'%(Argument)')" Overwrite="true" />
-    <Exec Command="&quot;$(_JvmBridgeJavac)&quot; --release $(JavaRelease) -encoding UTF-8 -proc:none -Xlint:-options -d &quot;$(_JvmBridgeJavaDirectory)classes&quot; @&quot;$(_JvmBridgeJavaDirectory)sources.txt&quot;" />
+    <!-- -implicit:none keeps javac from writing class files for sources it finds on the class path, which would be embedded as helpers. -->
+    <Exec Command="&quot;$(_JvmBridgeJavac)&quot; --release $(JavaRelease) -encoding UTF-8 -proc:none -implicit:none -Xlint:-options -d &quot;$(_JvmBridgeJavaDirectory)classes&quot; @&quot;$(_JvmBridgeJavaDirectory)options.txt&quot; @&quot;$(_JvmBridgeJavaDirectory)sources.txt&quot;" />
     <Touch Files="$(_JvmBridgeJavaDirectory)javac.stamp" AlwaysCreate="true" />
   </Target>
   <Target Name="_JvmBridgeGenerateJavaClasses" DependsOnTargets="_JvmBridgeCompileJava" BeforeTargets="BeforeCompile;CoreCompile" Condition="'@(JavaSource)' != ''">
@@ -121,7 +147,7 @@
     <JvmBridgeGenerateJavaClasses ClassesDirectory="$(_JvmBridgeJavaDirectory)classes" GeneratorAssembly="$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'analyzers', 'dotnet', 'cs', 'JvmBridge.Generator.dll'))" OutputFile="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs" />
     <ItemGroup>
       <Compile Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs" />
-      <FileWrites Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs;$(_JvmBridgeJavaDirectory)javac.stamp;$(_JvmBridgeJavaDirectory)sources.txt" />
+      <FileWrites Include="$(_JvmBridgeJavaDirectory)JavaClasses.g.cs;$(_JvmBridgeJavaDirectory)javac.stamp;$(_JvmBridgeJavaDirectory)sources.txt;$(_JvmBridgeJavaDirectory)stub-sources.txt;$(_JvmBridgeJavaDirectory)options.txt" />
     </ItemGroup>
   </Target>
   <!-- Typed proxies: JavaReference items name jars, and their Types metadata selects the classes to wrap as JavaProxies.<Package>.<Class>. -->
