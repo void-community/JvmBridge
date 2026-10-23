@@ -169,7 +169,7 @@ jobs:
   # Java 6 and 7 from the same build as Java 8 to 26: samples/LegacyAgent (JavaRelease 6) is linked against the glibc 2.12 sysroot, runs on Zulu 6 and 7 and Temurin 8 and 21 on the
   # runner, and on Zulu 6 and 7 in CentOS 6. linux-x64 is the platform with pinned Java 6 and 7 JDKs that CI runs. It is outside the coverage gate, which holds the Java 8 to 26 grid.
   legacy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       PACKAGE_VERSION: ${{ inputs.version }}
