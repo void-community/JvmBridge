@@ -36,7 +36,7 @@ internal sealed class CompatibilityAgent : JavaAgent
     {
         ArgumentNullException.ThrowIfNull(context);
         OnLoad(context);
-        context.Log(message: "ATTACH");
+        context.Log("ATTACH java=" + context.JavaMajor.ToString(CultureInfo.InvariantCulture));
         AttachWorker(context.VirtualMachine);
     }
 
@@ -50,7 +50,7 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnLoad(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Log("LOAD java=" + context.JavaMajor.ToString(CultureInfo.InvariantCulture));
+        context.Log(message: "LOAD");
     }
 
     /// <inheritdoc/>
@@ -70,7 +70,8 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnVmInit(AgentContext context, JavaEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Log(message: "VM_INIT");
+        // The JVM sets java.specification.version while it initializes, so the Java version is known from here on, not in OnLoad.
+        context.Log("VM_INIT java=" + context.JavaMajor.ToString(CultureInfo.InvariantCulture));
 
         AttachWorker(context.VirtualMachine);
     }

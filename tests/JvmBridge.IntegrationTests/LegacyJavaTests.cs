@@ -64,7 +64,8 @@ public sealed class LegacyJavaTests
 
         using TemporaryDirectory work = new(prefix: "jvmbridge-legacy-");
 
-        string jar = LauncherJar.Write(Path.Combine(work.Path, path2: "LegacyAgent.jar"), [AgentLibrary.FromFile(Rid, agent)]);
+        string jar = Path.Combine(work.Path, path2: "LegacyAgent.jar");
+        string launcher = LauncherJar.Write(jar, [AgentLibrary.FromFile(Rid, agent)]);
         string java = Path.Combine(home, path2: "bin", path3: "java");
         string identifier = "legacy-" + major.ToString(CultureInfo.InvariantCulture);
         string expectedVersion = major < 9 ? "JAVA 1." + major.ToString(CultureInfo.InvariantCulture) : "JAVA " + major.ToString(CultureInfo.InvariantCulture);
@@ -81,8 +82,9 @@ public sealed class LegacyJavaTests
             cancellationToken: cancellationToken
         );
 
-        AssertRan(library.Output, expectedVersion, route: "-agentpath", start: "VM_INIT");
-        AssertRan(launched.Output, expectedVersion, route: "-javaagent", start: "ATTACH");
+        string javaMajor = " java=" + major.ToString(CultureInfo.InvariantCulture);
+        AssertRan(library.Output, expectedVersion, route: "-agentpath", "VM_INIT" + javaMajor);
+        AssertRan(launched.Output, expectedVersion, "-javaagent (" + launcher + ")", "ATTACH" + javaMajor);
 
         if (!ImageEnabled || major > 7)
             return;
@@ -102,8 +104,8 @@ public sealed class LegacyJavaTests
             cancellationToken: cancellationToken
         );
 
-        AssertRan(oldLibrary.Output, expectedVersion, "-agentpath in " + image, start: "VM_INIT");
-        AssertRan(oldLaunched.Output, expectedVersion, "-javaagent in " + image, start: "ATTACH");
+        AssertRan(oldLibrary.Output, expectedVersion, "-agentpath in " + image, "VM_INIT" + javaMajor);
+        AssertRan(oldLaunched.Output, expectedVersion, "-javaagent in " + image, "ATTACH" + javaMajor);
     }
 
     private static string AgentPath(RepositoryContext repository)
