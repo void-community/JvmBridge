@@ -3,8 +3,8 @@ package jvmbridge;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.Properties;
 
 /**
@@ -17,7 +17,7 @@ import java.util.Properties;
  * {@code jvmbridge pack} gives this class a name of its own in every jar (a name with the same length, so only one
  * constant changes), because the JVM loads the class of the first {@code -javaagent} jar for every jar that names it.
  *
- * Compile with a Java 8 compiler and {@code -source 8 -target 8}, so that the class runs on every JVM.
+ * It uses only Java 6 APIs. Compile it with a Java 8 compiler and {@code -source 6 -target 6}, so that the class runs on every JVM from Java 6.
  */
 public final class Launcher {
     private static final String OPTIONS = "jvmbridge.options";
@@ -86,6 +86,15 @@ public final class Launcher {
         return false;
     }
 
+    private static void restrictToOwner(File directory) throws IOException {
+        boolean closed = directory.setReadable(false, false) && directory.setWritable(false, false) && directory.setExecutable(false, false);
+        boolean opened = directory.setReadable(true, true) && directory.setWritable(true, true) && directory.setExecutable(true, true);
+
+        if (!closed || !opened) {
+            throw new IOException("Could not make " + directory + " private");
+        }
+    }
+
     private static synchronized void start(String arguments) {
         if (started) {
             System.err.println("jvmbridge: " + Launcher.class.getName() + " is already started in this JVM; ignoring the second start.");
@@ -136,15 +145,33 @@ public final class Launcher {
             throw new IllegalStateException("The jar is missing " + resource);
         }
 
-        // A private directory per start: a predictable path in a shared temporary directory would let another user supply the library.
-        File directory = Files.createTempDirectory("jvmbridge-").toFile();
+        // A private directory per start: a predictable path in a shared temporary directory would let another user supply the library. mkdir fails when
+        // someone else created the directory between delete and mkdir, and the directory is closed to everyone else before the library goes in.
+        File directory = File.createTempFile("jvmbridge-", "");
+
+        if (!directory.delete() || !directory.mkdir()) {
+            throw new IOException("Could not create the private directory " + directory);
+        }
+
+        restrictToOwner(directory);
+
         File library = new File(directory, name);
 
         directory.deleteOnExit();
         library.deleteOnExit();
 
         try {
-            Files.copy(source, library.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            OutputStream target = new FileOutputStream(library);
+
+            try {
+                byte[] buffer = new byte[65536];
+
+                for (int count = source.read(buffer); count > 0; count = source.read(buffer)) {
+                    target.write(buffer, 0, count);
+                }
+            } finally {
+                target.close();
+            }
         } finally {
             source.close();
         }

@@ -38,19 +38,21 @@ public sealed class Jdk
     /// Compiles Java sources with this JDK's <c>javac</c> into a new temporary directory.
     /// </summary>
     /// <param name="sources">A source file, a directory, or a pattern such as <c>Fixtures/**/*.java</c>, relative to the test assembly's directory or the current directory.</param>
-    /// <param name="release">The Java release to compile for, 8 by default.</param>
+    /// <param name="release">The Java release to compile for, 8 by default. Releases 6 and 7 need a JDK that still compiles for them: Java 8 to 11 for 6, Java 8 to 19 for 7.</param>
     /// <param name="cancellationToken">Cancels the compilation.</param>
     /// <returns>The directory of class files, to use as a class path.</returns>
     public async Task<string> CompileAsync(string sources, int? release = null, CancellationToken cancellationToken = default)
     {
         int target = release ?? 8;
-        ArgumentOutOfRangeException.ThrowIfLessThan(target, other: 8);
+        ArgumentOutOfRangeException.ThrowIfLessThan(target, other: 6);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(target, Major);
         string home = await GetHomeAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         string[] files = SourceGlob.Resolve(sources, [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]);
         string output = Directory.CreateTempSubdirectory(prefix: "jvmbridge-classes-").FullName;
         string javac = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
-        List<string> arguments = Major == 8 ? ["-source", "8", "-target", "8"] : ["--release", target.ToString(CultureInfo.InvariantCulture)];
+        // javac 8 and older have no --release; javac 9 to 11 compile for Java 6 and later, 12 to 19 for 7 and later, 20 and later for 8 and later.
+        string version = target.ToString(CultureInfo.InvariantCulture);
+        List<string> arguments = Major <= 8 ? ["-source", version, "-target", version] : ["--release", version];
         arguments.AddRange(["-Xlint:-options", "-encoding", "UTF-8", "-d", output, "-cp", output]);
         arguments.AddRange(files);
 

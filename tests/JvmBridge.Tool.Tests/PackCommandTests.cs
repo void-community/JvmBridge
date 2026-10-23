@@ -12,14 +12,14 @@ namespace JvmBridge.Tool.Tests;
 /// <summary>Verifies <c>jvmbridge pack</c>.</summary>
 public sealed class PackCommandTests
 {
-    /// <summary>The launcher class in the jar is a Java 8 class file, so it loads on every JVM.</summary>
+    /// <summary>The launcher class in the jar is a Java 6 class file, so it loads on every JVM from Java 6.</summary>
     [Fact]
-    public void CarriesAJava8Launcher()
+    public void CarriesAJava6Launcher()
     {
         byte[] launcher = LauncherJar.ReadLauncher();
 
         Assert.Equal(new byte[] { 0xCA, 0xFE, 0xBA, 0xBE }, launcher[..4]);
-        Assert.Equal(expected: 52, (launcher[6] << 8) | launcher[7]);
+        Assert.Equal(expected: 50, (launcher[6] << 8) | launcher[7]);
     }
 
     /// <summary>Jars of single platforms combine into one, which is what a CI matrix that publishes each platform on its own runner needs; the same library twice counts once.</summary>

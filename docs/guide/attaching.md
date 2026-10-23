@@ -43,16 +43,16 @@ Start it with:
 java -javaagent:agent.jar=log=debug -jar application.jar
 ```
 
-The jar carries a small Java launcher, compiled for Java 8, that the JVM runs as `premain`. It extracts the library of the platform it runs on into a new private directory under `java.io.tmpdir` (`/tmp/jvmbridge-<random>` on Linux by default), loads it with `System.load`, and the library starts your agent from `JNI_OnLoad`. The text after `=` becomes `context.Options`. On Linux and macOS the extracted file is deleted as soon as it is loaded, so even a crashing JVM leaves nothing behind; where the operating system refuses to delete a loaded library (Windows), the launcher removes it when the JVM exits. A JVM on a platform that the jar has no library for stops at startup with a message that lists the platforms the jar has.
+The jar carries a small Java launcher, compiled for Java 6 so that it runs on every JVM from Java 6, that the JVM runs as `premain`. It extracts the library of the platform it runs on into a new private directory under `java.io.tmpdir` (`/tmp/jvmbridge-<random>` on Linux by default), loads it with `System.load`, and the library starts your agent from `JNI_OnLoad`. The text after `=` becomes `context.Options`. On Linux and macOS the extracted file is deleted as soon as it is loaded, so even a crashing JVM leaves nothing behind; where the operating system refuses to delete a loaded library (Windows), the launcher removes it when the JVM exits. A JVM on a platform that the jar has no library for stops at startup with a message that lists the platforms the jar has.
 
 The temporary directory must be writable. When it is missing or read-only, as on a container with a read-only root file system, the JVM stops at startup with exit code 134:
 
 ```text
-Caused by: java.lang.IllegalStateException: JvmBridge could not extract its agent library: java.nio.file.AccessDeniedException: /tmp/jvmbridge-2001056210534869447
+Caused by: java.lang.IllegalStateException: JvmBridge could not extract its agent library: java.io.IOException: Permission denied
 FATAL ERROR in native method: processing of -javaagent failed
 ```
 
-(`NoSuchFileException` when the directory does not exist.) Point the JVM at a writable directory with `-Djava.io.tmpdir=/path/to/writable`, which moves the JVM's other temporary files there too; HotSpot 8 and 17 behave this way, and with a writable `java.io.tmpdir` the agent starts and leaves nothing in it. A directory mounted `noexec` forbids loading libraries from it and needs the same workaround; that case was not tested.
+(`No such file or directory` when the directory does not exist.) Point the JVM at a writable directory with `-Djava.io.tmpdir=/path/to/writable`, which moves the JVM's other temporary files there too; HotSpot 8, 17 and 21 behave this way, and with a writable `java.io.tmpdir` the agent starts and leaves nothing in it. A directory mounted `noexec` forbids loading libraries from it and needs the same workaround; that case was not tested.
 
 The route was run against HotSpot 8, 17 and 21 on linux-arm64: the whole BridgeFixture harness of the HelloAgent sample passes through a jar, and `JAVA_TOOL_OPTIONS=-javaagent:agent.jar` loads the agent in the same way. The CI matrix runs the same jar scenario on every other platform and JVM.
 

@@ -16,7 +16,7 @@ public sealed class LauncherTests
     public async Task DetectsThePlatformAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
-        string classes = await jdk.CompileAsync(sources: "Launcher/*.java", cancellationToken: TestContext.Current.CancellationToken);
+        string classes = await jdk.CompileAsync(sources: "Launcher/*.java", release: 6, TestContext.Current.CancellationToken);
 
         try
         {
@@ -31,13 +31,13 @@ public sealed class LauncherTests
         }
     }
 
-    /// <summary>The launcher class that the tool carries is what Launcher.java compiles to with Java 8, so the source and the checked-in class cannot drift apart.</summary>
+    /// <summary>The launcher class that the tool carries is what Launcher.java compiles to with Java 8 for Java 6, so the source and the checked-in class cannot drift apart.</summary>
     [Theory]
     [JdkData(8)]
     public async Task EmbeddedClassMatchesTheSourceAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
-        string classes = await jdk.CompileAsync(sources: "Launcher/*.java", cancellationToken: TestContext.Current.CancellationToken);
+        string classes = await jdk.CompileAsync(sources: "Launcher/*.java", release: 6, TestContext.Current.CancellationToken);
 
         try
         {
@@ -45,7 +45,7 @@ public sealed class LauncherTests
 
             Assert.True(
                 compiled.AsSpan().SequenceEqual(LauncherJar.ReadLauncher()),
-                userMessage: "src/JvmBridge.Launcher/Launcher/Launcher.class is stale. Compile Launcher.java with Java 8 (javac -source 8 -target 8) and copy jvmbridge/Launcher.class over it."
+                userMessage: "src/JvmBridge.Launcher/Launcher/Launcher.class is stale. Compile Launcher.java with Java 8 (javac -source 6 -target 6) and copy jvmbridge/Launcher.class over it."
             );
         }
         finally
