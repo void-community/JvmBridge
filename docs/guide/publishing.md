@@ -16,7 +16,9 @@ The jar route fails the same way, as `UnsatisfiedLinkError` and `processing of -
 |---|---|---|
 | `linux-x64` | glibc 2.34 | **glibc 2.17** (it asks for symbols up to `GLIBC_2.16`) |
 | `linux-arm64` | glibc 2.34 | **glibc 2.17** |
-| `linux-arm` | glibc 2.34 | glibc 2.34: the arm32 root file system of .NET 10's image is newer (its libc has `GLIBC_2.35`) |
+| `linux-arm` | glibc 2.34 | glibc 2.34; there is no lower floor, see below |
+
+`linux-arm` cannot go lower with .NET 10: its arm32 runtime is compiled with a 64-bit `time_t`, so it calls `__clock_gettime64`, `__stat64_time64` and the other `*_time64` functions, which glibc only has from 2.34, and .NET's arm32 image accordingly has an Ubuntu 22.04 root file system. Do not link it against an older arm32 root file system: lld links a shared library with those functions unresolved without complaint, and the agent then fails to load.
 
 glibc 2.17 covers CentOS and RHEL 7, Ubuntu 18.04 and 20.04, Debian 10 and 11, and everything newer. The integration tests run the HelloAgent sample, published this way, on CentOS 7 (glibc 2.17) with Java 8, 17 and 21, through `-agentpath` and through its jar, and fail when the library asks for a newer glibc. musl (`linux-musl-*`) is a different C library and is not affected.
 
@@ -52,4 +54,4 @@ Keep the root file system at `/crossrootfs/<arch>`: its `lib` is a link to `/cro
 
 ### Checking an agent
 
-`readelf -V MyAgent.so | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1` prints the newest glibc version the library asks for; the system needs at least that one (`ldd --version` prints what a system has).
+`readelf -V MyAgent.so | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1` prints the newest glibc version the library asks for; the system needs at least that one (`ldd --version` prints what a system has). `readelf --dyn-syms -W MyAgent.so | awk '$5 == "GLOBAL" && $7 == "UND" && $8 !~ /@/'` should print nothing: a global symbol that is undefined and bound to no version was not found in the sysroot, and the library will not load.

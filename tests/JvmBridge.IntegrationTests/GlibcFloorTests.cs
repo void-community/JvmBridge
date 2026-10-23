@@ -29,7 +29,10 @@ public sealed class GlibcFloorTests
 
     private static string Rid => Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
 
-    /// <summary>The published agent asks for no glibc symbol version newer than the floor.</summary>
+    /// <summary>
+    /// The published agent asks for no glibc symbol version newer than the floor, and every global symbol it needs from another library is bound to a version. A symbol that the sysroot lacks is linked unresolved without an error, and
+    /// the library then fails to load; linking .NET 10's arm32 runtime against an old arm32 root file system does that with the 64-bit time functions of glibc 2.34.
+    /// </summary>
     [Fact(
         SkipUnless = nameof(Enabled),
         Skip = "Set JVMBRIDGE_GLIBC_IMAGE and publish HelloAgent for linux-x64 or linux-arm64 with the glibc-sysroot properties."
@@ -44,6 +47,10 @@ public sealed class GlibcFloorTests
         Version[] versions = [.. RequiredGlibc(symbols.Output)];
         Version newest = versions.Max() ?? new Version(major: 0, minor: 0);
 
+        ProcessResult dynamic = await new ProcessRunner(repository).RunAsync(["readelf", "--dyn-syms", "-W", agent], cancellationToken: TestContext.Current.CancellationToken);
+        string[] unbound = [.. UnboundSymbols(dynamic.Output)];
+
+        Assert.Empty(unbound);
         Assert.NotEmpty(versions);
         Assert.True(
             newest <= Floor,
@@ -126,6 +133,19 @@ public sealed class GlibcFloorTests
         {
             if (token.StartsWith(value: "GLIBC_", StringComparison.Ordinal) && Version.TryParse(token["GLIBC_".Length..], out Version? version))
                 yield return version;
+        }
+    }
+
+    /// <summary>Reads the global symbols that readelf --dyn-syms lists as undefined and bound to no version.</summary>
+    internal static IEnumerable<string> UnboundSymbols(string readelf)
+    {
+        foreach (string line in readelf.Split(separator: '\n'))
+        {
+            string[] columns = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+            bool undefinedGlobal = columns.Length >= 8 && columns[4] == "GLOBAL" && columns[6] == "UND";
+
+            if (undefinedGlobal && !columns[7].Contains(value: '@', StringComparison.Ordinal))
+                yield return columns[7];
         }
     }
 }
