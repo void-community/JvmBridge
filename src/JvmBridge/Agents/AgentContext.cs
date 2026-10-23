@@ -10,6 +10,7 @@ public sealed unsafe class AgentContext
 {
     private readonly jvmtiInterface_1_** _environment;
     private readonly PatchEngine _patches;
+    private int? _javaMajor;
     private bool _disposed;
     internal JavaAgent Agent { get; }
     internal bool EventsEnabled { get; set; }
@@ -55,7 +56,7 @@ public sealed unsafe class AgentContext
         LogLevel = ParsedOptions.TryGetValue("log", out string? level) ? AgentLog.ParseLevel(level, AgentLogLevel.Information) : AgentLogLevel.Information;
         IsAttached = attached;
         VirtualMachine = JavaVirtualMachine.Borrow(machine);
-        _environment = (jvmtiInterface_1_**)VirtualMachine.GetToolingEnvironment();
+        _environment = (jvmtiInterface_1_**)OpenToolingEnvironment(VirtualMachine);
         int version = 0;
         jvmtiError result = (*_environment)->GetVersionNumber(_environment, &version);
         if (result != jvmtiError.JVMTI_ERROR_NONE)
@@ -186,6 +187,38 @@ public sealed unsafe class AgentContext
 
     /// <summary>Gets whether the JVM is OpenJ9 (or IBM J9), whose checked JNI rejects defining a class with a null loader.</summary>
     internal bool IsOpenJ9 => GetSystemProperty("java.vm.name") is { } name && name.Contains("J9", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Gets the Java major version of the JVM, from its <c>java.specification.version</c>: 6 for <c>1.6</c>, 17 for <c>17</c>, or 0 when the JVM does not say. Use it to leave out what an older JVM does not have; every function JvmBridge itself
+    /// calls exists from Java 6.
+    /// </summary>
+    public int JavaMajor => _javaMajor ??= ParseJavaMajor(GetSystemProperty("java.specification.version"));
+
+    /// <summary>Reads a Java major version from a specification version such as <c>1.8</c> or <c>21</c>.</summary>
+    /// <param name="specification">The specification version, or <see langword="null"/>.</param>
+    /// <returns>The major version, or 0 when the text is not one.</returns>
+    internal static int ParseJavaMajor(string? specification)
+    {
+        if (specification is null)
+            return 0;
+
+        string text = specification.StartsWith("1.", StringComparison.Ordinal) ? specification[2..] : specification;
+        int dot = text.IndexOf('.', StringComparison.Ordinal);
+
+        return int.TryParse(dot < 0 ? text : text[..dot], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int major) ? major : 0;
+    }
+
+    // JVMTI 1.2 came with Java 7 and late Java 6 builds; early Java 6 builds offer 1.1 and 1.0. Every function JvmBridge calls is in 1.1 or 1.0.
+    private static nint OpenToolingEnvironment(JavaVirtualMachine machine)
+    {
+        foreach (uint version in new[] { Methods.JVMTI_VERSION_1_2, Methods.JVMTI_VERSION_1_1, Methods.JVMTI_VERSION_1_0 })
+        {
+            try { return machine.GetToolingEnvironment((int)version); }
+            catch (JniException failure) when (failure.ErrorCode == Methods.JNI_EVERSION) { continue; }
+        }
+
+        throw new JniException(Methods.JNI_EVERSION, operation: "GetEnv for JVMTI 1.2, 1.1 or 1.0");
+    }
 
     internal string? GetSystemProperty(string property)
     {

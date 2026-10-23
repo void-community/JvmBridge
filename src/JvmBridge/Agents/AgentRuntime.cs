@@ -32,7 +32,7 @@ public static unsafe class AgentRuntime
     /// <param name="machine">The raw JVM invocation-interface pointer.</param>
     /// <param name="entryPoint">An address inside the NativeAOT module that must remain loaded.</param>
     /// <param name="agentName">The name that prefixes the agent's log lines.</param>
-    /// <returns>The JNI version that the library needs, or <c>JNI_ERR</c> when the agent could not start.</returns>
+    /// <returns>The JNI version that the library needs, 1.6 so that Java 6 and 7 load it too, or <c>JNI_ERR</c> when the agent could not start.</returns>
     public static int StartFromLoadedLibrary(Func<JavaAgent> factory, nint machine, nint entryPoint = 0, string? agentName = null)
     {
         try
@@ -42,7 +42,7 @@ public static unsafe class AgentRuntime
             using (JavaThreadAttachment attachment = JavaVirtualMachine.Borrow(machine).AttachCurrentThread())
                 options = ReadLauncherOptions(attachment.Environment);
 
-            return StartCore(factory, machine, options, attached: true, entryPoint, agentName) == Methods.JNI_OK ? Methods.JNI_VERSION_1_8 : Methods.JNI_ERR;
+            return StartCore(factory, machine, options, attached: true, entryPoint, agentName) == Methods.JNI_OK ? Methods.JNI_VERSION_1_6 : Methods.JNI_ERR;
         }
         catch (Exception exception) when (ReportAndContain(exception))
         {

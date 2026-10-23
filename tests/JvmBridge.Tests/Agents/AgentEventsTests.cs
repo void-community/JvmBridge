@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 
 using JvmBridge.Agents;
 using JvmBridge.Native;
+using JvmBridge.Runtime;
 
 using Xunit;
 
@@ -71,6 +72,17 @@ public sealed unsafe class AgentEventsTests
         {
             AgentLog.Sink = previous;
         }
+    }
+
+    /// <summary>The Java major version comes from the specification version, which Java 8 and earlier write as 1.x.</summary>
+    [Fact]
+    public void JavaMajorReadsBothForms()
+    {
+        Assert.Equal(expected: 6, AgentContext.ParseJavaMajor(specification: "1.6"));
+        Assert.Equal(expected: 8, AgentContext.ParseJavaMajor(specification: "1.8"));
+        Assert.Equal(expected: 21, AgentContext.ParseJavaMajor(specification: "21"));
+        Assert.Equal(expected: 0, AgentContext.ParseJavaMajor(specification: null));
+        Assert.Equal(expected: 0, AgentContext.ParseJavaMajor(specification: "soon"));
     }
 
     /// <summary>A capability the JVM offers is granted and one it does not is refused, without an exception.</summary>
@@ -167,6 +179,25 @@ public sealed unsafe class AgentEventsTests
         Assert.Equal(JavaThreadState.Alive | JavaThreadState.Runnable | JavaThreadState.InNative, state);
         Assert.NotEqual(JavaThreadState.None, state & JavaThreadState.Runnable);
         Assert.Equal(JavaThreadState.None, state & JavaThreadState.Waiting);
+    }
+
+    /// <summary>A JVM that refuses JVMTI 1.2, as early Java 6 builds do, gets an agent through 1.1, and one that refuses every version fails the start with the versions it was asked for.</summary>
+    [Fact]
+    public void ToolingFallsBackToOlderVersions()
+    {
+        using FakeJvm jvm = new();
+
+        FakeJvm.OfferToolingUpTo(unchecked((int)Methods.JVMTI_VERSION_1_1));
+        AgentContext context = jvm.CreateContext(name: "java6");
+
+        Assert.Equal([unchecked((int)Methods.JVMTI_VERSION_1_2), unchecked((int)Methods.JVMTI_VERSION_1_1)], FakeJvm.ToolingRequests);
+
+        FakeJvm.OfferToolingUpTo(version: 0);
+        JniException failure = Assert.Throws<JniException>(() => jvm.CreateContext(name: "none"));
+
+        Assert.Equal(Methods.JNI_EVERSION, failure.ErrorCode);
+        Assert.Contains(expectedSubstring: "JVMTI 1.2, 1.1 or 1.0", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(expected: "java6", context.Name);
     }
 
     private sealed class SubscribingAgent(JavaEvents events) : JavaAgent

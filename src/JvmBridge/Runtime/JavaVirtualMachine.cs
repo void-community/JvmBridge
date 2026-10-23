@@ -44,7 +44,8 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
             }
             fixed (JavaVMOption* arguments = nativeOptions)
             {
-                JavaVMInitArgs configuration = new() { version = Methods.JNI_VERSION_1_8, nOptions = nativeOptions.Length, options = arguments };
+                // JNI 1.6 is the newest version Java 6 knows, and JNI 1.8 added no functions, so asking for 1.6 costs a newer JVM nothing.
+                JavaVMInitArgs configuration = new() { version = Methods.JNI_VERSION_1_6, nOptions = nativeOptions.Length, options = arguments };
                 JNIInvokeInterface_** machine = null;
                 void* environment = null;
                 Check(create(&machine, &environment, &configuration), nameof(Create));
@@ -64,7 +65,8 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     {
         EnsureAccessible();
         void* environment = null;
-        int result = (*_machine)->GetEnv(_machine, &environment, Methods.JNI_VERSION_1_8);
+        // JNI 1.6 is what Java 6 and 7 accept; a newer JVM gives the same environment for it.
+        int result = (*_machine)->GetEnv(_machine, &environment, Methods.JNI_VERSION_1_6);
         bool attached = result == Methods.JNI_EDETACHED;
         if (attached)
             result = (*_machine)->AttachCurrentThreadAsDaemon(_machine, &environment, null);

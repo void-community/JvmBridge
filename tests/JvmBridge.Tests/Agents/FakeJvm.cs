@@ -15,8 +15,10 @@ internal sealed unsafe class FakeJvm : IDisposable
     internal const string CollectionName = "Agent tests";
 
     private static readonly List<EventToggle> RecordedToggles = [];
+    private static readonly List<int> RequestedTooling = [];
     private static nint s_currentTooling;
     private static jvmtiEventCallbacks s_installedCallbacks;
+    private static int s_newestTooling;
     private static int s_offeredCapabilities;
     private static int s_reportedThreadState;
 
@@ -28,6 +30,8 @@ internal sealed unsafe class FakeJvm : IDisposable
         RecordedToggles.Clear();
         s_offeredCapabilities = 0;
         s_reportedThreadState = 0;
+        s_newestTooling = int.MaxValue;
+        RequestedTooling.Clear();
         s_installedCallbacks = default;
         jvmtiInterface_1_* toolingTable = (jvmtiInterface_1_*)NativeMemory.AllocZeroed((nuint)sizeof(jvmtiInterface_1_));
         toolingTable->GetVersionNumber = &Version;
@@ -51,6 +55,9 @@ internal sealed unsafe class FakeJvm : IDisposable
     /// <summary>Gets the event notifications that the agent enabled or disabled, in order.</summary>
     internal static IReadOnlyList<EventToggle> Toggles => RecordedToggles;
 
+    /// <summary>Gets the JVMTI versions that were asked for with <c>GetEnv</c>, in order.</summary>
+    internal static IReadOnlyList<int> ToolingRequests => RequestedTooling;
+
     /// <summary>Gets the pointer that stands for the JVM, as the JVM passes to <c>Agent_OnLoad</c>.</summary>
     internal nint Machine => (nint)_machine;
 
@@ -71,6 +78,12 @@ internal sealed unsafe class FakeJvm : IDisposable
 
         foreach (JavaCapability capability in capabilities)
             s_offeredCapabilities |= 1 << (int)capability;
+    }
+
+    /// <summary>Makes the JVM refuse JVMTI versions newer than one, as Java 6 refuses 1.2.</summary>
+    internal static void OfferToolingUpTo(int version)
+    {
+        s_newestTooling = version;
     }
 
     /// <summary>Sets the state bits that <c>GetThreadState</c> reports.</summary>
@@ -110,6 +123,11 @@ internal sealed unsafe class FakeJvm : IDisposable
     [UnmanagedCallersOnly]
     private static int GetEnvironment(JNIInvokeInterface_** machine, void** environment, int version)
     {
+        RequestedTooling.Add(version);
+
+        if (version > s_newestTooling)
+            return Methods.JNI_EVERSION;
+
         *environment = (void*)s_currentTooling;
 
         return Methods.JNI_OK;
