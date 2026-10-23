@@ -186,6 +186,8 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (introduced.Count > 0 || result.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
             throw new InvalidOperationException("Agent introduced JNI diagnostics: " + JsonSerializer.Serialize(introduced, JsonFile.Options));
 
+        await RedirectedLogTestAsync(java, agent, fixture, directory, environment, result.Output, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         bool helperInstalledOncePerLoader = result.Output.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
         bool calledOnThreads = result.Output.Split(separator: "HELPER_THREAD_OK", StringSplitOptions.None).Length >= 4;
 
@@ -629,5 +631,41 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             command.Add(options);
 
         await _processRunner.RunCheckedAsync(command, logPath, environment: environment, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+    }
+
+    // Standard error redirected to a file, as java ... > app.log 2>&1 does: every line the agent logs must be in the file, as it is on a pipe. Windows writes through the console API.
+    private async Task RedirectedLogTestAsync(
+        string java,
+        string agent,
+        string fixture,
+        string directory,
+        IReadOnlyDictionary<string, string?> environment,
+        string piped,
+        CancellationToken cancellationToken
+    )
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        string redirected = Path.Combine(directory, path2: "startup-redirected.log");
+
+        ProcessResult shell = await _processRunner.RunAsync(
+            ["sh", "-c", "\"$0\" -agentpath:\"$1\" -cp \"$2\" BridgeFixture > \"$3\" 2>&1", java, agent, fixture, redirected],
+            Path.Combine(directory, path2: "startup-redirected-shell.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        const string line = "HelloAgent: patched ";
+        int expected = piped.Split(line).Length - 1;
+        int written = (await File.ReadAllTextAsync(redirected, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Split(line).Length - 1;
+        bool complete = shell.ExitCode == 0 && expected > 0 && written == expected;
+
+        if (!complete)
+        {
+            throw new InvalidOperationException(
+                $"With standard error redirected to a file the agent's log has {written} of the {expected} '{line.Trim()}' lines it has on a pipe."
+            );
+        }
     }
 }
