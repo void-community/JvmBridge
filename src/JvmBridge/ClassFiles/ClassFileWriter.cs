@@ -1,9 +1,11 @@
 using System.Buffers.Binary;
 
+using JvmBridge.ClassFiles.Code;
+
 namespace JvmBridge.ClassFiles;
 
 /// <summary>Writes small classes made of static methods. Straight-line code needs no stack map frames, so only code without branches is supported for version 51 and later.</summary>
-public sealed class ClassFileWriter
+public sealed class ClassFileWriter : IConstantPool
 {
     /// <summary>Class access flags <c>ACC_PUBLIC | ACC_SUPER</c>.</summary>
     public const int PublicSuper = 0x0021;
@@ -106,7 +108,7 @@ public sealed class ClassFileWriter
     /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
     /// <param name="maxStack">The maximum operand stack depth.</param>
     /// <param name="maxLocals">The number of local variable slots, including parameters.</param>
-    /// <param name="code">The bytecode. It must not contain branches, switches or exception handlers.</param>
+    /// <param name="code">The bytecode. It must not contain switches or exception handlers, nor branches in a class of version 51 or later; <see cref="AddMethod(string, string, Func{CodeBuilder, CodeBuilder}, int)"/> writes it without byte literals.</param>
     /// <param name="accessFlags">The <c>ACC_</c> bits; public and static by default, so that patched code can call it.</param>
     /// <returns>This writer.</returns>
     public ClassFileWriter AddMethod(string name, string descriptor, int maxStack, int maxLocals, ReadOnlySpan<byte> code, int accessFlags = PublicStatic)
@@ -124,6 +126,32 @@ public sealed class ClassFileWriter
         _methods.Add((accessFlags, nameIndex, descriptorIndex, maxStack, maxLocals, code.ToArray()));
         _ = _declared.Add((name, descriptor));
         return this;
+    }
+
+    /// <summary>
+    /// Adds a method whose body a <see cref="CodeBuilder"/> writes, with <c>max_stack</c> and <c>max_locals</c> worked out from it: <c>writer.AddMethod("name", "()Ljava/lang/String;", code =&gt; code.Ldc("text").AReturn())</c>. Branches need
+    /// stack map frames from class file version 51, which this writer does not write, so they are refused there: write a helper with branches as a <c>JavaSource</c> item, or in a class of version 50, which every JVM verifies without frames.
+    /// </summary>
+    /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
+    /// <param name="code">Writes the body and returns the builder; the parameters are in the first local variables, after <c>this</c> for an instance method.</param>
+    /// <param name="accessFlags">The <c>ACC_</c> bits; public and static by default, so that patched code can call it.</param>
+    /// <returns>This writer.</returns>
+    /// <exception cref="ArgumentException">The body branches in a class of version 51 or later.</exception>
+    /// <exception cref="InvalidOperationException">The body is not consistent: it pops more than the stack holds, has code no path reaches, or branches to a label it never places.</exception>
+    public ClassFileWriter AddMethod(string name, string descriptor, Func<CodeBuilder, CodeBuilder> code, int accessFlags = PublicStatic)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        ValidateMethod(name, descriptor, accessFlags);
+
+        int receiver = (accessFlags & 0x0008) == 0 ? 1 : 0;
+        CodeBuilder builder = new(this, Opcodes.CountArgumentSlots(descriptor) + receiver);
+        CodeBuilder.RequireSame(builder, code(builder));
+
+        if (builder.HasBranches && _majorVersion >= 51)
+            throw new ArgumentException($"{name}{descriptor} branches, which a class file of version {_majorVersion} only allows with stack map frames that this writer does not write.", nameof(code));
+
+        return AddMethod(name, descriptor, builder.MaxStack, builder.MaxLocals, builder.ToArray(), accessFlags);
     }
 
     /// <summary>Adds a <c>public static native</c> method without a body, for registration with RegisterNatives.</summary>

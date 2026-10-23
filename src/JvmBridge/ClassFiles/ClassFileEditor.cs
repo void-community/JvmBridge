@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 using JvmBridge.ClassFiles.Advice;
+using JvmBridge.ClassFiles.Code;
 
 namespace JvmBridge.ClassFiles;
 
@@ -9,7 +10,7 @@ namespace JvmBridge.ClassFiles;
 /// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed. The one exception is
 /// the method advice that <c>ClassPatch</c> adds: it moves a method's code, byte for byte, into a new method, and gives the old method a short straight-line body.
 /// </summary>
-public sealed class ClassFileEditor
+public sealed class ClassFileEditor : IConstantPool
 {
     private byte[] _bytes;
     private JavaClassFile? _model;
@@ -232,6 +233,24 @@ public sealed class ClassFileEditor
         _bytes = candidate;
         _model = null;
         return true;
+    }
+
+    /// <summary>
+    /// Writes instructions with a <see cref="CodeBuilder"/>, adding the constants they name to this class, and returns their bytes, for <see cref="ReplaceCode"/> and for comparing with a method's code. The method's <c>max_stack</c> is not raised, so
+    /// code put in place of other code must not need a deeper stack than what it replaces. Branches are refused: they would need stack map frames that this editor does not write.
+    /// </summary>
+    /// <param name="code">Writes the instructions and returns the builder.</param>
+    /// <returns>The bytecode.</returns>
+    /// <exception cref="ArgumentException">The instructions branch.</exception>
+    public byte[] AssembleCode(Func<CodeBuilder, CodeBuilder> code)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+
+        // The stack starts deep enough for instructions that consume values the replaced code left, which only the caller can know about.
+        CodeBuilder builder = new(this, parameterSlots: 0, initialDepth: ushort.MaxValue);
+        CodeBuilder.RequireSame(builder, code(builder));
+
+        return builder.HasBranches ? throw new ArgumentException("Assembled code cannot branch: a branch target would need a stack map frame, which the editor does not write.", nameof(code)) : builder.ToArray();
     }
 
     /// <summary>Makes String constants with one value point at another value. Every use of the constant changes.</summary>
@@ -463,14 +482,12 @@ public sealed class ClassFileEditor
                 continue;
             foreach (Instruction instruction in method.Code.Instructions)
             {
-                if (instruction.Opcode == from.Opcode && instruction.ConstantIndex is int index && Matches(Model.GetMemberReference(index), from))
+                if (Model.Invokes(instruction, from))
                     sites.Add(method.Code.CodeOffset + instruction.Offset);
             }
         }
         return sites;
     }
-
-    private static bool Matches(MemberReference reference, JavaMethod method) => reference.Kind != ConstantTag.Fieldref && reference.Owner == method.Owner && reference.Name == method.Name && reference.Descriptor == method.Descriptor;
 
     private void WriteUInt16(int offset, int value)
     {

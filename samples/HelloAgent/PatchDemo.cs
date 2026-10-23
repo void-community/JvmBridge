@@ -73,47 +73,43 @@ internal static class PatchDemo
     // The hooks of the advice: afterAdd(Object self, int result) { return result + 1000; }, afterTwice(Object self, int result) { return result + 1; } and beforeGreet(Object self, String name) { System.setProperty("advice.before", name); }.
     private static JavaClassDefinition CreateAdviceHooks()
     {
-        ClassFileWriter writer = new(AdviceHooks);
-        int setProperty = writer.AddMethodReference(owner: "java/lang/System", name: "setProperty", descriptor: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
-        int key = writer.AddString(value: "advice.before");
-
-        // iload_1; sipush 1000; iadd; ireturn
-        byte[] afterAdd = [0x1b, 0x11, 0x03, 0xe8, 0x60, 0xac];
-
-        // iload_1; iconst_1; iadd; ireturn
-        byte[] afterTwice = [0x1b, 0x04, 0x60, 0xac];
-
-        // ldc key; aload_1; invokestatic System.setProperty; pop; return
-        byte[] beforeGreet = [0x12, (byte)key, 0x2b, 0xb8, (byte)(setProperty >> 8), (byte)setProperty, 0x57, 0xb1];
+        JavaMethod setProperty = JavaMethod.Static(owner: "java/lang/System", name: "setProperty", descriptor: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
 
         return JavaClassDefinition.FromBytes(
-            writer.AddMethod(name: "afterAdd", descriptor: "(Ljava/lang/Object;I)I", maxStack: 2, maxLocals: 2, afterAdd)
-                .AddMethod(name: "afterTwice", descriptor: "(Ljava/lang/Object;I)I", maxStack: 2, maxLocals: 2, afterTwice)
-                .AddMethod(name: "beforeGreet", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V", maxStack: 2, maxLocals: 2, beforeGreet)
+            new ClassFileWriter(AdviceHooks).AddMethod(
+                name: "afterAdd",
+                descriptor: "(Ljava/lang/Object;I)I",
+                static code => code.ILoad(slot: 1).IConst(value: 1000).Op(Opcodes.IAdd).IReturn()
+            )
+                .AddMethod(
+                    name: "afterTwice",
+                    descriptor: "(Ljava/lang/Object;I)I",
+                    static code => code.ILoad(slot: 1).IConst(value: 1).Op(Opcodes.IAdd).IReturn()
+                )
+                .AddMethod(
+                    name: "beforeGreet",
+                    descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V",
+                    code => code.Ldc(value: "advice.before").ALoad(slot: 1).Invoke(setProperty).Pop().Return()
+                )
                 .ToArray()
         );
     }
 
-    // static int length(String value) { return 1000 + value.length(); }
+    // static int length(String value) { return 1000 + value.length(); } and static Object requireNonNull(Object value, String message) { return value; }
     private static JavaClassDefinition CreateBootstrapHelper()
     {
-        ClassFileWriter writer = new(BootstrapHelper);
-        int length = writer.AddMethodReference(owner: "java/lang/String", name: "length", descriptor: "()I");
-
-        // sipush 1000; aload_0; invokevirtual String.length; iadd; ireturn
-        byte[] code = [0x11, 0x03, 0xe8, 0x2a, 0xb6, (byte)(length >> 8), (byte)length, 0x60, 0xac];
-
-        // static Object requireNonNull(Object value, String message) { return value; }
-        byte[] passThrough = [0x2a, 0xb0];
+        JavaMethod length = JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I");
 
         return JavaClassDefinition.FromBytes(
-            writer.AddMethod(name: "length", descriptor: "(Ljava/lang/String;)I", maxStack: 2, maxLocals: 1, code)
+            new ClassFileWriter(BootstrapHelper).AddMethod(
+                name: "length",
+                descriptor: "(Ljava/lang/String;)I",
+                code => code.IConst(value: 1000).ALoad(slot: 0).Invoke(length).Op(Opcodes.IAdd).IReturn()
+            )
                 .AddMethod(
                     name: "requireNonNull",
                     descriptor: "(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;",
-                    maxStack: 1,
-                    maxLocals: 2,
-                    passThrough
+                    static code => code.ALoad(slot: 0).AReturn()
                 )
                 .ToArray()
         );
@@ -122,14 +118,10 @@ internal static class PatchDemo
     // static void sort(List list, Comparator comparator) { Collections.reverse(list); }
     private static JavaClassDefinition CreateLoaderHelper()
     {
-        ClassFileWriter writer = new(LoaderHelper);
-        int reverse = writer.AddMethodReference(owner: "java/util/Collections", name: "reverse", descriptor: "(Ljava/util/List;)V");
-
-        // aload_0; invokestatic Collections.reverse; return
-        byte[] code = [0x2a, 0xb8, (byte)(reverse >> 8), (byte)reverse, 0xb1];
+        JavaMethod reverse = JavaMethod.Static(owner: "java/util/Collections", name: "reverse", descriptor: "(Ljava/util/List;)V");
 
         return JavaClassDefinition.FromBytes(
-            writer.AddMethod(name: "sort", descriptor: "(Ljava/util/List;Ljava/util/Comparator;)V", maxStack: 1, maxLocals: 2, code).ToArray()
+            new ClassFileWriter(LoaderHelper).AddMethod(name: "sort", descriptor: "(Ljava/util/List;Ljava/util/Comparator;)V", code => code.ALoad(slot: 0).Invoke(reverse).Return()).ToArray()
         );
     }
 }

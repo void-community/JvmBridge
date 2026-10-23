@@ -118,6 +118,47 @@ public sealed class JavaClassFile
         return new MemberReference(entry.Kind, GetClassName(entry.ClassIndex), GetUtf8(nameAndType.NameIndex), GetUtf8(nameAndType.DescriptorIndex));
     }
 
+    /// <summary>Tells whether an instruction of this class calls a method: the invoke instruction of its kind, naming the same owner, name and descriptor.</summary>
+    /// <param name="instruction">An instruction from the <see cref="CodeAttribute.Instructions"/> of one of this class's methods.</param>
+    /// <param name="method">The call to look for.</param>
+    /// <returns><see langword="true"/> when the instruction is that call.</returns>
+    public bool Invokes(Instruction instruction, JavaMethod method)
+    {
+        if (instruction.Opcode != method.Opcode || instruction.ConstantIndex is not int index)
+            return false;
+
+        MemberReference reference = GetMemberReference(index);
+
+        return reference.Kind != ConstantTag.Fieldref && reference.Owner == method.Owner && reference.Name == method.Name && reference.Descriptor == method.Descriptor;
+    }
+
+    /// <summary>Tells whether an instruction of this class reads or writes a field: <c>getfield</c>, <c>putfield</c>, <c>getstatic</c> or <c>putstatic</c> naming that owner and name.</summary>
+    /// <param name="instruction">An instruction from the <see cref="CodeAttribute.Instructions"/> of one of this class's methods.</param>
+    /// <param name="owner">The internal name of the class that the instruction names as the field's owner, for example <c>com/acme/Service</c>.</param>
+    /// <param name="name">The name the field is declared with.</param>
+    /// <param name="descriptor">Its type in JVM notation, for example <c>I</c> or <c>Ljava/lang/String;</c>, or <see langword="null"/> to accept any type.</param>
+    /// <returns><see langword="true"/> when the instruction accesses that field.</returns>
+    public bool AccessesField(Instruction instruction, string owner, string name, string? descriptor = null)
+    {
+        if (instruction.Opcode is < Opcodes.GetStatic or > Opcodes.PutField || instruction.ConstantIndex is not int index)
+            return false;
+
+        MemberReference reference = GetMemberReference(index);
+
+        return reference.Owner == owner && reference.Name == name && (descriptor is null || reference.Descriptor == descriptor);
+    }
+
+    /// <summary>Tells whether an instruction of this class names a class: <c>new</c>, <c>checkcast</c>, <c>instanceof</c>, <c>anewarray</c>, <c>multianewarray</c>, or <c>ldc</c> of a class literal.</summary>
+    /// <param name="instruction">An instruction from the <see cref="CodeAttribute.Instructions"/> of one of this class's methods.</param>
+    /// <param name="className">The internal name to look for, for example <c>java/util/ArrayList</c>.</param>
+    /// <returns><see langword="true"/> when the instruction's operand is that class.</returns>
+    public bool ReferencesClass(Instruction instruction, string className)
+    {
+        bool namesClass = instruction.Opcode is Opcodes.New or Opcodes.CheckCast or Opcodes.InstanceOf or Opcodes.ANewArray or Opcodes.MultiANewArray or Opcodes.Ldc or Opcodes.LdcW;
+
+        return namesClass && instruction.ConstantIndex is int index && ConstantPool.ElementAtOrDefault(index) is ClassEntry && GetClassName(index) == className;
+    }
+
     /// <summary>Finds a declared method.</summary>
     /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">The method descriptor, or <see langword="null"/> to accept any overload.</param>

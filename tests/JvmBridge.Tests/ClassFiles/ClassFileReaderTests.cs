@@ -46,7 +46,7 @@ public sealed class ClassFileReaderTests
     [Fact]
     public void DecodesWideInstructions()
     {
-        byte[] code = [Opcodes.Wide, Opcodes.Iinc, 0x01, 0x00, 0x00, 0x02, Opcodes.Wide, 0x15, 0x01, 0x00, 0xb1];
+        byte[] code = [Opcodes.Wide, Opcodes.IInc, 0x01, 0x00, 0x00, 0x02, Opcodes.Wide, 0x15, 0x01, 0x00, 0xb1];
         byte[] bytes = new ClassFileWriter(name: "pkg/Wide").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code).ToArray();
 
         int[] lengths = [.. JavaClassFile.Read(bytes).GetCode(name: "run").Instructions.Select(static instruction => instruction.Length)];

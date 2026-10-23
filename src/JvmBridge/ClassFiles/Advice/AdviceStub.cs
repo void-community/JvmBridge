@@ -6,8 +6,6 @@ namespace JvmBridge.ClassFiles.Advice;
 /// </summary>
 internal static class AdviceStub
 {
-    private const byte AconstNull = 0x01;
-    private const byte ReturnVoid = 0xb1;
 
     /// <summary>Builds the code of the stub.</summary>
     /// <param name="isStatic">Whether the advised method is static, in which case the hooks receive <see langword="null"/> for the receiver.</param>
@@ -33,7 +31,7 @@ internal static class AdviceStub
         }
 
         if (!isStatic)
-            Emit(code, shortForm: 0x2a, longForm: 0x19, slot: 0);
+            Emit(code, shortForm: Opcodes.ALoad0, longForm: Opcodes.ALoad, slot: 0);
 
         LoadArguments(code, method, receiverSlots);
         Invoke(code, isStatic ? Opcodes.InvokeStatic : Opcodes.InvokeSpecial, bodyReference);
@@ -122,23 +120,23 @@ internal static class AdviceStub
         switch (type[0])
         {
             case 'J':
-                Emit(code, shortForm: 0x1e, longForm: 0x16, slot);
+                Emit(code, shortForm: Opcodes.LLoad0, longForm: Opcodes.LLoad, slot);
 
                 break;
             case 'F':
-                Emit(code, shortForm: 0x22, longForm: 0x17, slot);
+                Emit(code, shortForm: Opcodes.FLoad0, longForm: Opcodes.FLoad, slot);
 
                 break;
             case 'D':
-                Emit(code, shortForm: 0x26, longForm: 0x18, slot);
+                Emit(code, shortForm: Opcodes.DLoad0, longForm: Opcodes.DLoad, slot);
 
                 break;
             case 'L' or '[':
-                Emit(code, shortForm: 0x2a, longForm: 0x19, slot);
+                Emit(code, shortForm: Opcodes.ALoad0, longForm: Opcodes.ALoad, slot);
 
                 break;
             default:
-                Emit(code, shortForm: 0x1a, longForm: 0x15, slot);
+                Emit(code, shortForm: Opcodes.ILoad0, longForm: Opcodes.ILoad, slot);
 
                 break;
         }
@@ -158,21 +156,21 @@ internal static class AdviceStub
     private static void LoadReceiver(List<byte> code, bool isStatic)
     {
         if (isStatic)
-            code.Add(AconstNull);
+            code.Add(Opcodes.AConstNull);
         else
-            Emit(code, shortForm: 0x2a, longForm: 0x19, slot: 0);
+            Emit(code, shortForm: Opcodes.ALoad0, longForm: Opcodes.ALoad, slot: 0);
     }
 
     private static byte ReturnOpcode(string type)
     {
         return type[0] switch
         {
-            'V' => ReturnVoid,
-            'J' => 0xad,
-            'F' => 0xae,
-            'D' => 0xaf,
-            'L' or '[' => 0xb0,
-            _ => 0xac,
+            'V' => Opcodes.Return,
+            'J' => Opcodes.LReturn,
+            'F' => Opcodes.FReturn,
+            'D' => Opcodes.DReturn,
+            'L' or '[' => Opcodes.AReturn,
+            _ => Opcodes.IReturn,
         };
     }
 
@@ -181,23 +179,23 @@ internal static class AdviceStub
         switch (type[0])
         {
             case 'J':
-                Emit(code, shortForm: 0x3f, longForm: 0x37, slot);
+                Emit(code, shortForm: Opcodes.LStore0, longForm: Opcodes.LStore, slot);
 
                 break;
             case 'F':
-                Emit(code, shortForm: 0x43, longForm: 0x38, slot);
+                Emit(code, shortForm: Opcodes.FStore0, longForm: Opcodes.FStore, slot);
 
                 break;
             case 'D':
-                Emit(code, shortForm: 0x47, longForm: 0x39, slot);
+                Emit(code, shortForm: Opcodes.DStore0, longForm: Opcodes.DStore, slot);
 
                 break;
             case 'L' or '[':
-                Emit(code, shortForm: 0x4b, longForm: 0x3a, slot);
+                Emit(code, shortForm: Opcodes.AStore0, longForm: Opcodes.AStore, slot);
 
                 break;
             default:
-                Emit(code, shortForm: 0x3b, longForm: 0x36, slot);
+                Emit(code, shortForm: Opcodes.IStore0, longForm: Opcodes.IStore, slot);
 
                 break;
         }

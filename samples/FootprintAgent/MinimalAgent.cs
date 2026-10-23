@@ -21,8 +21,6 @@ public sealed class MinimalAgent : JavaAgent
     // static int one() { return 1; }
     private static JavaClassDefinition CreateHelper()
     {
-        byte[] code = [0x04, 0xac];
-
-        return JavaClassDefinition.FromBytes(new ClassFileWriter(Helper).AddMethod(name: "one", descriptor: "()I", maxStack: 1, maxLocals: 0, code).ToArray());
+        return JavaClassDefinition.FromBytes(new ClassFileWriter(Helper).AddMethod(name: "one", descriptor: "()I", static code => code.IConst(value: 1).IReturn()).ToArray());
     }
 }
