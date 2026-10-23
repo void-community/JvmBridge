@@ -46,6 +46,17 @@ TARGET_RID=linux-arm64 JVMBRIDGE_FOOTPRINT=1 dotnet test tests/JvmBridge.Integra
 
 Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's footprint workflow does the same on each native runner and fails only when the library grows more than 10 percent past `docs/footprint.baseline.json`. It runs beside the tests, so a size regression is a red check on the commit and does not hold back publishing. After a deliberate change in size, download the `footprint-*` artifacts of a green run and rewrite the baseline and the published table with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
 
+## Java 6 and 7
+
+`LegacyJavaTests` runs `samples/LegacyAgent` on Zulu 6 and 7, from `src/JvmBridge.Build/legacy-jdks.lock.json`, and on Temurin 8 and 21. Zulu 6 and 7 exist for x64 only, so it runs on `linux-x64` only. Publish the sample against the glibc 2.12 sysroot of the `glibc-sysroot` action, then run it; with `JVMBRIDGE_LEGACY_GLIBC_IMAGE` set, it also checks the glibc floor and runs Java 6 and 7 in that image:
+
+```sh
+dotnet publish samples/LegacyAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -p:SysRoot=/crossrootfs/x64-glibc-2.12 -p:LinkerFlavor=lld -o artifacts/legacy-agent/linux-x64
+TARGET_RID=linux-x64 JVMBRIDGE_LEGACY_GLIBC_IMAGE=centos:6 dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~LegacyJavaTests
+```
+
+CI's `legacy` job in the test workflow does this on every commit and gates publishing. The maintenance tool's `resolve` and `update` refresh the legacy inventory with the main one.
+
 ## Reproducible maintenance
 
 ```sh
@@ -59,6 +70,6 @@ Scheduled JDK maintenance discovers stable releases, pins archive checksums, reg
 
 Every validated commit to `main` publishes its tested NuGet package using Trusted Publishing. Versions follow [**NetAgents' timestamp scheme**](https://github.com/caunt/NetAgents): `YY.M.D.B`, with a UTC time-of-day bucket from 1000 through 9999. CI freezes the timestamp once and uses the same version throughout packaging, testing, and publishing. There are no release PRs, tags or GitHub releases; the publisher never rebuilds the package. Each package carries the subjects of the commits in its push as its release notes, written by the build workflow from the push range.
 
-Both samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. Ordinary restores use the published JvmBridge baseline in `Directory.Packages.props`; the local feed is added only when `artifacts/packages` exists. CI supplies `JvmBridgeVersion` to test its freshly packed artifact. Renovate ignores JvmBridge itself to prevent publishing a package from triggering another sample dependency update and publication; update the published baseline deliberately when the examples require newer APIs. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
+The samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. Ordinary restores use the published JvmBridge baseline in `Directory.Packages.props`; the local feed is added only when `artifacts/packages` exists. CI supplies `JvmBridgeVersion` to test its freshly packed artifact. Renovate ignores JvmBridge itself to prevent publishing a package from triggering another sample dependency update and publication; update the published baseline deliberately when the examples require newer APIs. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
 
 See also [**automation setup**](automation.md) and [**agent instructions**](../AGENTS.md). Original code is [**MIT licensed**](../LICENSE); see [**upstream notices**](../NOTICE.md) for header provenance.

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <JvmBridgeAgent>true</JvmBridgeAgent>
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+    <!-- Java 6 is the oldest JVM the agent runs on, so every helper class is class version 50, and the JavaSource helpers are compiled with the pinned JDK 11. -->
+    <JavaRelease>6</JavaRelease>
+    <JvmBridgeProvisionJdk>true</JvmBridgeProvisionJdk>
+    <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)../../artifacts/packages')">$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
+    <!-- Each package-consumer run has its own version and native target. -->
+    <NuGetLockFilePath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath.Replace('\', '/'))locks/$(JvmBridgeVersion)/$(TargetFramework)/$(RuntimeIdentifier)/packages.lock.json'))</NuGetLockFilePath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="JvmBridge" />
+    <JavaSource Include="java/**/*.java" />
+  </ItemGroup>
+</Project>

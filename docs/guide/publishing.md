@@ -18,6 +18,8 @@ The jar route fails the same way, as `UnsatisfiedLinkError` and `processing of -
 | `linux-arm64` | glibc 2.34 | **glibc 2.17** |
 | `linux-arm` | glibc 2.34 | glibc 2.34; there is no lower floor, see below |
 
+For `linux-x64`, a sysroot built from CentOS 6 packages goes further, to **glibc 2.12**; see [**glibc 2.12**](#glibc-212) below.
+
 `linux-arm` cannot go lower with .NET 10: its arm32 runtime is compiled with a 64-bit `time_t`, so it calls `__clock_gettime64`, `__stat64_time64` and the other `*_time64` functions, which glibc only has from 2.34, and .NET's arm32 image accordingly has an Ubuntu 22.04 root file system. Do not link it against an older arm32 root file system: lld links a shared library with those functions unresolved without complaint, and the agent then fails to load.
 
 glibc 2.17 covers CentOS and RHEL 7, Ubuntu 18.04 and 20.04, Debian 10 and 11, and everything newer. The integration tests run the HelloAgent sample, published this way, on CentOS 7 (glibc 2.17) with Java 8, 17 and 21, through `-agentpath` and through its jar, and fail when the library asks for a newer glibc. musl (`linux-musl-*`) is a different C library and is not affected.
@@ -30,7 +32,7 @@ The `glibc-sysroot` action of [**void-community/Actions**](https://github.com/vo
 - name: Prepare the glibc 2.17 sysroot
   id: sysroot
   if: runner.os == 'Linux'
-  uses: void-community/actions/glibc-sysroot@779ebfbf56a61e10114658c560da49324f0f2380 # main
+  uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
   with:
     rid: ${{ matrix.rid }}   # linux-x64 or linux-arm64
 - run: dotnet publish MyAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained ${{ steps.sysroot.outputs.properties }} -o artifacts/agent/${{ matrix.rid }}
@@ -51,6 +53,22 @@ dotnet publish MyAgent.csproj -c Release -r linux-arm64 --self-contained -p:SysR
 ```
 
 Keep the root file system at `/crossrootfs/<arch>`: its `lib` is a link to `/crossrootfs/<arch>/usr/lib`. A `JvmBridgeAgentJar` publish packs the library it links, so the jar has the same floor.
+
+### glibc 2.12
+
+CentOS 6 (glibc 2.12), Debian 7 (2.13) and the last Java 6 images are older than any image .NET publishes. With `glibc: '2.12'`, the `glibc-sysroot` action builds a `linux-x64` sysroot from the last CentOS 6.10 packages on vault.centos.org, pinned by checksum: glibc and its headers, the kernel headers, and gcc's start files and libgcc. No Docker is needed for it.
+
+```yaml
+- id: sysroot
+  uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+  with:
+    rid: linux-x64
+    glibc: '2.12'
+```
+
+An agent linked against it asks for `GLIBC_2.12` at most: `memcpy` binds to its old `GLIBC_2.2.5` version instead of `GLIBC_2.14`. The one function the .NET runtime needs that glibc 2.12 lacks is `aligned_alloc` (glibc 2.16). The action adds a hidden copy built on `posix_memalign` to the sysroot's `libc_nonshared.a`, which every link against that glibc pulls in, so the project needs no change and the agent exports no `aligned_alloc` of its own. The properties are `-p:SysRoot=/crossrootfs/x64-glibc-2.12 -p:LinkerFlavor=lld`, plus `-p:ObjCopyName=llvm-objcopy` on an arm64 runner.
+
+The library also loads on every newer glibc. CI publishes the LegacyAgent sample this way and runs it on Ubuntu 24.04 with Java 6, 7, 8 and 21, and in a `centos:6` container with Java 6 and 7; see [**Java 6 and 7**](old-java.md).
 
 ### Checking an agent
 

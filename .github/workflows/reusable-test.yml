@@ -60,7 +60,7 @@ jobs:
       - name: Prepare the glibc 2.17 sysroot
         id: sysroot
         if: (matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64') && !matrix.container
-        uses: void-community/actions/glibc-sysroot@779ebfbf56a61e10114658c560da49324f0f2380 # main
+        uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
         with:
           rid: ${{ matrix.rid }}
       - name: Prepare Windows native toolchain
@@ -165,6 +165,54 @@ jobs:
           path: |
             artifacts/agent/
             artifacts/host/
+          if-no-files-found: error
+  # Java 6 and 7 from the same build as Java 8 to 26: samples/LegacyAgent (JavaRelease 6) is linked against the glibc 2.12 sysroot, runs on Zulu 6 and 7 and Temurin 8 and 21 on the
+  # runner, and on Zulu 6 and 7 in CentOS 6. linux-x64 is the platform with pinned Java 6 and 7 JDKs that CI runs. It is outside the coverage gate, which holds the Java 8 to 26 grid.
+  legacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PACKAGE_VERSION: ${{ inputs.version }}
+      TARGET_RID: linux-x64
+      Version: ${{ inputs.version }}
+      VersionTimestamp: ${{ inputs.timestamp }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: |
+            10.0.401
+            11.0.100-rc.1.26425.128
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: packages
+          path: artifacts/packages
+      - name: Prepare Linux native toolchain
+        run: sudo apt-get update -qq && sudo apt-get install -y clang lld build-essential zlib1g-dev
+      - name: Prepare the glibc 2.12 sysroot
+        id: sysroot
+        uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+        with:
+          rid: linux-x64
+          glibc: '2.12'
+      - name: Publish the legacy agent and run it on Java 6, 7, 8 and 21
+        shell: bash
+        env:
+          SYSROOT_PROPERTIES: ${{ steps.sysroot.outputs.properties }}
+          JVMBRIDGE_LEGACY_GLIBC_IMAGE: centos:6@sha256:a93df2e96e07f56ea48f215425c6f1673ab922927894595bb5c0ee4c5a955133
+        run: |
+          # SYSROOT_PROPERTIES is meant to split into separate arguments.
+          # shellcheck disable=SC2086
+          dotnet publish samples/LegacyAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" $SYSROOT_PROPERTIES -o artifacts/legacy-agent/linux-x64
+          dotnet test tests/JvmBridge.IntegrationTests -c Release --filter "FullyQualifiedName~LegacyJavaTests" --logger trx --results-directory artifacts/results/legacy
+      - name: Upload legacy evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: legacy-results
+          path: artifacts/results/legacy/
           if-no-files-found: error
   coverage:
     if: always()

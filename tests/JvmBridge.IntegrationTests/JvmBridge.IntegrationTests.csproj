@@ -12,5 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../../src/JvmBridge.Build/JvmBridge.Build.csproj" />
     <ProjectReference Include="../../src/JvmBridge.Launcher/JvmBridge.Launcher.csproj" />
+    <!-- The JDK cache that JvmBridge.Testing and the build tasks share, so LegacyJavaTests unpacks each pinned JDK once per machine. -->
+    <Compile Include="../../src/Shared/PinnedJdk.cs" Link="Shared/PinnedJdk.cs" />
   </ItemGroup>
 </Project>

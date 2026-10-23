@@ -23,5 +23,6 @@
     <Project Path="samples/FootprintAgent/FootprintAgent.csproj" />
     <Project Path="samples/HelloAgent/HelloAgent.csproj" />
     <Project Path="samples/JavaHost/JavaHost.csproj" />
+    <Project Path="samples/LegacyAgent/LegacyAgent.csproj" />
   </Folder>
 </Solution>

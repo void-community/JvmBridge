@@ -85,7 +85,7 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 
 ## Documentation
 
-- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**publishing for Linux**](docs/guide/publishing.md), [**loading and attaching**](docs/guide/attaching.md), [**JVM events**](docs/guide/events.md), [**calling between C# and Java**](docs/guide/interop.md), [**testing**](docs/guide/testing.md), [**the jvmbridge command**](docs/guide/tool.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
+- [**User guide**](docs/guide/index.md): [**concepts**](docs/guide/concepts.md), [**patching classes**](docs/guide/patching.md), [**recipes**](docs/guide/recipes.md), [**publishing for Linux**](docs/guide/publishing.md), [**Java 6 and 7**](docs/guide/old-java.md), [**loading and attaching**](docs/guide/attaching.md), [**JVM events**](docs/guide/events.md), [**calling between C# and Java**](docs/guide/interop.md), [**testing**](docs/guide/testing.md), [**the jvmbridge command**](docs/guide/tool.md), [**troubleshooting**](docs/guide/troubleshooting.md), [**limitations**](docs/guide/limitations.md) and [**stability and versioning**](docs/guide/stability.md).
 - [**Diagnostics**](docs/diagnostics.md): every `JVMB` build error and what to change.
 - [**Compatibility**](docs/compatibility.md): the generated inventory of JVMs and platforms.
 - [**Footprint**](docs/footprint.md): what loading an agent costs in library size, start-up time and memory.
@@ -93,13 +93,14 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 
 ## Compatibility
 
-The manifest tracks every NativeAOT target in scope and every Java major from **8 through 26**, with HotSpot and OpenJ9 inventories. Archive availability varies by version and architecture. Mobile targets and platforms without a suitable JVM are explicitly experimental or unavailable.
+The manifest tracks every NativeAOT target in scope and every Java major from **8 through 26**, with HotSpot and OpenJ9 inventories. Agents also run on **Java 6 and 7** from the same build when `JavaRelease` is 6 or 7; CI runs that on `linux-x64` with Zulu 6 and 7, including glibc 2.12 (see [**Java 6 and 7**](docs/guide/old-java.md)). Archive availability varies by version and architecture. Mobile targets and platforms without a suitable JVM are explicitly experimental or unavailable.
 
 See the [**generated compatibility inventory**](docs/compatibility.md). It shows available downloads, not a blanket support claim. The matching commit's [**CI reports**](https://github.com/void-community/JvmBridge/actions) show which native builds and runtime tests actually passed. Historical patch releases are not exhaustively tested. JVM agent support does not follow automatically from .NET target support.
 
 ## Examples
 
 - [**HelloAgent**](samples/HelloAgent): emits a Java 8-compatible native callback helper in C#, registers native methods, preserves Unicode across threads/global references, transforms fixture method bodies, and supports late attachment.
+- [**LegacyAgent**](samples/LegacyAgent): one build for Java 6 to 26 (`JavaRelease` 6): a constant patch, a redirect to a C# helper, advice with a hook compiled from Java, events, and a thread attached from .NET.
 - [**JavaHost**](samples/JavaHost): creates a JVM from an explicit native-library path, invokes Java, handles exceptions, and demonstrates ownership.
 
 See [**automation setup**](docs/automation.md) and [**agent instructions**](AGENTS.md). Original code is [**MIT licensed**](LICENSE); see [**upstream notices**](NOTICE.md) for header provenance.
