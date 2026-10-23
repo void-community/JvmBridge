@@ -46,6 +46,8 @@ public sealed class PatcherAgent : JavaAgent
 
 Register patches and helpers from `Configure`. The runtime only calls a patch for its class name, applies it as the class loads, logs `patched ...` or `skipped ...: reason`, and, when the agent attaches late and retransformation is available, retransforms the matching classes that are already loaded. See [**Concepts**](concepts.md#class-loaders-and-helper-classes) for where helpers are defined.
 
+When a redirect, a construction factory or an advice hook names a helper class the agent defines (a `JavaSource` helper, a `[JavaClass]` helper or any `JavaClassDefinition`), `Patch` and `DefineClass` check that the helper declares that static method with that descriptor, whichever of the two comes first, and fail with the patch, the helper and the method named; a typo would otherwise fail with `NoSuchMethodError` only when the patched code runs. A test runs the same check without a JVM with `patch.FindMissingTargets([helper])`.
+
 ### A helper that cannot see the types it is given
 
 A helper in the bootstrap loader cannot see the classes of an application loader, so it cannot declare a parameter of their type. Give `RedirectInvocation` the target as a `JavaMethod` with a descriptor of its own, and let the helper take `java/lang/Object` where the call passes those types; the verifier accepts any reference where `Object` is expected:

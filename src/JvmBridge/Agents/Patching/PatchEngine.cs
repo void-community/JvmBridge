@@ -32,6 +32,8 @@ internal sealed class PatchEngine(AgentContext context)
     /// <summary>Registers a patch for the classes that load from now on. A patch that is registered already stays as it is.</summary>
     internal void Add(ClassPatch patch)
     {
+        RequireTargets([patch], [.. _helpers.Select(static helper => helper.Definition)]);
+
         lock (_writer)
         {
             if (!Volatile.Read(ref _set).Contains(patch))
@@ -44,7 +46,17 @@ internal sealed class PatchEngine(AgentContext context)
         if (_helpers.Any(helper => helper.Definition.Name == definition.Name))
             throw new InvalidOperationException($"A helper class named {definition.Name} is already registered.");
 
+        RequireTargets(Volatile.Read(ref _set).Patches, [.. _helpers.Select(static helper => helper.Definition), definition]);
         _helpers.Add(new HelperState(definition, target));
+    }
+
+    // A redirect, factory or hook that names a helper of the agent must find its method there; otherwise the patched class would fail with NoSuchMethodError when it runs.
+    private static void RequireTargets(IReadOnlyList<ClassPatch> patches, IReadOnlyList<JavaClassDefinition> helpers)
+    {
+        string[] missing = [.. patches.SelectMany(patch => patch.FindMissingTargets(helpers))];
+
+        if (missing.Length > 0)
+            throw new ArgumentException(string.Join(separator: "; ", missing) + ".");
     }
 
     /// <summary>Registers a patch and retransforms the loaded classes it targets.</summary>

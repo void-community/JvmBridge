@@ -241,7 +241,8 @@ public sealed class ClassPatch
             fromClass,
             storedIn,
             $"new {fromClass}() replaced by {factory.Owner}.{factory.Name}()",
-            (editor, name, descriptor) => editor.ReplaceConstruction(fromClass, factory, storedIn, name, descriptor, ownerIsInterface)
+            (editor, name, descriptor) => editor.ReplaceConstruction(fromClass, factory, storedIn, name, descriptor, ownerIsInterface),
+            factory
         );
     }
 
@@ -483,7 +484,43 @@ public sealed class ClassPatch
         return Run(classBytes, Phases.Edits | Phases.Advice, new AdviceContext(isRetransformation: false, recorded: null));
     }
 
+    /// <summary>
+    /// Checks that helper classes the agent defines declare the static methods this patch calls in them: the targets of its redirects, its construction factories and its advice hooks. A target in a class that is not among the helpers, such as one of the
+    /// JDK, is not checked. <see cref="AgentContext.Patch"/> and <see cref="AgentContext.DefineClass"/> run this check, and a test can run it without a JVM.
+    /// </summary>
+    /// <param name="helpers">The helper classes, as the agent defines them; their nested classes are checked too.</param>
+    /// <returns>One line per method that a helper does not declare as static, naming the patch, the helper and the method; empty when everything is there.</returns>
+    public IReadOnlyList<string> FindMissingTargets(IEnumerable<JavaClassDefinition> helpers)
+    {
+        ArgumentNullException.ThrowIfNull(helpers);
+
+        Dictionary<string, JavaClassFile> classes = new(StringComparer.Ordinal);
+
+        foreach (JavaClassDefinition definition in helpers.SelectMany(static helper => helper.GetDefinitionOrder()))
+            classes[definition.Name] = JavaClassFile.Read(definition.Bytes.Span);
+
+        List<string> missing = [];
+
+        foreach (JavaMethod target in Targets.Distinct())
+        {
+            if (!classes.TryGetValue(target.Owner, out JavaClassFile? helper))
+                continue;
+
+            ClassMember? method = helper.FindMethod(target.Name, target.Descriptor);
+
+            if (method is null || (method.AccessFlags & 0x0008) == 0)
+                missing.Add($"the patch of {ClassName} calls {target.Owner}.{target.Name}{target.Descriptor}, which the helper {target.Owner} does not declare{(method is null ? string.Empty : " as static")}");
+        }
+
+        return missing;
+    }
+
     internal bool HasAdvice => _advice.Length > 0;
+
+    private IEnumerable<JavaMethod> Targets => _steps.Select(static step => step.Target)
+        .Concat(_advice.SelectMany(static step => new[] { step.Hooks.Before, step.Hooks.After }))
+        .Where(static target => target.HasValue)
+        .Select(static target => target.GetValueOrDefault());
 
     internal bool HasEdits => _steps.Length > 0;
 
@@ -640,7 +677,7 @@ public sealed class ClassPatch
         return null;
     }
 
-    private ClassPatch Constructing(string fromClass, string? storedIn, string description, Func<ClassFileEditor, string?, string?, int> replace)
+    private ClassPatch Constructing(string fromClass, string? storedIn, string description, Func<ClassFileEditor, string?, string?, int> replace, JavaMethod? factory = null)
     {
         MethodScope? scope = _scope;
         string target = storedIn is null ? string.Empty : $" stored in {storedIn}";
@@ -655,7 +692,7 @@ public sealed class ClassPatch
             return count == 0
                 ? StepOutcome.Skip($"no construction of {fromClass}{target}{(scope is null ? string.Empty : $" in {scope}")}")
                 : StepOutcome.Applied(count, $"{Prefix(scope)}{count} {description}{target}");
-        });
+        }, factory);
     }
 
     private ClassPatch Redirecting(JavaMethod from, string toOwner, string? toName, string? toDescriptor, bool ownerIsInterface)
@@ -672,7 +709,7 @@ public sealed class ClassPatch
             return count == 0
                 ? StepOutcome.Skip($"no invocation of {from.Owner}.{from.Name}{from.Descriptor}{(scope is null ? string.Empty : $" in {scope}")}")
                 : StepOutcome.Applied(count, $"{Prefix(scope)}{count} invocation{(count == 1 ? string.Empty : "s")} of {from.Owner}.{from.Name} redirected");
-        });
+        }, JavaMethod.Static(toOwner, toName ?? from.Name, toDescriptor ?? (from.Kind == JavaMethodKind.Static ? from.Descriptor : ClassFileEditor.WithReceiver(from.Owner, from.Descriptor))));
     }
 
     private static string Prefix(MethodScope? scope) => scope is null ? string.Empty : $"{scope}: ";
@@ -751,7 +788,7 @@ public sealed class ClassPatch
         return new ClassPatch(_matcher, _steps, _scope, advice);
     }
 
-    private ClassPatch With(PatchKind kind, Func<ClassFileEditor, StepOutcome> run) => new(_matcher, [.. _steps, new PatchStep(kind, run)], _scope, _advice);
+    private ClassPatch With(PatchKind kind, Func<ClassFileEditor, StepOutcome> run, JavaMethod? target = null) => new(_matcher, [.. _steps, new PatchStep(kind, run, target)], _scope, _advice);
 
     private enum PatchKind
     {
@@ -784,7 +821,8 @@ public sealed class ClassPatch
 
     private sealed record AdditionOutcome(string Key, string Detail, AdviceSkip? Skip);
 
-    private sealed record PatchStep(PatchKind Kind, Func<ClassFileEditor, StepOutcome> Run);
+    // Target is the static method the step calls in another class, which a helper the agent defines may have to declare.
+    private sealed record PatchStep(PatchKind Kind, Func<ClassFileEditor, StepOutcome> Run, JavaMethod? Target);
 
     private readonly record struct StepOutcome(int Changes, string Detail, string? SkippedReason)
     {
