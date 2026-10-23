@@ -74,6 +74,26 @@ public sealed unsafe class AgentEventsTests
         }
     }
 
+    /// <summary>
+    /// The Java major version comes from the VM's own specification version. Java 6 and 7 report 1.0 there, which says nothing before the JVM is live, so the version stays 0 and is asked again instead of keeping that 0; once
+    /// known, it no longer changes.
+    /// </summary>
+    [Fact]
+    public void JavaMajorIsReadAgainUntilTheJvmSaysIt()
+    {
+        using FakeJvm jvm = new();
+
+        AgentContext context = jvm.CreateContext(name: "early");
+
+        Assert.Equal(expected: 0, context.JavaMajor);
+        FakeJvm.ReportSpecificationVersion(version: "1.0");
+        Assert.Equal(expected: 0, context.JavaMajor);
+        FakeJvm.ReportSpecificationVersion(version: "1.8");
+        Assert.Equal(expected: 8, context.JavaMajor);
+        FakeJvm.ReportSpecificationVersion(version: "21");
+        Assert.Equal(expected: 8, context.JavaMajor);
+    }
+
     /// <summary>The Java major version comes from the specification version, which Java 8 and earlier write as 1.x.</summary>
     [Fact]
     public void JavaMajorReadsBothForms()

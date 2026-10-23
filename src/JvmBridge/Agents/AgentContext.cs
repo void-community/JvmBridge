@@ -189,10 +189,31 @@ public sealed unsafe class AgentContext
     internal bool IsOpenJ9 => GetSystemProperty("java.vm.name") is { } name && name.Contains("J9", StringComparison.Ordinal);
 
     /// <summary>
-    /// Gets the Java major version of the JVM, from its <c>java.specification.version</c>: 6 for <c>1.6</c>, 17 for <c>17</c>, or 0 when the JVM does not say. Use it to leave out what an older JVM does not have; every function JvmBridge itself
-    /// calls exists from Java 6.
+    /// Gets the Java major version of the JVM: 6 for Java 6, 17 for Java 17, or 0 when it is not known yet. Use it to leave out what an older JVM does not have; every function JvmBridge itself calls exists from Java 6. Java 8 and later
+    /// say it from the start. Java 6 and 7 only say it once the JVM is live, so an agent loaded at startup reads 0 there in <see cref="JavaAgent.OnLoad"/> and <see cref="JavaAgent.Configure"/>, and the version from
+    /// <see cref="JavaAgent.OnVmInit"/> on.
     /// </summary>
-    public int JavaMajor => _javaMajor ??= ParseJavaMajor(GetSystemProperty("java.specification.version"));
+    public int JavaMajor
+    {
+        get
+        {
+            if (_javaMajor is { } known)
+                return known;
+
+            // The VM defines java.vm.specification.version before any agent loads: 1.8 on Java 8 and the major itself from Java 9. Java 6 and 7 define it as 1.0, so for them the class libraries' java.specification.version
+            // is read through System.getProperty, which JNI can call only in the live phase.
+            int major = ParseJavaMajor(GetSystemProperty("java.vm.specification.version"));
+
+            if (major < 6)
+                major = GetPhase() == jvmtiPhase.JVMTI_PHASE_LIVE ? ReadSpecificationVersion() : 0;
+
+            // 0 means the JVM cannot say yet, so it is asked again next time.
+            if (major > 0)
+                _javaMajor = major;
+
+            return major;
+        }
+    }
 
     /// <summary>Reads a Java major version from a specification version such as <c>1.8</c> or <c>21</c>.</summary>
     /// <param name="specification">The specification version, or <see langword="null"/>.</param>
@@ -699,6 +720,28 @@ public sealed unsafe class AgentContext
             jvmtiError result = (*_environment)->RetransformClasses(_environment, types.Length, (_jobject**)values);
 
             return result == jvmtiError.JVMTI_ERROR_NONE ? null : result.ToString();
+        }
+    }
+
+    // System.getProperty("java.specification.version"), parsed, or 0 when the call fails.
+    private int ReadSpecificationVersion()
+    {
+        try
+        {
+            using JavaThreadAttachment attachment = VirtualMachine.AttachCurrentThread();
+            JavaEnvironment environment = attachment.Environment;
+
+            using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
+            nint getProperty = environment.GetMethod(system.Handle, name: "getProperty", signature: "(Ljava/lang/String;)Ljava/lang/String;", isStatic: true);
+
+            using JavaLocalReference key = environment.NewString(value: "java.specification.version");
+            using JavaLocalReference value = environment.CallObject(system.Handle, getProperty, [JavaValue.Object(key.Handle)], isStatic: true);
+
+            return ParseJavaMajor(environment.GetString(value.Handle));
+        }
+        catch (Exception exception) when (exception is JniException or JavaException or MissingMethodException)
+        {
+            return 0;
         }
     }
 

@@ -16,7 +16,7 @@ The [**LegacyAgent**](../../samples/LegacyAgent) sample is such an agent: a cons
 
 - **JNI 1.6.** `JNI_OnLoad` returns `JNI_VERSION_1_6`, and `AttachCurrentThread` and `JavaVirtualMachine.Create` ask for it. Java 8's JNI 1.8 added no functions, so nothing is lost on newer JVMs.
 - **JVMTI 1.2, then 1.1, then 1.0.** The agent's tooling environment is the newest one the JVM accepts. Java 7 and late Java 6 builds offer 1.2; the oldest Java 6 builds offer 1.1. Every JVMTI function the runtime calls exists in 1.1, and retransformation, `IsModifiableClass` and adding to the bootstrap search path in the live phase need 1.1.
-- **`context.JavaMajor`** is the JVM's Java major version, 6 for a `java.specification.version` of `1.6`. Use it to keep calls to JNI or JVMTI functions that a newer Java added (the module functions of Java 9, for example) away from older JVMs.
+- **`context.JavaMajor`** is the JVM's Java major version, 6 for a `java.specification.version` of `1.6`. Use it to keep calls to JNI or JVMTI functions that a newer Java added (the module functions of Java 9, for example) away from older JVMs. Java 8 and later say it from `OnLoad` on. Java 6 and 7 only say it once the JVM is live, so on them an agent loaded at startup reads 0 in `OnLoad` and `Configure`, and the version from `OnVmInit` on.
 
 ## Helper classes
 
@@ -24,6 +24,7 @@ A JVM refuses a class file newer than itself (`UnsupportedClassVersionError`, or
 
 - **`[JavaClass]` helpers** get the class file version of `JavaRelease`: 50 for Java 6, 51 for 7, 52 (Java 8) by default.
 - **`JavaSource` items** are compiled with `javac --release $(JavaRelease)`. javac 9 to 11 compile for Java 6, and javac 12 to 19 stop at 7. With `JvmBridgeProvisionJdk`, `JavaRelease` 6 downloads the pinned Temurin 11 and uses it even when `JAVA_HOME` has a javac, and any other release downloads Temurin 17 (or the release itself, above 17). A `JvmBridgeJdkHome` you set is used as it is.
+- **Native methods** of `[JavaClass]` helpers, and any that `environment.RegisterNative` registers, are registered after a method lookup that initializes the class. Java 6 resets a class's native methods when it links the class, so a function registered on a class that was only defined would be lost and the call would throw `UnsatisfiedLinkError`.
 - **Classes you write with `ClassFileWriter`** take the version as `majorVersion`, which is 52 unless you pass it: `new ClassFileWriter("pkg/Helper", majorVersion: 50)`.
 
 The patches themselves keep the version of the class they edit. Advice adds straight-line stubs without stack map frames, which the verifiers of Java 6 and later accept at any class version.

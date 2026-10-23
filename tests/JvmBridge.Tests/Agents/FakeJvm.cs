@@ -22,6 +22,7 @@ internal sealed unsafe class FakeJvm : IDisposable
     private static int s_newestTooling;
     private static int s_offeredCapabilities;
     private static int s_reportedThreadState;
+    private static string? s_specificationVersion;
 
     private readonly JNIInvokeInterface_** _machine;
     private readonly jvmtiInterface_1_** _tooling;
@@ -31,6 +32,7 @@ internal sealed unsafe class FakeJvm : IDisposable
         RecordedToggles.Clear();
         s_offeredCapabilities = 0;
         s_reportedThreadState = 0;
+        s_specificationVersion = null;
         s_newestTooling = int.MaxValue;
         RequestedTooling.Clear();
         s_installedCallbacks = default;
@@ -40,6 +42,9 @@ internal sealed unsafe class FakeJvm : IDisposable
         toolingTable->AddCapabilities = &AddCapabilities;
         toolingTable->GetThreadState = &ThreadState;
         toolingTable->SetEventCallbacks = &AcceptCallbacks;
+        toolingTable->GetSystemProperty = &SystemProperty;
+        toolingTable->GetPhase = &Phase;
+        toolingTable->Deallocate = &Deallocate;
         toolingTable->SetEventNotificationMode = (nint)(delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)&AcceptMode;
         _tooling = (jvmtiInterface_1_**)NativeMemory.AllocZeroed((nuint)sizeof(nint));
         *_tooling = toolingTable;
@@ -87,6 +92,12 @@ internal sealed unsafe class FakeJvm : IDisposable
         s_newestTooling = version;
     }
 
+    /// <summary>Sets the <c>java.vm.specification.version</c> that <c>GetSystemProperty</c> reports, or <see langword="null"/> for none. The fake is never live, so a version older than 6 is not looked up through JNI.</summary>
+    internal static void ReportSpecificationVersion(string? version)
+    {
+        s_specificationVersion = version;
+    }
+
     /// <summary>Sets the state bits that <c>GetThreadState</c> reports.</summary>
     internal static void ReportThreadState(JavaThreadState state)
     {
@@ -122,6 +133,14 @@ internal sealed unsafe class FakeJvm : IDisposable
     }
 
     [UnmanagedCallersOnly]
+    private static jvmtiError Deallocate(jvmtiInterface_1_** environment, byte* memory)
+    {
+        NativeMemory.Free(memory);
+
+        return jvmtiError.JVMTI_ERROR_NONE;
+    }
+
+    [UnmanagedCallersOnly]
     private static int GetEnvironment(JNIInvokeInterface_** machine, void** environment, int version)
     {
         RequestedTooling.Add(version);
@@ -137,6 +156,14 @@ internal sealed unsafe class FakeJvm : IDisposable
     private static bool Offered(JavaCapability capability)
     {
         return (s_offeredCapabilities & (1 << (int)capability)) != 0;
+    }
+
+    [UnmanagedCallersOnly]
+    private static jvmtiError Phase(jvmtiInterface_1_** environment, jvmtiPhase* phase)
+    {
+        *phase = jvmtiPhase.JVMTI_PHASE_ONLOAD;
+
+        return jvmtiError.JVMTI_ERROR_NONE;
     }
 
     [UnmanagedCallersOnly]
@@ -162,6 +189,22 @@ internal sealed unsafe class FakeJvm : IDisposable
 
         if (Offered(JavaCapability.GenerateGarbageCollectionEvents))
             capabilities->can_generate_garbage_collection_events = 1;
+
+        return jvmtiError.JVMTI_ERROR_NONE;
+    }
+
+    [UnmanagedCallersOnly]
+    private static jvmtiError SystemProperty(jvmtiInterface_1_** environment, byte* property, byte** value)
+    {
+        bool known = Marshal.PtrToStringUTF8((nint)property) == "java.vm.specification.version" && s_specificationVersion is not null;
+
+        if (!known)
+            return jvmtiError.JVMTI_ERROR_NOT_AVAILABLE;
+
+        byte[] encoded = [.. System.Text.Encoding.UTF8.GetBytes(s_specificationVersion ?? string.Empty), 0];
+        byte* copy = (byte*)NativeMemory.Alloc((nuint)encoded.Length);
+        encoded.CopyTo(new Span<byte>(copy, encoded.Length));
+        *value = copy;
 
         return jvmtiError.JVMTI_ERROR_NONE;
     }
