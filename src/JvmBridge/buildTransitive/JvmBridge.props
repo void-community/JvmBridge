@@ -7,5 +7,6 @@
   <ItemGroup>
     <CompilerVisibleProperty Include="JvmBridgeAgent" />
     <CompilerVisibleProperty Include="JvmBridgeAbiInspector" />
+    <CompilerVisibleProperty Include="JavaRelease" />
   </ItemGroup>
 </Project>

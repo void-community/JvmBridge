@@ -19,6 +19,7 @@ Every error the JvmBridge package reports carries a `JVMB` code. The generator r
 | [**JVMB013**](#jvmb013-javareference-cannot-be-read) | build task | A `JavaReference` jar is missing or unreadable |
 | [**JVMB014**](#jvmb014-agent-jar-cannot-be-written) | build task | The `-javaagent` jar of `JvmBridgeAgentJar` or `JvmBridgeMergeAgentJars` cannot be written |
 | [**JVMB015**](#jvmb015-no-jars-to-merge) | build | `JvmBridgeMergeAgentJars` found no jar to combine |
+| [**JVMB016**](#jvmb016-javarelease-too-old) | build | `JavaRelease` is older than Java 6 |
 
 ### JVMB001: Invalid JVM agent
 
@@ -84,3 +85,7 @@ The jar does not exist at that path (the path is relative to the project) or is 
 ### JVMB015: No jars to merge
 
 `JvmBridgeMergeAgentJars` combines the jars named by `JvmBridgeAgentJars`, paths or wildcards relative to the project (separated by `%3B` on a command line), and none matched: `-p:JvmBridgeAgentJars="agents/*/MyAgent.jar"`. Check where the jars were downloaded to.
+
+### JVMB016: JavaRelease too old
+
+`JavaRelease` sets the class file version of every helper class, from `JavaSource` and from `[JavaClass]`, and JvmBridge runs on Java 6 and later, so it must be 6 or more. Set it to the oldest Java your agent runs on: 6 or 7 for those JVMs (which needs a JDK 11 to compile `JavaSource`; `JvmBridgeProvisionJdk` downloads one), 8 by default.

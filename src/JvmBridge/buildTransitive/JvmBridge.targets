@@ -29,11 +29,16 @@
     <Error Condition="'$(OutputType)' != 'Library'" Code="JVMB010" Text="JvmBridge agents must be class libraries (OutputType=Library)." />
     <Error Condition="'$(_JvmBridgeProjectPublishAot)' != 'true'" Code="JVMB006" Text="JvmBridge agents must set PublishAot to true in the project, next to JvmBridgeAgent. The .NET SDK decides on NativeAOT while it evaluates the project, before this package can act on JvmBridgeAgent, so without it dotnet publish succeeds but produces only managed assemblies and no native library." />
   </Target>
+  <!-- JavaRelease decides the class file version of every helper class: those that javac compiles from JavaSource and those that [JavaClass] generates. -->
+  <Target Name="_JvmBridgeValidateJavaRelease" BeforeTargets="CoreCompile">
+    <Error Condition="$(JavaRelease) &lt; 6" Code="JVMB016" Text="JavaRelease is $(JavaRelease), but JvmBridge supports Java 6 and later. Set JavaRelease to 6 or more." />
+  </Target>
   <!-- Java helper classes: JavaSource items are compiled with javac and exposed to C# as JavaClasses.<Package>.<Class>. -->
   <PropertyGroup>
     <JavaRelease Condition="'$(JavaRelease)' == ''">8</JavaRelease>
-    <!-- The pinned JDK that JvmBridgeProvisionJdk downloads: Java 17, or the release itself when that is newer. -->
+    <!-- The pinned JDK that JvmBridgeProvisionJdk downloads: Java 17, the release itself when that is newer, or Java 11 for Java 6, the last javac that compiles for it. -->
     <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == '' and $(JavaRelease) &gt; 17">$(JavaRelease)</JvmBridgeJdkMajor>
+    <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == '' and $(JavaRelease) &lt; 7">11</JvmBridgeJdkMajor>
     <JvmBridgeJdkMajor Condition="'$(JvmBridgeJdkMajor)' == ''">17</JvmBridgeJdkMajor>
   </PropertyGroup>
   <UsingTask TaskName="JvmBridge.Tasks.GenerateJavaProxies" AssemblyFile="$(MSBuildThisFileDirectory)../tasks/JvmBridge.Tasks.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'" />

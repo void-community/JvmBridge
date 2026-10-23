@@ -16,9 +16,12 @@ namespace JvmBridge.Generator;
 [Generator]
 public sealed class NativeHelperGenerator : IIncrementalGenerator
 {
+    /// <inheritdoc/>
+    private const string ClassVersionPlaceholder = "JVMBRIDGE_CLASS_VERSION";
     private const string EnvironmentType = "JvmBridge.Runtime.JavaEnvironment";
     private const string JavaMethodAttribute = "JvmBridge.Agents.JavaMethodAttribute";
     private const string JavaTypeAttribute = "JvmBridge.Agents.JavaTypeAttribute";
+
     private const string Pointer = "global::JvmBridge.Native._jobject*";
 
     private static readonly DiagnosticDescriptor InvalidClass = new(
@@ -74,17 +77,37 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             static (syntax, cancellationToken) => Analyze(syntax)
         );
 
+        // The helper class gets the class file version of JavaRelease, as the JavaSource classes do, so that a JVM of that release loads it: 50 for Java 6, 52 for Java 8.
+        IncrementalValueProvider<int> classVersion = context.AnalyzerConfigOptionsProvider.Select(
+            static (options, cancellationToken) => ClassVersionOf(options.GlobalOptions.TryGetValue(key: "build_property.JavaRelease", out string? release) ? release : null)
+        );
+
         context.RegisterSourceOutput(
-            helpers,
-            static (production, helper) =>
+            helpers.Combine(classVersion),
+            static (production, input) =>
         {
+            HelperOutput helper = input.Left;
+
             foreach (Diagnostic diagnostic in helper.Diagnostics)
                 production.ReportDiagnostic(diagnostic);
 
             if (helper.Source is { } source)
-                production.AddSource(helper.HintName, SourceText.From(source, Encoding.UTF8));
+            {
+                string versioned = source.Replace(ClassVersionPlaceholder, input.Right.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                production.AddSource(helper.HintName, SourceText.From(versioned, Encoding.UTF8));
+            }
         }
         );
+    }
+
+    /// <summary>Gets the class file version of a Java release: 44 plus the release, 52 when the release is missing or not a number from 6 up.</summary>
+    /// <param name="release">The value of JavaRelease.</param>
+    /// <returns>The major version of the class file.</returns>
+    internal static int ClassVersionOf(string? release)
+    {
+        bool parsed = int.TryParse(release, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int value);
+
+        return parsed && value >= 6 ? 44 + value : 52;
     }
 
     private static HelperOutput Analyze(GeneratorAttributeSyntaxContext syntax)
@@ -166,7 +189,9 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         text.Line();
         text.Line(text: "    private static global::JvmBridge.Agents.JavaClassDefinition CreateDefinition()");
         text.Line(text: "    {");
-        text.Line("        global::JvmBridge.ClassFiles.ClassFileWriter writer = new(" + Literal(javaName) + ");");
+        text.Line(
+            "        global::JvmBridge.ClassFiles.ClassFileWriter writer = new(" + Literal(javaName) + ", majorVersion: " + ClassVersionPlaceholder + ");"
+        );
 
         foreach (NativeMethod method in methods)
             text.Line("        writer = writer.AddNativeMethod(" + Literal(method.JavaName) + ", " + Literal(method.Descriptor) + ");");

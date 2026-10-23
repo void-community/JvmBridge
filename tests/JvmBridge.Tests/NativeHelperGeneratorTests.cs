@@ -88,6 +88,22 @@ public sealed unsafe class NativeHelperGeneratorTests
         Assert.All(file.Methods, static method => Assert.Equal(ClassFileWriter.PublicStaticNative, method.AccessFlags));
     }
 
+    /// <summary>The helper class gets the class file version of JavaRelease, so that a Java 6 or 7 JVM loads it: 50 for 6, 51 for 7, and 52 for 8 or when JavaRelease is missing.</summary>
+    [Fact]
+    public void HelperClassesFollowJavaRelease()
+    {
+        string defaulted = Run(Helpers).GeneratedTrees.Single().ToString();
+        string java6 = Run(Helpers, javaRelease: "6").GeneratedTrees.Single().ToString();
+        string java7 = Run(Helpers, javaRelease: "7").GeneratedTrees.Single().ToString();
+        string java17 = Run(Helpers, javaRelease: "17").GeneratedTrees.Single().ToString();
+
+        Assert.Contains(expectedSubstring: "majorVersion: 52)", defaulted, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "majorVersion: 50)", java6, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "majorVersion: 51)", java7, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "majorVersion: 61)", java17, StringComparison.Ordinal);
+        Assert.DoesNotContain(expectedSubstring: "JVMBRIDGE_CLASS_VERSION", defaulted, StringComparison.Ordinal);
+    }
+
     /// <summary>Primitive and string arrays map to Java array descriptors.</summary>
     [Fact]
     public void MapsArraysToJavaArrayDescriptors()
@@ -351,9 +367,9 @@ public sealed unsafe class NativeHelperGeneratorTests
         return 0;
     }
 
-    private static GeneratorDriverRunResult Run(string source)
+    private static GeneratorDriverRunResult Run(string source, string? javaRelease = null)
     {
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(new NativeHelperGenerator().AsSourceGenerator());
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new NativeHelperGenerator().AsSourceGenerator()], optionsProvider: new ReleaseOptionsProvider(javaRelease));
         driver = driver.RunGenerators(CreateCompilation(source));
 
         return driver.GetRunResult();
@@ -368,4 +384,29 @@ public sealed unsafe class NativeHelperGeneratorTests
     private sealed record ProbeAccess(Func<JavaClassDefinition> Definition, Func<int> Pings);
 
     private sealed record RegisteredNative(string Name, string Signature, nint Function);
+
+    private sealed class ReleaseOptions(string? javaRelease) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions
+    {
+        public override bool TryGetValue(string key, out string value)
+        {
+            value = javaRelease ?? string.Empty;
+
+            return javaRelease is not null && key == "build_property.JavaRelease";
+        }
+    }
+
+    private sealed class ReleaseOptionsProvider(string? javaRelease) : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider
+    {
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GlobalOptions { get; } = new ReleaseOptions(javaRelease);
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+        {
+            return GlobalOptions;
+        }
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+        {
+            return GlobalOptions;
+        }
+    }
 }
