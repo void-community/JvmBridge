@@ -144,6 +144,28 @@ ClassPatch.For("net/neoforged/fml/loading/FMLConfig")
 
 A typed helper calls them by name, compiled against a stub that declares them. They were run with `-Xverify:all` on Java 6, 8 and 17.
 
+### Conditions on a method's code
+
+Versions of an application often differ only in how a method is written. `When` applies the patch only to the version whose code matches:
+
+```csharp
+static readonly JavaMethod WriteLock = JavaMethod.Virtual("java/util/concurrent/locks/ReentrantReadWriteLock", "writeLock", "()Ljava/util/concurrent/locks/ReentrantReadWriteLock$WriteLock;");
+static readonly JavaMethod Put = JavaMethod.Interface("java/util/Map", "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+static readonly JavaMethod PutIfAbsent = JavaMethod.Interface("java/util/Map", "putIfAbsent", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+
+ClassPatch.For("net/minecraftforge/eventbus/api/EventListenerHelper")
+    .Method("getListenerListInternal", "(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;")
+    .When(body => body.Calls(WriteLock) && body.Calls(Put) && !body.Calls(PutIfAbsent))
+    .RedirectInvocation(Put, toOwner: "acme/agent/EventListeners");
+```
+
+- `MethodBody` has three tests: `Calls(method)`, `AccessesField(owner, name)` and `Creates(className)`. Combine them with `&&`, `||` and `!`.
+- The condition looks at the method that `Method` scoped the patch to, at every overload when the scope has no descriptor, and at the whole class without a scope. It sees the code as the edits before it left it, so put it first.
+- When it fails, the patch skips the class and the reason prints it: `getListenerListInternal(...): requires writeLock() && put() && !putIfAbsent()`.
+- It is read when the patch is built: arguments such as `WriteLock` are evaluated then, a malformed method or class name is refused then, and anything that is not one of the tests is refused too. Nothing in it is compiled or runs in the JVM, so it works in a NativeAOT agent.
+
+Conditions only decide whether a patch applies. Edits stay the declarative ones, and run-time behaviour stays in Java helpers.
+
 ### Custom edits that report
 
 `.Edit(Action<ClassFileEditor>)` runs any edit, but cannot say what it did: it always reports `custom edit applied`. `.Edit(description, context => ...)` returns the number of places it changed, and gets the same treatment as the built-in edits: the count in `AppliedEdits`, `<method>: <description> (1 change)` in the result and the log, and a skip (`<description>: nothing to change in <method>`) when it returns 0. It honours `.Method`: a scoped method the class lacks skips the class before the edit runs, and `context.MethodName` and `context.MethodDescriptor` carry the scope, so the edit does not repeat it:

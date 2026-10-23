@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 using JvmBridge.ClassFiles;
 
 namespace JvmBridge.Agents;
@@ -131,6 +133,34 @@ public sealed class ClassPatch
         ArgumentException.ThrowIfNullOrEmpty(name);
 
         return new ClassPatch(_matcher, _steps, new MethodScope(name, descriptor), _advice);
+    }
+
+    /// <summary>
+    /// Applies the patch only when the code of the scoped method satisfies a condition, such as <c>body =&gt; body.Calls(WriteLock) &amp;&amp; body.Calls(Put) &amp;&amp; !body.Calls(PutIfAbsent)</c>, to tell versions of a class apart. Otherwise the patch skips the
+    /// class, and the reason prints the condition: <c>getListenerListInternal(...): requires writeLock() &amp;&amp; put() &amp;&amp; !putIfAbsent()</c>. The condition looks at the method <see cref="Method"/> scoped the patch to, every overload of it without a
+    /// descriptor, or the whole class without a scope, as the edits before it left the code, so put it first. Its arguments are evaluated when the patch is built, and nothing in it runs in the JVM.
+    /// </summary>
+    /// <param name="condition">The tests of <see cref="MethodBody"/> (<see cref="MethodBody.Calls"/>, <see cref="MethodBody.AccessesField"/>, <see cref="MethodBody.Creates"/>) combined with <c>&amp;&amp;</c>, <c>||</c> and <c>!</c>.</param>
+    /// <returns>A new patch.</returns>
+    /// <exception cref="ArgumentException">The condition uses anything else, or names a malformed method or class.</exception>
+    public ClassPatch When(Expression<Func<MethodBody, bool>> condition)
+    {
+        BodyCondition parsed = BodyCondition.Read(condition);
+        MethodScope? scope = _scope;
+
+        return With(PatchKind.Condition, editor =>
+        {
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
+
+            JavaClassFile model = editor.Model;
+
+            Instruction[] code = [.. model.Methods
+                .Where(method => scope is null || (method.Name == scope.Name && (scope.Descriptor is null || method.Descriptor == scope.Descriptor)))
+                .SelectMany(static method => method.Code?.Instructions ?? [])];
+
+            return parsed.Holds(new MethodBody(model, code)) ? StepOutcome.Applied(changes: 0, string.Empty) : StepOutcome.Skip($"{Prefix(scope)}requires {parsed}");
+        });
     }
 
     /// <summary>Ends the scope set by <see cref="Method"/>, so following edits apply to the whole class.</summary>
@@ -494,7 +524,9 @@ public sealed class ClassPatch
                     return Skipped(className, reason);
 
                 counts[(int)step.Kind] += outcome.Changes;
-                details.Add(outcome.Detail);
+
+                if (outcome.Detail.Length > 0)
+                    details.Add(outcome.Detail);
             }
         }
 
@@ -729,6 +761,7 @@ public sealed class ClassPatch
         Edit,
         Construction,
         Removal,
+        Condition,
     }
 
     [Flags]
