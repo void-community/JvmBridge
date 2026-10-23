@@ -21,8 +21,8 @@ jobs:
     env:
       TARGET_RID: ${{ matrix.rid }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
       - name: Prepare the NativeAOT toolchain
@@ -33,7 +33,7 @@ jobs:
       - name: Prepare the glibc 2.17 sysroot
         id: sysroot
         if: runner.os == 'Linux'
-        uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+        uses: void-community/actions/glibc-sysroot@35469dfbb5137987dfc14aa85f194e688d18587a # main
         with:
           rid: ${{ matrix.rid }}
       - name: Publish the agent library and its jar
@@ -41,7 +41,7 @@ jobs:
       # Runs the patch tests, then the JVM tests against the agent on every JDK they list, through -agentpath and through the jar.
       - name: Test
         run: dotnet test tests/MyJvmAgent.Tests -c Release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: agent-${{ matrix.rid }}
           path: artifacts/agent/${{ matrix.rid }}/MyJvmAgent.*
@@ -55,11 +55,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: agent-*
           path: agents

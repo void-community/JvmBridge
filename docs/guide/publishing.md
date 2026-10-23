@@ -32,7 +32,7 @@ The `glibc-sysroot` action of [**void-community/Actions**](https://github.com/vo
 - name: Prepare the glibc 2.17 sysroot
   id: sysroot
   if: runner.os == 'Linux'
-  uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+  uses: void-community/actions/glibc-sysroot@35469dfbb5137987dfc14aa85f194e688d18587a # main
   with:
     rid: ${{ matrix.rid }}   # linux-x64 or linux-arm64
 - run: dotnet publish MyAgent.csproj -c Release -r ${{ matrix.rid }} --self-contained ${{ steps.sysroot.outputs.properties }} -o artifacts/agent/${{ matrix.rid }}
@@ -60,7 +60,7 @@ CentOS 6 (glibc 2.12), Debian 7 (2.13) and the last Java 6 images are older than
 
 ```yaml
 - id: sysroot
-  uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+  uses: void-community/actions/glibc-sysroot@35469dfbb5137987dfc14aa85f194e688d18587a # main
   with:
     rid: linux-x64
     glibc: '2.12'

@@ -38,7 +38,7 @@ Many Java 6 systems are older than glibc 2.17, the floor of an agent published a
 
 ```yaml
 - id: sysroot
-  uses: void-community/actions/glibc-sysroot@99cef201a5ae7a722304ecda04f6e94ce3426f66 # main
+  uses: void-community/actions/glibc-sysroot@35469dfbb5137987dfc14aa85f194e688d18587a # main
   with:
     rid: linux-x64
     glibc: '2.12'
