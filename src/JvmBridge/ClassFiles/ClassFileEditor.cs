@@ -180,6 +180,120 @@ public sealed class ClassFileEditor : IConstantPool
         });
     }
 
+    /// <summary>
+    /// Makes code construct another class: <c>new A; dup; …; invokespecial A.&lt;init&gt;(D)</c> becomes <c>new B … B.&lt;init&gt;(D)</c>, with the same arguments and at the same length. B needs a constructor with the same descriptor, and the object
+    /// must fit wherever the code uses it, such as the type of the field it is stored in; the verifier checks that when the class loads. A construction nested in the arguments of another of the same class is matched to its own constructor call.
+    /// </summary>
+    /// <param name="fromClass">The internal name of the class the code constructs now, for example <c>java/util/ArrayList</c>.</param>
+    /// <param name="toClass">The internal name of the class to construct instead, for example <c>java/util/concurrent/CopyOnWriteArrayList</c>.</param>
+    /// <param name="storedIn">Limits the edit to constructions whose object goes straight into a field of this name with <c>putfield</c> or <c>putstatic</c>, or <see langword="null"/> for every construction.</param>
+    /// <param name="methodName">Limits the search to methods with this name, or <see langword="null"/> for every method.</param>
+    /// <param name="methodDescriptor">Limits the search to methods with this descriptor, or <see langword="null"/> for any.</param>
+    /// <returns>The number of constructions replaced.</returns>
+    public int ReplaceConstruction(string fromClass, string toClass, string? storedIn = null, string? methodName = null, string? methodDescriptor = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(fromClass);
+        ArgumentException.ThrowIfNullOrEmpty(toClass);
+
+        return Atomically(() =>
+        {
+            List<Construction> found = FindConstructions(fromClass, storedIn, methodName, methodDescriptor);
+
+            if (found.Count == 0)
+                return 0;
+
+            // Constants first: each one appended moves the code that follows it in the file.
+            int type = AddClass(toClass);
+            Dictionary<string, int> constructors = [];
+
+            foreach (string descriptor in found.Select(static site => site.ConstructorDescriptor).Distinct(StringComparer.Ordinal))
+                constructors[descriptor] = AddMethodReference(toClass, name: "<init>", descriptor);
+
+            List<Construction> sites = FindConstructions(fromClass, storedIn, methodName, methodDescriptor);
+
+            foreach (Construction site in sites)
+            {
+                WriteUInt16(site.New + 1, type);
+                WriteUInt16(site.Constructor + 1, constructors[site.ConstructorDescriptor]);
+            }
+
+            return sites.Count;
+        });
+    }
+
+    /// <summary>
+    /// Makes code get an object from a static factory instead of constructing it with no arguments: <c>new A; dup; invokespecial A.&lt;init&gt;()V</c>, seven bytes, becomes <c>invokestatic factory</c> and four <c>nop</c>s. The factory takes no parameters and
+    /// returns a reference; the verifier checks that what it returns fits where the code uses the object.
+    /// </summary>
+    /// <param name="fromClass">The internal name of the class the code constructs now, for example <c>java/util/HashSet</c>.</param>
+    /// <param name="factory">The factory, described with <see cref="JavaMethod.Static"/>, for example <c>java/util/concurrent/ConcurrentHashMap.newKeySet()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;</c>.</param>
+    /// <param name="storedIn">Limits the edit to constructions whose object goes straight into a field of this name with <c>putfield</c> or <c>putstatic</c>, or <see langword="null"/> for every construction.</param>
+    /// <param name="methodName">Limits the search to methods with this name, or <see langword="null"/> for every method.</param>
+    /// <param name="methodDescriptor">Limits the search to methods with this descriptor, or <see langword="null"/> for any.</param>
+    /// <param name="ownerIsInterface">Whether the factory's owner is an interface, whose static methods need an interface method reference (class files of version 52 or later).</param>
+    /// <returns>The number of constructions replaced.</returns>
+    /// <exception cref="ArgumentException">The factory is not static, takes parameters or returns no reference, or a field the object goes into holds a primitive or an array type that the factory does not return.</exception>
+    public int ReplaceConstruction(string fromClass, JavaMethod factory, string? storedIn = null, string? methodName = null, string? methodDescriptor = null, bool ownerIsInterface = false)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(fromClass);
+        string result = FactoryResult(factory);
+
+        return Atomically(() =>
+        {
+            List<Construction> found = [.. FindConstructions(fromClass, storedIn, methodName, methodDescriptor).Where(IsWithoutArguments)];
+
+            if (found.Count == 0)
+                return 0;
+
+            foreach (Construction site in found)
+            {
+                if (site.Field is { } field && Incompatible(field.Descriptor, result))
+                    throw new ArgumentException($"{factory} returns {result}, which the field {field.Name} of type {field.Descriptor} cannot hold.", nameof(factory));
+            }
+
+            int target = ownerIsInterface ? AddInterfaceMethodReference(factory.Owner, factory.Name, factory.Descriptor) : AddMethodReference(factory.Owner, factory.Name, factory.Descriptor);
+            List<Construction> sites = [.. FindConstructions(fromClass, storedIn, methodName, methodDescriptor).Where(IsWithoutArguments)];
+
+            foreach (Construction site in sites)
+            {
+                _bytes[site.New] = Opcodes.InvokeStatic;
+                WriteUInt16(site.New + 1, target);
+                _bytes.AsSpan(site.New + 3, length: 4).Fill(Opcodes.Nop);
+            }
+
+            _model = null;
+
+            return sites.Count;
+        });
+    }
+
+    /// <summary>
+    /// Removes calls of a method that returns its own receiver, such as a fluent setter: the call becomes <c>nop</c>s, and the receiver it leaves on the stack stands for the result the call would have returned. The method must take no arguments and return
+    /// the class it is called on, so nothing else on the stack changes.
+    /// </summary>
+    /// <param name="call">The call to remove, described with <see cref="JavaMethod.Virtual"/> or <see cref="JavaMethod.Interface"/>, for example <c>Builder.autosave()LBuilder;</c>.</param>
+    /// <param name="methodName">Limits the search to methods with this name, or <see langword="null"/> for every method.</param>
+    /// <param name="methodDescriptor">Limits the search to methods with this descriptor, or <see langword="null"/> for any.</param>
+    /// <returns>The number of calls removed.</returns>
+    /// <exception cref="ArgumentException">The call is static, takes arguments, or returns something other than its owner.</exception>
+    public int RemoveInvocation(JavaMethod call, string? methodName = null, string? methodDescriptor = null)
+    {
+        if (RemovalProblem(call) is { } problem)
+            throw new ArgumentException(problem, nameof(call));
+
+        return Atomically(() =>
+        {
+            List<int> sites = FindInvocations(call, methodName, methodDescriptor);
+
+            foreach (int site in sites)
+                _bytes.AsSpan(site, _bytes[site] == Opcodes.InvokeInterface ? 5 : 3).Fill(Opcodes.Nop);
+
+            _model = null;
+
+            return sites.Count;
+        });
+    }
+
     /// <summary>Points one instruction at another constant pool entry. The entry must be of a kind the instruction accepts, and the argument count of an <c>invokeinterface</c> is updated to match.</summary>
     /// <param name="methodName">The name of the method that contains the instruction.</param>
     /// <param name="methodDescriptor">The method descriptor, or <see langword="null"/> when the name is not overloaded.</param>
@@ -473,6 +587,105 @@ public sealed class ClassFileEditor : IConstantPool
         };
     }
 
+    /// <summary>Tells why a call cannot be removed, or <see langword="null"/> when it can: it must have a receiver, take no arguments and return its own owner.</summary>
+    internal static string? RemovalProblem(JavaMethod call)
+    {
+        if (call.Kind == JavaMethodKind.Static)
+            return $"{call} is static, so there is no receiver to stand for its result";
+
+        string fluent = "()L" + call.Owner + ";";
+
+        return call.Descriptor == fluent ? null : $"{call} must take no arguments and return its own class ({fluent}), so that its receiver can stand for its result";
+    }
+
+    /// <summary>Gets the type a factory returns, checking that it is static, takes no parameters and returns a reference.</summary>
+    internal static string FactoryResult(JavaMethod factory)
+    {
+        if (factory.Kind != JavaMethodKind.Static)
+            throw new ArgumentException($"The factory {factory} must be static; describe it with JavaMethod.Static.", nameof(factory));
+
+        bool returnsReference = factory.Descriptor.StartsWith("()", StringComparison.Ordinal) && factory.Descriptor.Length > 3 && factory.Descriptor[2] is 'L' or '[';
+
+        return returnsReference ? factory.Descriptor[2..] : throw new ArgumentException($"The factory {factory} must take no parameters and return an object.", nameof(factory));
+    }
+
+    // A field of a class type may hold whatever the factory returns, which the verifier checks; a primitive never does, and an array only an array of the same type.
+    private static bool Incompatible(string field, string result) => field[0] is not ('L' or '[') || ((field[0] == '[' || result[0] == '[') && field != result);
+
+    private static bool IsWithoutArguments(Construction site) => site.Constructor == site.New + 4 && site.ConstructorDescriptor == "()V";
+
+    private List<Construction> FindConstructions(string fromClass, string? storedIn, string? methodName, string? methodDescriptor)
+    {
+        List<Construction> sites = [];
+
+        foreach (ClassMember method in Model.Methods)
+        {
+            if (method.Code is null || (methodName is not null && method.Name != methodName) || (methodDescriptor is not null && method.Descriptor != methodDescriptor))
+                continue;
+
+            IReadOnlyList<Instruction> instructions = method.Code.Instructions;
+
+            for (int index = 0; index < instructions.Count; index++)
+            {
+                if (instructions[index].Opcode != Opcodes.New || !Model.ReferencesClass(instructions[index], fromClass))
+                    continue;
+
+                if (FindConstructor(instructions, index, fromClass) is not (int call, string descriptor))
+                    continue;
+
+                MemberReference? field = StoredField(instructions, call + 1);
+
+                if (storedIn is not null && field?.Name != storedIn)
+                    continue;
+
+                sites.Add(new Construction(method.Code.CodeOffset + instructions[index].Offset, method.Code.CodeOffset + instructions[call].Offset, descriptor, field));
+            }
+        }
+
+        return sites;
+    }
+
+    // The constructor call that initializes the object a new instruction created: the first one of the same class that is not matched by a nested new of that class first.
+    private (int Index, string Descriptor)? FindConstructor(IReadOnlyList<Instruction> instructions, int start, string fromClass)
+    {
+        int nested = 0;
+
+        for (int index = start + 1; index < instructions.Count; index++)
+        {
+            Instruction instruction = instructions[index];
+
+            if (instruction.Opcode == Opcodes.New && Model.ReferencesClass(instruction, fromClass))
+            {
+                nested++;
+
+                continue;
+            }
+
+            if (instruction.Opcode != Opcodes.InvokeSpecial || instruction.ConstantIndex is not int reference)
+                continue;
+
+            MemberReference constructor = Model.GetMemberReference(reference);
+
+            if (constructor.Owner != fromClass || constructor.Name != "<init>")
+                continue;
+
+            if (nested == 0)
+                return (index, constructor.Descriptor);
+
+            nested--;
+        }
+
+        return null;
+    }
+
+    private MemberReference? StoredField(IReadOnlyList<Instruction> instructions, int index)
+    {
+        if (index >= instructions.Count || instructions[index] is not { Opcode: Opcodes.PutField or Opcodes.PutStatic, ConstantIndex: int reference })
+            return null;
+
+        return Model.GetMemberReference(reference);
+    }
+
     private List<int> FindInvocations(JavaMethod from, string? methodName, string? methodDescriptor)
     {
         List<int> sites = [];
@@ -496,4 +709,7 @@ public sealed class ClassFileEditor : IConstantPool
         BinaryPrimitives.WriteUInt16BigEndian(_bytes.AsSpan(offset), (ushort)value);
         _model = null;
     }
+
+    /// <summary>A <c>new</c> instruction and the constructor call that initializes its object, at their offsets in the class file, with the field the object goes into, if any.</summary>
+    private sealed record Construction(int New, int Constructor, string ConstructorDescriptor, MemberReference? Field);
 }

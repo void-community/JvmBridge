@@ -3,7 +3,7 @@ namespace JvmBridge.Agents;
 /// <summary>What applying a <see cref="ClassPatch"/> to a class did, or why it did nothing.</summary>
 public sealed class ClassPatchResult
 {
-    internal ClassPatchResult(string className, byte[]? bytes, string? skippedReason, IReadOnlyList<string> details, int redirectedInvocations, int replacedConstants, int changedAccessFlags, int appliedEdits, int advisedMethods = 0, PatchSkipCategory skipCategory = PatchSkipCategory.None)
+    internal ClassPatchResult(string className, byte[]? bytes, string? skippedReason, IReadOnlyList<string> details, int redirectedInvocations, int replacedConstants, int changedAccessFlags, int appliedEdits, int advisedMethods = 0, int replacedConstructions = 0, int removedInvocations = 0, PatchSkipCategory skipCategory = PatchSkipCategory.None)
     {
         ClassName = className;
         Bytes = bytes;
@@ -14,6 +14,8 @@ public sealed class ClassPatchResult
         ChangedAccessFlags = changedAccessFlags;
         AppliedEdits = appliedEdits;
         AdvisedMethods = advisedMethods;
+        ReplacedConstructions = replacedConstructions;
+        RemovedInvocations = removedInvocations;
         SkipCategory = skipCategory;
     }
 
@@ -46,6 +48,12 @@ public sealed class ClassPatchResult
 
     /// <summary>Gets the number of methods that got a Before or After hook.</summary>
     public int AdvisedMethods { get; }
+
+    /// <summary>Gets the number of constructions that now build another class or call a factory.</summary>
+    public int ReplacedConstructions { get; }
+
+    /// <summary>Gets the number of calls of methods that return their receiver which were removed.</summary>
+    public int RemovedInvocations { get; }
 
     /// <summary>Gets the kind of reason the class was left unchanged, or <see cref="PatchSkipCategory.None"/> when it was changed.</summary>
     public PatchSkipCategory SkipCategory { get; }

@@ -173,6 +173,75 @@ public sealed class ClassPatch
         return Redirecting(from, to.Owner, to.Name, to.Descriptor, ownerIsInterface);
     }
 
+    /// <summary>
+    /// Makes the code construct another class with the same constructor arguments: <c>new A(…)</c> becomes <c>new B(…)</c>, at the same code length. B needs a constructor with the same descriptor, and the object must fit wherever the code uses it, such as the
+    /// type of the field it goes into; the JVM's verifier checks that when the class loads. A <see cref="Method"/> scope limits the methods searched.
+    /// </summary>
+    /// <param name="fromClass">The internal name of the class the code constructs now, for example <c>java/util/ArrayList</c>.</param>
+    /// <param name="toClass">The internal name of the class to construct instead, for example <c>java/util/concurrent/CopyOnWriteArrayList</c>.</param>
+    /// <param name="storedIn">Limits the edit to constructions whose object goes straight into a field of this name, for when a method constructs the class more than once, or <see langword="null"/> for every construction.</param>
+    /// <returns>A new patch.</returns>
+    public ClassPatch ReplaceConstruction(string fromClass, string toClass, string? storedIn = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(fromClass);
+        ArgumentException.ThrowIfNullOrEmpty(toClass);
+        RequireInternalName(fromClass, nameof(fromClass));
+        RequireInternalName(toClass, nameof(toClass));
+
+        return Constructing(fromClass, storedIn, $"new {fromClass} replaced by new {toClass}", (editor, name, descriptor) => editor.ReplaceConstruction(fromClass, toClass, storedIn, name, descriptor));
+    }
+
+    /// <summary>
+    /// Makes the code get an object from a static factory instead of constructing it with no arguments: <c>new A()</c> becomes <c>factory()</c>, as <c>new HashSet&lt;&gt;()</c> becomes <c>ConcurrentHashMap.newKeySet()</c>. The factory takes no parameters
+    /// and returns an object; with <paramref name="storedIn"/>, a field that holds a primitive, or an array type the factory does not return, makes the patch skip the class. The JVM's verifier checks the rest when the class loads.
+    /// </summary>
+    /// <param name="fromClass">The internal name of the class the code constructs now, for example <c>java/util/HashSet</c>.</param>
+    /// <param name="factory">The factory, described with <see cref="JavaMethod.Static"/>.</param>
+    /// <param name="storedIn">Limits the edit to constructions whose object goes straight into a field of this name, or <see langword="null"/> for every construction.</param>
+    /// <param name="ownerIsInterface">Whether the factory's owner is an interface, whose static methods need an interface method reference (class files of version 52 or later).</param>
+    /// <returns>A new patch.</returns>
+    /// <exception cref="ArgumentException">The factory is not static, takes parameters, or returns no object.</exception>
+    public ClassPatch ReplaceConstruction(string fromClass, JavaMethod factory, string? storedIn = null, bool ownerIsInterface = false)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(fromClass);
+        RequireInternalName(fromClass, nameof(fromClass));
+        _ = ClassFileEditor.FactoryResult(factory);
+
+        return Constructing(
+            fromClass,
+            storedIn,
+            $"new {fromClass}() replaced by {factory.Owner}.{factory.Name}()",
+            (editor, name, descriptor) => editor.ReplaceConstruction(fromClass, factory, storedIn, name, descriptor, ownerIsInterface)
+        );
+    }
+
+    /// <summary>
+    /// Removes calls of a method that returns its own receiver, such as a fluent setter: <c>builder.autosave().autoreload()</c> without both calls is <c>builder</c>. Each call becomes <c>nop</c>s, at the same code length. A <see cref="Method"/> scope
+    /// limits the methods searched.
+    /// </summary>
+    /// <param name="call">The call to remove, described with <see cref="JavaMethod.Virtual"/> or <see cref="JavaMethod.Interface"/>; it takes no arguments and returns its owner.</param>
+    /// <returns>A new patch.</returns>
+    /// <exception cref="ArgumentException">The call is static, takes arguments, or returns something other than its owner.</exception>
+    public ClassPatch RemoveInvocation(JavaMethod call)
+    {
+        if (ClassFileEditor.RemovalProblem(call) is { } problem)
+            throw new ArgumentException(problem, nameof(call));
+
+        MethodScope? scope = _scope;
+
+        return With(PatchKind.Removal, editor =>
+        {
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
+
+            int count = editor.RemoveInvocation(call, scope?.Name, scope?.Descriptor);
+
+            return count == 0
+                ? StepOutcome.Skip($"no invocation of {call}{(scope is null ? string.Empty : $" in {scope}")}")
+                : StepOutcome.Applied(count, $"{Prefix(scope)}{count} invocation{(count == 1 ? string.Empty : "s")} of {call.Owner}.{call.Name} removed");
+        });
+    }
+
     /// <summary>Replaces a String constant. Every use of the constant changes.</summary>
     /// <param name="oldValue">The value to replace.</param>
     /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
@@ -369,7 +438,7 @@ public sealed class ClassPatch
             return Skipped(className, _matcher.ExactName is null ? $"the class file is {className}, which {ClassName} does not target" : $"the class file is {className}");
 
         List<string> details = [];
-        int[] counts = new int[4];
+        int[] counts = new int[Enum.GetValues<PatchKind>().Length];
 
         if (phases.HasFlag(Phases.Edits))
         {
@@ -415,7 +484,19 @@ public sealed class ClassPatch
         foreach (string key in advised)
             _ = (advice?.Applied.Add(key));
 
-        return new ClassPatchResult(className, editor.ToArray(), skippedReason: null, details, counts[(int)PatchKind.Invocation], counts[(int)PatchKind.Constant], counts[(int)PatchKind.Access], counts[(int)PatchKind.Edit], advised.Count);
+        return new ClassPatchResult(
+            className,
+            editor.ToArray(),
+            skippedReason: null,
+            details,
+            counts[(int)PatchKind.Invocation],
+            counts[(int)PatchKind.Constant],
+            counts[(int)PatchKind.Access],
+            counts[(int)PatchKind.Edit],
+            advised.Count,
+            counts[(int)PatchKind.Construction],
+            counts[(int)PatchKind.Removal]
+        );
     }
 
     private static string? Incompatibility(string derived, string target)
@@ -440,6 +521,24 @@ public sealed class ClassPatch
         }
 
         return null;
+    }
+
+    private ClassPatch Constructing(string fromClass, string? storedIn, string description, Func<ClassFileEditor, string?, string?, int> replace)
+    {
+        MethodScope? scope = _scope;
+        string target = storedIn is null ? string.Empty : $" stored in {storedIn}";
+
+        return With(PatchKind.Construction, editor =>
+        {
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
+
+            int count = replace(editor, scope?.Name, scope?.Descriptor);
+
+            return count == 0
+                ? StepOutcome.Skip($"no construction of {fromClass}{target}{(scope is null ? string.Empty : $" in {scope}")}")
+                : StepOutcome.Applied(count, $"{Prefix(scope)}{count} {description}{target}");
+        });
     }
 
     private ClassPatch Redirecting(JavaMethod from, string toOwner, string? toName, string? toDescriptor, bool ownerIsInterface)
@@ -469,7 +568,7 @@ public sealed class ClassPatch
     }
 
     private static ClassPatchResult Skipped(string className, string reason, PatchSkipCategory category = PatchSkipCategory.Other)
-        => new(className, bytes: null, reason, [], redirectedInvocations: 0, replacedConstants: 0, changedAccessFlags: 0, appliedEdits: 0, advisedMethods: 0, category);
+        => new(className, bytes: null, reason, [], redirectedInvocations: 0, replacedConstants: 0, changedAccessFlags: 0, appliedEdits: 0, skipCategory: category);
 
     private ClassPatch ReplacingConstant(string description, Func<ClassFileEditor, int> replace)
     {
@@ -519,6 +618,8 @@ public sealed class ClassPatch
         Constant,
         Access,
         Edit,
+        Construction,
+        Removal,
     }
 
     [Flags]
