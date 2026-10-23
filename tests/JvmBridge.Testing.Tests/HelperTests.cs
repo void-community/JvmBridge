@@ -139,7 +139,7 @@ public sealed class HelperTests
         string[] directory = SourceGlob.Resolve(pattern: "Fixtures/Good", [AppContext.BaseDirectory]);
         string[] single = SourceGlob.Resolve(pattern: "Fixtures/Broken/Broken.java", [AppContext.BaseDirectory]);
 
-        Assert.Equal(expected: 2, recursive.Length);
+        Assert.Equal(expected: 3, recursive.Length);
         Assert.All(recursive, path => Assert.StartsWith(root, path, StringComparison.Ordinal));
         Assert.Equal(Path.Combine(root, path2: "Good", path3: "Greeter.java"), Assert.Single(topLevel));
         Assert.Equal(topLevel, directory);

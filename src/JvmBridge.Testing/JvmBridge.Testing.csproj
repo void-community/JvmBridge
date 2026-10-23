@@ -21,5 +21,6 @@
     <Compile Include="../JvmBridge.Build/Models/JdkEntry.cs" Link="Shared/JdkEntry.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkLock.cs" Link="Shared/JdkLock.cs" />
     <EmbeddedResource Include="../JvmBridge.Build/jdks.lock.json" LogicalName="jdks.lock.json" />
+    <EmbeddedResource Include="../JvmBridge.Build/legacy-jdks.lock.json" LogicalName="legacy-jdks.lock.json" />
   </ItemGroup>
 </Project>

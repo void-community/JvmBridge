@@ -8,6 +8,9 @@ namespace JvmBridge.Maintenance;
 
 internal sealed class JdkResolver(RepositoryContext repository, HttpService http)
 {
+    // Java 6 and 7 are only run by tests of agents that support them, from Azul's community builds; they stay out of the compatibility grid.
+    private static readonly int[] LegacyMajors = [6, 7];
+
     private readonly RepositoryContext _repository = repository;
     private readonly HttpService _http = http;
 
@@ -15,12 +18,12 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     {
         CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
 
-        List<JdkResolutionRequest> cells = [.. (
+        List<JdkResolutionRequest> cells = [..
             from target in configuration.Targets
             where target.Agent
             from major in configuration.JavaMajors
             from implementation in configuration.Implementations
-            select new JdkResolutionRequest(target, major, implementation))];
+            select new JdkResolutionRequest(target, major, implementation)];
 
         List<JdkEntry> entries = [];
 
@@ -31,24 +34,26 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             entries.AddRange(resolved);
         }
 
-        string path = _repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]);
+        WriteLock(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]), entries);
 
-        if (File.Exists(path))
+        List<JdkEntry> legacy = [];
+
+        foreach (TargetConfiguration target in configuration.Targets.Where(static target => target.Agent))
         {
-            List<JdkEntry> previous = JsonFile.Read<JdkLock>(path).Jdks;
-
-            HashSet<JvmMatrixCell> available = [.. entries
-                .Where(entry => entry.Status == "available")
-                .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
-
-            List<JdkEntry> lost = [.. previous.Where(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)))];
-
-            if (lost.Count > 0)
-                throw new InvalidOperationException(message: "Previously available JVM coverage disappeared; review vendor availability before changing the lock.");
+            foreach (int major in LegacyMajors)
+            {
+                legacy.Add(
+                    ToEntry(
+                        target,
+                        major,
+                        implementation: "hotspot",
+                        await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
+                    )
+                );
+            }
         }
 
-        JsonFile.Write(path, new JdkLock { Jdks = entries });
-        ConsoleOutput.WriteLine($"Pinned {entries.Count(entry => entry.Status == "available")} JVM archives; {entries.Count} matrix cells accounted for.");
+        WriteLock(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "legacy-jdks.lock.json"]), legacy);
     }
 
     public async Task<JdkArchive?> ResolveSemeruAsync(TargetConfiguration target, int major, CancellationToken cancellationToken)
@@ -215,6 +220,32 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         return value ?? throw new InvalidOperationException($"Missing {description}.");
     }
 
+    private static JdkEntry ToEntry(TargetConfiguration target, int major, string implementation, JdkArchive? archive)
+    {
+        return archive is null
+            ? new JdkEntry
+            {
+                Rid = target.Rid,
+                Java = major,
+                Implementation = implementation,
+                Status = "unavailable",
+                Reason = "No matching GA JDK archive in the configured vendor inventories."
+            }
+            : !Regex.IsMatch(archive.Sha256, pattern: "^[a-fA-F0-9]{64}$", RegexOptions.CultureInvariant)
+            ? throw new InvalidOperationException("Invalid SHA256 for " + archive.Url)
+            : new JdkEntry
+            {
+                Rid = target.Rid,
+                Java = major,
+                Implementation = implementation,
+                Distribution = archive.Distribution,
+                Version = archive.Version,
+                Url = archive.Url,
+                Sha256 = archive.Sha256,
+                Status = "available"
+            };
+    }
+
     private static string VersionKey(JsonObject entry)
     {
         string java = string.Join(
@@ -232,37 +263,34 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         return java + "|" + distroValue;
     }
 
+    private static void WriteLock(string path, List<JdkEntry> entries)
+    {
+        if (File.Exists(path))
+        {
+            List<JdkEntry> previous = JsonFile.Read<JdkLock>(path).Jdks;
+
+            HashSet<JvmMatrixCell> available = [.. entries
+                .Where(entry => entry.Status == "available")
+                .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
+
+            List<JdkEntry> lost = [.. previous.Where(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)))];
+
+            if (lost.Count > 0)
+                throw new InvalidOperationException(message: "Previously available JVM coverage disappeared; review vendor availability before changing the lock.");
+        }
+
+        JsonFile.Write(path, new JdkLock { Jdks = entries });
+        ConsoleOutput.WriteLine(
+            $"Pinned {entries.Count(entry => entry.Status == "available")} JVM archives in {Path.GetFileName(path)}; {entries.Count} matrix cells accounted for."
+        );
+    }
+
     private async Task<JdkEntry> ResolveCellAsync(TargetConfiguration target, int major, string implementation, CancellationToken cancellationToken)
     {
         JdkArchive? archive = implementation == "openj9"
             ? await ResolveSemeruAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
             : await ResolveTemurinAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false) ?? await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        if (archive is null)
-        {
-            return new JdkEntry
-            {
-                Rid = target.Rid,
-                Java = major,
-                Implementation = implementation,
-                Status = "unavailable",
-                Reason = "No matching GA JDK archive in the configured vendor inventories."
-            };
-        }
-
-        if (!Regex.IsMatch(archive.Sha256, pattern: "^[a-fA-F0-9]{64}$", RegexOptions.CultureInvariant))
-            throw new InvalidOperationException("Invalid SHA256 for " + archive.Url);
-
-        return new JdkEntry
-        {
-            Rid = target.Rid,
-            Java = major,
-            Implementation = implementation,
-            Distribution = archive.Distribution,
-            Version = archive.Version,
-            Url = archive.Url,
-            Sha256 = archive.Sha256,
-            Status = "available"
-        };
+        return ToEntry(target, major, implementation, archive);
     }
 }

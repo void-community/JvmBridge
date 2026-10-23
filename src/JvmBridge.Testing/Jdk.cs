@@ -18,11 +18,11 @@ public sealed class Jdk
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Homes = new(StringComparer.Ordinal);
 
     /// <summary>Initializes a JDK request.</summary>
-    /// <param name="major">The Java major version, for example 8 or 17.</param>
+    /// <param name="major">The Java major version, for example 8 or 17. Java 6 and 7 are pinned Zulu builds for linux-x64 and win-x64, and Java 7 also for win-x86 and osx-x64.</param>
     /// <param name="implementation">The JVM implementation, <c>hotspot</c> or <c>openj9</c>.</param>
     public Jdk(int major, string implementation = "hotspot")
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(major, other: 8);
+        ArgumentOutOfRangeException.ThrowIfLessThan(major, other: 6);
         ArgumentException.ThrowIfNullOrEmpty(implementation);
         Major = major;
         Implementation = implementation;
@@ -53,7 +53,12 @@ public sealed class Jdk
         // javac 8 and older have no --release; javac 9 to 11 compile for Java 6 and later, 12 to 19 for 7 and later, 20 and later for 8 and later.
         string version = target.ToString(CultureInfo.InvariantCulture);
         List<string> arguments = Major <= 8 ? ["-source", version, "-target", version] : ["--release", version];
-        arguments.AddRange(["-Xlint:-options", "-encoding", "UTF-8", "-d", output, "-cp", output]);
+
+        // javac 6 rejects the options lint key, which javac 7 introduced with its warning about an old -source.
+        if (Major >= 7)
+            arguments.Add(item: "-Xlint:-options");
+
+        arguments.AddRange(["-encoding", "UTF-8", "-d", output, "-cp", output]);
         arguments.AddRange(files);
 
         JavaRun run = await ProcessExecution.RunAsync(javac, arguments, new Dictionary<string, string>(), TimeSpan.FromMinutes(minutes: 2), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);

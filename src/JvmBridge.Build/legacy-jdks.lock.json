@@ -1,0 +1,162 @@
+{
+  "jdks": [
+    {
+      "rid": "linux-x64",
+      "java": 6,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "6.0.119",
+      "url": "https://cdn.azul.com/zulu/bin/zulu6.22.0.3-ca-jdk6.0.119-linux_x64.tar.gz",
+      "sha256": "dd4765b45d9f1fc319a6e5be0bbc79371582daa8fd77872d51072f16deca2625",
+      "status": "available"
+    },
+    {
+      "rid": "linux-x64",
+      "java": 7,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "7.0.352",
+      "url": "https://cdn.azul.com/zulu/bin/zulu7.56.0.11-ca-jdk7.0.352-linux_x64.tar.gz",
+      "sha256": "8a7387c1ed151474301b6553c6046f865dc6c1e1890bcf106acc2780c55727c8",
+      "status": "available"
+    },
+    {
+      "rid": "linux-arm64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-arm64",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-arm",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-arm",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-musl-x64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-musl-x64",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-musl-arm64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "linux-musl-arm64",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "win-x64",
+      "java": 6,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "6.0.119",
+      "url": "https://cdn.azul.com/zulu/bin/zulu6.22.0.3-ca-jdk6.0.119-win_x64.zip",
+      "sha256": "24059e8915d675074a80047c75cd6e0672b5c2cadf5b398fb6a6c51d035c54ca",
+      "status": "available"
+    },
+    {
+      "rid": "win-x64",
+      "java": 7,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "7.0.352",
+      "url": "https://cdn.azul.com/zulu/bin/zulu7.56.0.11-ca-jdk7.0.352-win_x64.zip",
+      "sha256": "a0255d1e29d4ab9d685b698217d9adca6a29b2e493608d4e73feda84e7759085",
+      "status": "available"
+    },
+    {
+      "rid": "win-arm64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "win-arm64",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "win-x86",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "win-x86",
+      "java": 7,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "7.0.352",
+      "url": "https://cdn.azul.com/zulu/bin/zulu7.56.0.11-ca-jdk7.0.352-win_i686.zip",
+      "sha256": "05c4fed6c41cebf938d853e37b0fcf0d5c0abad81654a0e06e67d366543372a0",
+      "status": "available"
+    },
+    {
+      "rid": "osx-x64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "osx-x64",
+      "java": 7,
+      "implementation": "hotspot",
+      "distribution": "zulu",
+      "version": "7.0.352",
+      "url": "https://cdn.azul.com/zulu/bin/zulu7.56.0.11-ca-jdk7.0.352-macosx_x64.tar.gz",
+      "sha256": "31909aa6233289f8f1d015586825587e95658ef59b632665e1e49fc33a2cdf06",
+      "status": "available"
+    },
+    {
+      "rid": "osx-arm64",
+      "java": 6,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    },
+    {
+      "rid": "osx-arm64",
+      "java": 7,
+      "implementation": "hotspot",
+      "status": "unavailable",
+      "reason": "No matching GA JDK archive in the configured vendor inventories."
+    }
+  ]
+}

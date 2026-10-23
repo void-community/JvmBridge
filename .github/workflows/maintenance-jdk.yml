@@ -52,6 +52,7 @@ jobs:
             src/JvmBridge.Build/headers/
             src/JvmBridge.Build/compatibility.json
             src/JvmBridge.Build/jdks.lock.json
+            src/JvmBridge.Build/legacy-jdks.lock.json
             src/JvmBridge/Native/Generated/
             docs/compatibility.md
       - name: Create update PR and trigger real JVM validation

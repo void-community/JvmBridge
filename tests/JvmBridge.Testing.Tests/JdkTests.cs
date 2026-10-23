@@ -1,5 +1,8 @@
+using System.Globalization;
 using System.Reflection;
 
+using JvmBridge.Build.Infrastructure;
+using JvmBridge.Build.Models;
 using JvmBridge.ClassFiles;
 
 using Xunit;
@@ -29,6 +32,23 @@ public sealed class JdkTests
         {
             Environment.SetEnvironmentVariable(variable: "JVMBRIDGE_JDK_98", value: null);
         }
+    }
+
+    /// <summary>The pinned Java 6 and 7 JDKs compile for their own release with -source and -target, and run the class.</summary>
+    [Theory]
+    [JdkData(6, 7)]
+    public async Task CompilesAndRunsOnJava6And7Async(Jdk jdk)
+    {
+        ArgumentNullException.ThrowIfNull(jdk);
+        string classPath = await jdk.CompileAsync(sources: "Fixtures/Legacy/**/*.java", jdk.Major, TestContext.Current.CancellationToken);
+        JavaRunOptions options = new();
+        options.Arguments.Add(item: "exit4");
+
+        JavaRun run = await jdk.RunAsync(mainClass: "fixture.Greeter", classPath, options: options, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(44 + jdk.Major, MajorVersion(classPath));
+        Assert.Equal(expected: 4, run.ExitCode);
+        Assert.Contains("hello 1." + jdk.Major.ToString(CultureInfo.InvariantCulture), run.Output, StringComparison.Ordinal);
     }
 
     /// <summary>Classes are compiled for Java 8 unless another release is requested, even by a newer JDK.</summary>
@@ -74,6 +94,24 @@ public sealed class JdkTests
         );
     }
 
+    /// <summary>The Java 6 and 7 JDKs come from the legacy inventory that the package embeds beside the main one, pinned by checksum, and a platform Azul has no build for has none.</summary>
+    [Fact]
+    public void FindsTheLegacyJdks()
+    {
+        foreach (int major in new[] { 6, 7 })
+        {
+            JdkEntry? entry = PinnedJdk.Find(major, implementation: "hotspot", runtimeIdentifier: "linux-x64");
+
+            Assert.NotNull(entry);
+            Assert.Equal(expected: "available", entry.Status);
+            Assert.Equal(expected: "zulu", entry.Distribution);
+            Assert.Equal(expected: 64, entry.Sha256?.Length);
+        }
+
+        Assert.Equal(expected: "unavailable", PinnedJdk.Find(major: 7, implementation: "hotspot", runtimeIdentifier: "linux-arm64")?.Status);
+        Assert.Equal(expected: "unavailable", PinnedJdk.Find(major: 6, implementation: "hotspot", runtimeIdentifier: "osx-x64")?.Status);
+    }
+
     /// <summary>An installed JDK is identified from its properties, which Java 8 reports as 1.8, through the noise of JAVA_TOOL_OPTIONS; output without them identifies nothing.</summary>
     [Fact]
     public void IdentifiesInstalledJdksFromTheirProperties()
@@ -89,11 +127,11 @@ public sealed class JdkTests
         Assert.Null(InstalledJdk.Parse(output: "    java.specification.version = soon\n    java.vm.name = Some VM\n"));
     }
 
-    /// <summary>A JDK older than Java 8 is rejected up front.</summary>
+    /// <summary>A JDK older than Java 6 is rejected up front.</summary>
     [Fact]
-    public void RejectsJdksBeforeJava8()
+    public void RejectsJdksBeforeJava6()
     {
-        ArgumentOutOfRangeException failure = Assert.Throws<ArgumentOutOfRangeException>(static () => new Jdk(major: 7));
+        ArgumentOutOfRangeException failure = Assert.Throws<ArgumentOutOfRangeException>(static () => new Jdk(major: 5));
 
         Assert.Equal(expected: "major", failure.ParamName);
     }
