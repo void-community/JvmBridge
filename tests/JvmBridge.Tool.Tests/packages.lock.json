@@ -178,7 +178,7 @@
       "jvmbridge.testing": {
         "type": "Project",
         "dependencies": {
-          "JvmBridge": "[26.10.23.2828, )",
+          "JvmBridge": "[26.10.30.6677, )",
           "xunit.v3.assert": "[4.0.2, )",
           "xunit.v3.extensibility.core": "[4.0.2, )"
         }
@@ -186,8 +186,8 @@
       "jvmbridge.tool": {
         "type": "Project",
         "dependencies": {
-          "JvmBridge": "[26.10.23.2828, )",
-          "JvmBridge.Launcher": "[26.10.23.2828, )",
+          "JvmBridge": "[26.10.30.6677, )",
+          "JvmBridge.Launcher": "[26.10.30.6677, )",
           "System.CommandLine": "[2.0.13, )"
         }
       },
