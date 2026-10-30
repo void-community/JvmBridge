@@ -8,7 +8,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JvmBridge.Logging.Tests" />
     <ProjectReference Include="../JvmBridge/JvmBridge.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.14" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
