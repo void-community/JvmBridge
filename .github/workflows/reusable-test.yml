@@ -142,7 +142,17 @@ jobs:
                 for cell in $JVM_TEST_CELLS; do
                   major="${cell%%:*}"
                   implementation="${cell#*:}"
-                  JVM_JAVA_MAJOR="$major" JVM_IMPLEMENTATION="$implementation" /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit-$major-$implementation.xml"
+                  attempt=1
+                  # QEMU 10.2 now and then aborts on the Thumb code that the ARM32 JIT writes (thumb_tr_translate_insn: pc_next & 1), which kills the
+                  # emulated test runner with SIGABRT, 134. Such a cell runs again, up to three times; any other failure, or a fourth abort, fails the job.
+                  until JVM_JAVA_MAJOR="$major" JVM_IMPLEMENTATION="$implementation" /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit-$major-$implementation.xml"; do
+                    status=$?
+                    if [ "$status" -ne 134 ] || [ "$attempt" -ge 3 ]; then
+                      exit "$status"
+                    fi
+                    echo "::warning::The ARM32 emulator aborted the Java $major $implementation cell (exit 134); running it again."
+                    attempt=$((attempt + 1))
+                  done
                 done
               else
                 dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"
