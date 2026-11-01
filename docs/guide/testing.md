@@ -47,6 +47,20 @@ public async Task AgentChangesTheSort(Jdk jdk)
   ```
 
   Coordinates take an optional `:classifier` and `@extension`. A download whose checksum differs fails the test.
+- `PinnedArtifact` pins a file at any HTTP or HTTPS address by its SHA-256, for jars that no Maven repository serves: release assets, vendor downloads, objects addressed by their hash. `MavenArtifact` is the case whose address comes from coordinates, so either goes wherever a `PinnedArtifact` is asked for. `[PinnedArtifactData(address, sha256)]` supplies one per theory row:
+
+  ```csharp
+  [Theory]
+  [PinnedArtifactData("https://launcher.mojang.com/v1/objects/<sha1>/server.jar", "<sha256>", FileName = "server-1.12.2.jar")]
+  [PinnedArtifactData("https://launcher.mojang.com/v1/objects/<sha1>/server.jar", "<sha256>", FileName = "server-1.16.5.jar")]
+  public async Task PatchesEveryReleaseAsync(PinnedArtifact server)
+  {
+      IReadOnlyList<ClassPatchResult> results = ServerPatch.ApplyToJar(await server.GetPathAsync(TestContext.Current.CancellationToken));
+      ...
+  }
+  ```
+
+  Each file is cached in a directory named after its checksum, so addresses that end in the same name, like `server.jar` above, never collide; `FileName` sets the cached name, which also names the test row, and defaults to the last segment of the address.
 - `patch.ApplyToJar(path)` (in the JvmBridge package) applies a patch to every class of a jar that it targets and returns one `ClassPatchResult` each, with the reason for each class it skips.
 - `ClassFileAssert.LinksAsync(jdk, helper, classPath, patches)` checks that a helper links against the real classes: every class, field and method it refers to must exist with that descriptor on the class path or in the JDK, found through superclasses and interfaces as the JVM finds them, and be accessible from the helper. The class path is read as the agent's patches leave it, so a getter or invoker they add, or a member they open, counts. A stub source that gets a member wrong fails here, with one line per reference, rather than as `NoSuchMethodError` on the version that differs. The application's classes are read from their class files, so their own dependencies need not be on the class path; the JDK's are looked up by a small Java program on `jdk`.
 

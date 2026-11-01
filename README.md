@@ -78,7 +78,7 @@ Locations differ across distributions and Java versions; Java 8 commonly places 
 - **Events and JVM state:** thread, class-load, exception, method, garbage-collection and monitor events with capability negotiation, thread and stack wrappers, and class redefinition.
 - **Java interop:** arrays, exception throwing, monitors and local frames, `[JavaMethod]` with arrays, and typed proxies for the classes of a jar.
 - **Logging and options:** levels, a replaceable sink, an `ILogger` adapter and a parsed option string.
-- **Testing:** `JvmBridge.Testing` supplies checksum-pinned JDKs and Maven artifacts, `javac` and `java` runners, published-agent lookup, class-file assertions, disassembly snapshots, patches applied across a jar, and a link check of helpers against real classes.
+- **Testing:** `JvmBridge.Testing` supplies checksum-pinned JDKs and jars from Maven repositories or any address, `javac` and `java` runners, published-agent lookup, class-file assertions, disassembly snapshots, patches applied across a jar, and a link check of helpers against real classes.
 - **Delivery and tooling:** `-agentpath`, `JAVA_TOOL_OPTIONS`, the Attach API and `java -javaagent` with a jar from the `jvmbridge` command, which also disassembles classes and previews an agent's patches without a JVM.
 - **One package:** the runtime, source generator, and MSBuild integration ship together. Consumers do not need Clang or header files.
 - **Real validation:** CI publishes the example against the packed NuGet package and loads it into each available pinned JVM.

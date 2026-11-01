@@ -42,7 +42,7 @@ public static class ClassFileAssert
     /// </summary>
     /// <param name="jdk">The JDK whose classes the helper may use; it runs a small program to look them up.</param>
     /// <param name="helper">The helper, such as <c>JavaClasses.Acme.Agent.Network</c>, with its nested classes.</param>
-    /// <param name="classPath">Jars and class directories of the application, for example from <see cref="MavenArtifact.GetPathAsync"/>; their own dependencies need not be there.</param>
+    /// <param name="classPath">Jars and class directories of the application, for example from <see cref="PinnedArtifact.GetPathAsync"/>; their own dependencies need not be there.</param>
     /// <param name="patches">The patches the agent registers, or none.</param>
     /// <param name="cancellationToken">Cancels the check.</param>
     /// <returns>A task that fails the test with one line per reference that does not link.</returns>

@@ -11,9 +11,15 @@ public sealed class ArtifactTests
 {
     private const string Inject = "javax.inject:javax.inject:1";
 
+    private const string InjectAddress = "https://repo1.maven.org/maven2/javax/inject/javax.inject/1/javax.inject-1.jar";
+
     private const string InjectSha256 = "91c77044a50c481636c32d916fd89c9118a72195390452c81065080f957de7ff";
 
     private const string MavenCentral = "https://repo1.maven.org/maven2";
+
+    private const string SourcesAddress = "https://repo1.maven.org/maven2/javax/inject/javax.inject/1/javax.inject-1-sources.jar";
+
+    private const string SourcesSha256 = "c4b87ee2911c139c3daf498a781967f1eb2e75bc1a8529a2e7b328a15d0e433e";
 
     private static readonly JavaMethod Get = JavaMethod.Interface(owner: "javax/inject/Provider", name: "get", descriptor: "()Ljava/lang/Object;");
 
@@ -25,6 +31,28 @@ public sealed class ArtifactTests
 
         InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => wrong.GetPathAsync(TestContext.Current.CancellationToken));
 
+        Assert.Contains(expectedSubstring: "not the pinned", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>Two files cached under the same name do not collide, because each sits in a directory named after its checksum, and a file whose checksum differs from the pinned one fails the test.</summary>
+    [Fact]
+    public async Task FilesThatShareANameStayApartAsync()
+    {
+        PinnedArtifact jar = new(new Uri(InjectAddress), InjectSha256, fileName: "server.jar");
+        PinnedArtifact sources = new(new Uri(SourcesAddress), SourcesSha256, fileName: "server.jar");
+
+        string jarPath = await jar.GetPathAsync(TestContext.Current.CancellationToken);
+        string sourcesPath = await sources.GetPathAsync(TestContext.Current.CancellationToken);
+
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(
+            static () => new PinnedArtifact(new Uri(SourcesAddress), InjectSha256, fileName: "other.jar").GetPathAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(expected: "server.jar", Path.GetFileName(jarPath));
+        Assert.Equal(expected: "server.jar", Path.GetFileName(sourcesPath));
+        Assert.NotEqual(Path.GetDirectoryName(jarPath), Path.GetDirectoryName(sourcesPath));
+        Assert.Equal(expected: 2497, new FileInfo(jarPath).Length);
+        Assert.Equal(expected: 10928, new FileInfo(sourcesPath).Length);
         Assert.Contains(expectedSubstring: "not the pinned", failure.Message, StringComparison.Ordinal);
     }
 
@@ -132,6 +160,34 @@ public sealed class ArtifactTests
         Assert.True(Assert.Single(named).Changed);
         Assert.Equal(expected: 6, package.Count);
         Assert.All(package, static result => Assert.Equal(PatchSkipCategory.InterfaceClass, result.SkipCategory));
+    }
+
+    /// <summary>A file pinned by its address alone runs a patch across it like a Maven artifact does, with the cached name the theory gives it.</summary>
+    /// <param name="artifact">The pinned jar.</param>
+    [Theory]
+    [PinnedArtifactData(InjectAddress, InjectSha256, FileName = "inject-1.jar")]
+    public async Task PinnedAddressesServeTheoriesAsync(PinnedArtifact artifact)
+    {
+        ArgumentNullException.ThrowIfNull(artifact);
+        string jar = await artifact.GetPathAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected: "inject-1.jar", Path.GetFileName(jar));
+        Assert.Equal(expected: 6, ClassPatch.ForPackage(package: "javax/inject").SetAccess(accessFlags: 0x2601).ApplyToJar(jar).Count);
+    }
+
+    /// <summary>An address that is not HTTP or HTTPS, a malformed checksum and a file name with a directory in it are refused when the artifact is pinned.</summary>
+    [Fact]
+    public void RefusesWhatCannotBePinned()
+    {
+        Assert.True(
+            Assert.Throws<ArgumentException>(static () => new PinnedArtifact(new Uri(uriString: "file:///tmp/app.jar"), InjectSha256)).Message.Contains(value: "HTTP", StringComparison.Ordinal)
+        );
+        Assert.True(
+            Assert.Throws<ArgumentException>(static () => new PinnedArtifact(new Uri(InjectAddress), sha256: "abc")).Message.Contains(value: "SHA-256", StringComparison.Ordinal)
+        );
+        Assert.True(
+            Assert.Throws<ArgumentException>(static () => new PinnedArtifact(new Uri(InjectAddress), InjectSha256, fileName: "dir/app.jar")).Message.Contains(value: "file name", StringComparison.Ordinal)
+        );
     }
 
     // A class directory with app/Vault, whose int field secret is private.
