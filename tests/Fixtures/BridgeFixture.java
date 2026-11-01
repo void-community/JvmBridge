@@ -347,20 +347,20 @@ public final class BridgeFixture {
         return false;
     }
 
-    // Two threads contend for a monitor, one holding it while the other waits. A JVM that spins before it blocks may not report a contended enter for a short wait, so the check tries a few times before it gives up.
-    private static void contend() throws Exception {
+    // Two threads contend for a monitor, one holding it while the other waits. A JVM that spins before it blocks, as OpenJ9 does, may not report a contended enter for a short wait, so the check tries a few times, holding the monitor longer each time.
+    private static void contend(final long holdMillis) throws Exception {
         final Object contended = new Object();
-        final boolean[] holding = new boolean[1];
+        final java.util.concurrent.atomic.AtomicBoolean holding = new java.util.concurrent.atomic.AtomicBoolean();
         Thread holder = new Thread(new Runnable() {
             public void run() {
                 synchronized (contended) {
-                    holding[0] = true;
-                    try { Thread.sleep(300); } catch (InterruptedException ignored) { }
+                    holding.set(true);
+                    try { Thread.sleep(holdMillis); } catch (InterruptedException ignored) { }
                 }
             }
         }, "jvmbridge-holder");
         holder.start();
-        while (!holding[0]) Thread.sleep(5);
+        while (!holding.get()) Thread.sleep(5);
         synchronized (contended) { }
         holder.join();
     }
@@ -369,7 +369,7 @@ public final class BridgeFixture {
     private static void checkEvents() throws Exception {
         String summary = null;
         for (int attempt = 0; attempt < 5; attempt++) {
-            contend();
+            contend(300L << attempt);
             summary = (String) interop("events", new Class<?>[0]);
             if (!isSubscribed(summary, "MonitorContendedEnter") || (eventCount(summary, "monitorEnter") >= 1 && eventCount(summary, "monitorEntered") >= 1)) break;
         }
