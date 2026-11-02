@@ -22,7 +22,7 @@ public sealed class PinnedJdkTests
         Assert.Null(PinnedJdk.Find(major: 17, implementation: "unknown", runtimeIdentifier: "linux-x64"));
     }
 
-    /// <summary>The inventory embedded in the task assembly has the Java 17 JDK that the template builds with, with the checksum it is verified against.</summary>
+    /// <summary>The inventory compiled into the task assembly has the Java 17 JDK that the template builds with, with the checksum it is verified against.</summary>
     [Fact]
     public void FindsTheJava17Jdk()
     {

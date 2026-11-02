@@ -14,14 +14,15 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     private readonly RepositoryContext _repository = repository;
     private readonly HttpService _http = http;
 
-    public async Task ResolveAsync(CancellationToken cancellationToken)
+    /// <summary>Resolves the archive of every cell of the grid, Java 8 to the newest major, and of Java 6 and 7, and rewrites <see cref="PinnedJdks"/>.</summary>
+    public async Task ResolveAsync(int newestJava, CancellationToken cancellationToken)
     {
-        CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
+        CompatibilityConfiguration configuration = Compatibility.Configuration;
 
         List<JdkResolutionRequest> cells = [..
             from target in configuration.Targets
             where target.Agent
-            from major in configuration.JavaMajors
+            from major in Enumerable.Range(start: 8, newestJava - 7)
             from implementation in configuration.Implementations
             select new JdkResolutionRequest(target, major, implementation)];
 
@@ -33,8 +34,6 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             JdkEntry[] resolved = await Task.WhenAll(tasks).ConfigureAwait(continueOnCapturedContext: false);
             entries.AddRange(resolved);
         }
-
-        WriteLock(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]), entries);
 
         List<JdkEntry> legacy = [];
 
@@ -53,7 +52,12 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             }
         }
 
-        WriteLock(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "legacy-jdks.lock.json"]), legacy);
+        RequireCoverage(PinnedJdks.Jdks, entries);
+        RequireCoverage(PinnedJdks.LegacyJdks, legacy);
+        PinnedJdkWriter.Write(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "PinnedJdks.g.cs"]), newestJava, entries, legacy);
+        ConsoleOutput.WriteLine(
+            $"Pinned {entries.Concat(legacy).Count(entry => entry.Status == "available")} JVM archives; {entries.Count + legacy.Count} cells accounted for."
+        );
     }
 
     public async Task<JdkArchive?> ResolveSemeruAsync(TargetConfiguration target, int major, CancellationToken cancellationToken)
@@ -220,6 +224,19 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         return value ?? throw new InvalidOperationException($"Missing {description}.");
     }
 
+    // A vendor that stops listing an archive must not silently shrink the grid that CI requires.
+    private static void RequireCoverage(IReadOnlyList<JdkEntry> previous, List<JdkEntry> entries)
+    {
+        HashSet<JvmMatrixCell> available = [.. entries
+            .Where(entry => entry.Status == "available")
+            .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
+
+        bool lost = previous.Any(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)));
+
+        if (lost)
+            throw new InvalidOperationException(message: "Previously available JVM coverage disappeared; review vendor availability before changing the pinned inventory.");
+    }
+
     private static JdkEntry ToEntry(TargetConfiguration target, int major, string implementation, JdkArchive? archive)
     {
         return archive is null
@@ -261,28 +278,6 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         ) : distro?.ToJsonString() ?? string.Empty;
 
         return java + "|" + distroValue;
-    }
-
-    private static void WriteLock(string path, List<JdkEntry> entries)
-    {
-        if (File.Exists(path))
-        {
-            List<JdkEntry> previous = JsonFile.Read<JdkLock>(path).Jdks;
-
-            HashSet<JvmMatrixCell> available = [.. entries
-                .Where(entry => entry.Status == "available")
-                .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
-
-            List<JdkEntry> lost = [.. previous.Where(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)))];
-
-            if (lost.Count > 0)
-                throw new InvalidOperationException(message: "Previously available JVM coverage disappeared; review vendor availability before changing the lock.");
-        }
-
-        JsonFile.Write(path, new JdkLock { Jdks = entries });
-        ConsoleOutput.WriteLine(
-            $"Pinned {entries.Count(entry => entry.Status == "available")} JVM archives in {Path.GetFileName(path)}; {entries.Count} matrix cells accounted for."
-        );
     }
 
     private async Task<JdkEntry> ResolveCellAsync(TargetConfiguration target, int major, string implementation, CancellationToken cancellationToken)

@@ -50,9 +50,7 @@ jobs:
           name: jdk-update
           path: |
             src/JvmBridge.Build/headers/
-            src/JvmBridge.Build/compatibility.json
-            src/JvmBridge.Build/jdks.lock.json
-            src/JvmBridge.Build/legacy-jdks.lock.json
+            src/JvmBridge.Build/PinnedJdks.g.cs
             src/JvmBridge/Native/Generated/
             docs/compatibility.md
       - name: Create update PR and trigger real JVM validation
@@ -71,8 +69,8 @@ jobs:
             gh pr create --head "$branch" --title 'deps(jdk): ⬆️ refreshed generated JVM bindings and pinned runtimes' --body-file .github/jdk-update-body.md
           fi
           gh workflow run runnable-pr.yml --ref "$branch"
-          # New platforms and public API changes need human review. Routine archive
+          # A new Java major and public API changes need human review. Routine archive
           # updates can merge after the protected required check succeeds.
-          if git diff HEAD^ HEAD --quiet -- src/JvmBridge/Native/Generated/Bindings.g.cs src/JvmBridge.Build/compatibility.json; then
+          if git diff HEAD^ HEAD --quiet -- src/JvmBridge/Native/Generated/Bindings.g.cs && ! git diff HEAD^ HEAD -- src/JvmBridge.Build/PinnedJdks.g.cs | grep -q '^[-+].*NewestJava'; then
             gh pr merge "$branch" --auto --rebase
           fi

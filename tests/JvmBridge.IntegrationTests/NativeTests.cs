@@ -30,20 +30,19 @@ public sealed class NativeTests
             }
 
             RepositoryContext repository = RepositoryContext.Discover();
-            JdkLock inventory = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]));
 
             if (Environment.GetEnvironmentVariable(variable: "JVM_JAVA_MAJOR") is { } selectedMajor)
             {
                 int major = int.Parse(selectedMajor, System.Globalization.CultureInfo.InvariantCulture);
                 string implementation = Environment.GetEnvironmentVariable(variable: "JVM_IMPLEMENTATION") ?? "hotspot";
-                JdkEntry entry = inventory.Jdks.Single(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == implementation && entry.Status == "available");
+                JdkEntry entry = PinnedJdks.Jdks.Single(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == implementation && entry.Status == "available");
 
                 yield return new TheoryDataRow<string, int, string>(entry.Rid, entry.Java, entry.Implementation);
 
                 yield break;
             }
 
-            foreach (JdkEntry entry in inventory.Jdks.Where(entry => entry.Rid == rid))
+            foreach (JdkEntry entry in PinnedJdks.Jdks.Where(entry => entry.Rid == rid))
                 yield return new TheoryDataRow<string, int, string>(entry.Rid, entry.Java, entry.Implementation) { Skip = entry.Status == "available" ? null : entry.Reason };
         }
     }
@@ -87,7 +86,7 @@ public sealed class NativeTests
         string? localHome = Environment.GetEnvironmentVariable(variable: "JVM_JDK_HOME");
 
         JdkEntry entry = localHome is null
-            ? JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"])).Jdks.Single(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == implementation)
+            ? PinnedJdks.Jdks.Single(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == implementation)
             : new JdkEntry { Rid = rid, Java = major, Implementation = implementation, Distribution = "local", Status = "available" };
 
         string resultPath = Path.Combine(paths: [repository.Artifacts, "results", rid, $"{implementation}-{major}-{entry.Distribution}", "result.json"]);

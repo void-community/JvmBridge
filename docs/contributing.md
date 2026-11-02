@@ -44,11 +44,11 @@ dotnet publish samples/FootprintAgent -c Release -r linux-arm64 --self-contained
 TARGET_RID=linux-arm64 JVMBRIDGE_FOOTPRINT=1 dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~FootprintTests
 ```
 
-Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's footprint workflow does the same on each native runner and fails only when the library grows more than 10 percent past `docs/footprint.baseline.json`. It runs beside the tests, so a size regression is a red check on the commit and does not hold back publishing. After a deliberate change in size, download the `footprint-*` artifacts of a green run and rewrite the baseline and the published table with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
+Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's footprint workflow does the same on each native runner and fails only when the library grows more than 10 percent past the baseline in `tests/JvmBridge.IntegrationTests/FootprintBaseline.g.cs`. It runs beside the tests, so a size regression is a red check on the commit and does not hold back publishing. After a deliberate change in size, download the `footprint-*` artifacts of a green run and rewrite the baseline and the published table with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
 
 ## Java 6 and 7
 
-`LegacyJavaTests` runs `samples/LegacyAgent` on Zulu 6 and 7, from `src/JvmBridge.Build/legacy-jdks.lock.json`, and on Temurin 8 and 21. Zulu 6 and 7 exist for x64 only, so it runs on `linux-x64` only. Publish the sample against the glibc 2.12 sysroot of the `glibc-sysroot` action, then run it; with `JVMBRIDGE_LEGACY_GLIBC_IMAGE` set, it also checks the glibc floor and runs Java 6 and 7 in that image:
+`LegacyJavaTests` runs `samples/LegacyAgent` on Zulu 6 and 7, from the legacy list of `src/JvmBridge.Build/PinnedJdks.g.cs`, and on Temurin 8 and 21. Zulu 6 and 7 exist for x64 only, so it runs on `linux-x64` only. Publish the sample against the glibc 2.12 sysroot of the `glibc-sysroot` action, then run it; with `JVMBRIDGE_LEGACY_GLIBC_IMAGE` set, it also checks the glibc floor and runs Java 6 and 7 in that image:
 
 ```sh
 dotnet publish samples/LegacyAgent -c Release -r linux-x64 --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$package_version" -p:SysRoot=/crossrootfs/x64-glibc-2.12 -p:LinkerFlavor=lld -o artifacts/legacy-agent/linux-x64

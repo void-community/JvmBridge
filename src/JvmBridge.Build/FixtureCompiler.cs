@@ -14,7 +14,7 @@ internal sealed class FixtureCompiler(RepositoryContext repository, JdkArchiveMa
     public async Task CompileAllAsync(CancellationToken cancellationToken)
     {
         string runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
-        JdkEntry compiler = JsonFile.Read<JdkLock>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"])).Jdks.FirstOrDefault(entry => entry.Rid == runtimeIdentifier && entry.Java == 17 && entry.Implementation == "hotspot" && entry.Status == "available") ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
+        JdkEntry compiler = PinnedJdks.Jdks.FirstOrDefault(entry => entry.Rid == runtimeIdentifier && entry.Java == 17 && entry.Implementation == "hotspot" && entry.Status == "available") ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
 
         using TemporaryDirectory temporary = new(prefix: "jvmbridge-compiler-");
 

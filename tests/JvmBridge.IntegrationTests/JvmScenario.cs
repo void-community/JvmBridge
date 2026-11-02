@@ -38,7 +38,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         string host = Path.Combine(_repository.Artifacts, path2: "host", rid, rid.StartsWith(value: "win-", StringComparison.Ordinal) ? "JavaHost.exe" : "JavaHost");
         string java = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "java.exe" : "java");
         Dictionary<string, string?> environment = [];
-        CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
+        CompatibilityConfiguration configuration = Compatibility.Configuration;
         TargetConfiguration target = configuration.Targets.First(value => value.Rid == rid);
 
         List<string> vmOptions = [.. configuration.VmOptionRules

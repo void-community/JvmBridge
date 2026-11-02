@@ -72,8 +72,7 @@ public sealed class GlibcFloorTests
         string image = Environment.GetEnvironmentVariable(ImageVariable) ?? throw new InvalidOperationException(message: "No image is named.");
         string published = Path.Combine(repository.Artifacts, path2: "agent", Rid);
 
-        JdkEntry entry = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]))
-            .Jdks.Single(candidate => candidate.Rid == Rid && candidate.Java == major && candidate.Implementation == "hotspot");
+        JdkEntry entry = PinnedJdks.Jdks.Single(candidate => candidate.Rid == Rid && candidate.Java == major && candidate.Implementation == "hotspot");
 
         using HttpService http = new();
 

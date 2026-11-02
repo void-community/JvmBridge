@@ -13,24 +13,25 @@ on:
         type: string
         required: true
 jobs:
-  matrix:
-    runs-on: ubuntu-26.04
-    outputs:
-      footprint: ${{ steps.matrix.outputs.footprint }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - id: matrix
-        run: |
-          # Footprint is measured on the native runners only: not in containers or on x86.
-          echo "footprint=$(jq -c '{include: [.targets[] | select(.agent and (.container | not) and (.crossContainer | not) and .rid != "win-x86")]}' src/JvmBridge.Build/compatibility.json)" >> "$GITHUB_OUTPUT"
-  # Measures what an agent costs and fails only when the library outgrows docs/footprint.baseline.json by more than its budget. It runs beside the tests, not inside them, so a size regression shows as a red check without holding back a publish.
+  # Measures what an agent costs and fails only when the library outgrows the baseline of FootprintTests (FootprintBaseline.g.cs) by more than its budget. It runs beside the tests, not inside them, so a size regression shows as a red check without holding back a publish.
+  # The agent targets of Compatibility.cs in src/JvmBridge.Build that run on the runner itself, not in a container or as x86; WorkflowMatrixTests fails when the two differ.
   footprint:
-    needs: matrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.matrix.outputs.footprint) }}
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-24.04
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+          - rid: win-x64
+            runner: windows-2025
+          - rid: win-arm64
+            runner: windows-11-arm
+          - rid: osx-x64
+            runner: macos-15-intel
+          - rid: osx-arm64
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:

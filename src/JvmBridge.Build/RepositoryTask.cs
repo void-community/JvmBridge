@@ -62,9 +62,8 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
             bool check = Operation == "VerifyGenerated";
             await new BindingGenerator(repository, processes).GenerateAsync(check, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             reporter.Report(verify: false, check);
-            CompatibilityConfiguration configuration = JsonFile.Read<CompatibilityConfiguration>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "compatibility.json"]));
-            JdkLock inventory = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]));
-            ManifestValidator.ValidateManifest(configuration, inventory.Jdks);
+            CompatibilityConfiguration configuration = Compatibility.Configuration;
+            ManifestValidator.ValidateManifest(configuration, PinnedJdks.Jdks);
 
             return;
         }

@@ -50,11 +50,10 @@ public sealed partial class FootprintTests
         get
         {
             string rid = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
-            JdkLock inventory = JsonFile.Read<JdkLock>(RepositoryContext.Discover().PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]));
 
             foreach (int major in Majors)
             {
-                JdkEntry? entry = inventory.Jdks.FirstOrDefault(candidate => candidate.Rid == rid && candidate.Java == major && candidate.Implementation == "hotspot");
+                JdkEntry? entry = PinnedJdks.Jdks.FirstOrDefault(candidate => candidate.Rid == rid && candidate.Java == major && candidate.Implementation == "hotspot");
 
                 yield return new TheoryDataRow<string, int>(rid, major) { Skip = entry?.Status == "available" ? null : entry?.Reason ?? "No pinned HotSpot JDK for this target." };
             }
@@ -81,8 +80,7 @@ public sealed partial class FootprintTests
         string agent = Path.Combine(repository.Artifacts, path2: "footprint-agent", rid, "FootprintAgent" + extension);
         Assert.True(File.Exists(agent), "Publish samples/FootprintAgent for " + rid + " to " + agent);
 
-        JdkEntry entry = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"]))
-            .Jdks.Single(
+        JdkEntry entry = PinnedJdks.Jdks.Single(
                 candidate => candidate.Rid == rid && candidate.Java == major && candidate.Implementation == "hotspot" && candidate.Status == "available"
             );
 
@@ -147,7 +145,7 @@ public sealed partial class FootprintTests
             Path.Combine(paths: [repository.Artifacts, "footprint", rid, $"hotspot-{major.ToString(CultureInfo.InvariantCulture)}.json"]),
             result
         );
-        long? baselineSize = BaselineSize(repository, rid, major);
+        long? baselineSize = BaselineSize(rid, major);
         Summarize(rid, major, librarySize, [startupWithout, startupWith, startupAdded, withoutMemory, withMemory], baselineSize);
 
         if (baselineSize is { } baseline)
@@ -159,23 +157,9 @@ public sealed partial class FootprintTests
         }
     }
 
-    private static long? BaselineSize(RepositoryContext repository, string rid, int major)
+    private static long? BaselineSize(string rid, int major)
     {
-        string path = repository.PathFromRoot(parts: ["docs", "footprint.baseline.json"]);
-
-        if (!File.Exists(path))
-            return null;
-
-        JsonObject? byTarget = JsonNode.Parse(File.ReadAllText(path))?.AsObject();
-        JsonObject? byMajor = Child(byTarget, rid);
-        JsonObject? entry = Child(byMajor, major.ToString(CultureInfo.InvariantCulture));
-
-        return entry is not null && entry.TryGetPropertyValue(propertyName: "librarySizeBytes", out JsonNode? size) ? size?.GetValue<long>() : null;
-    }
-
-    private static JsonObject? Child(JsonObject? parent, string name)
-    {
-        return parent is not null && parent.TryGetPropertyValue(name, out JsonNode? child) ? child?.AsObject() : null;
+        return FootprintBaseline.LibrarySizeBytes.TryGetValue(rid + "/" + major.ToString(CultureInfo.InvariantCulture), out long size) ? size : null;
     }
 
     private static double Median(List<double> values)

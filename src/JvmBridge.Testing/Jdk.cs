@@ -203,7 +203,7 @@ public sealed class Jdk
         }
 
         string runtimeIdentifier = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
-        JdkEntry? entry = PinnedJdk.Find(Major, Implementation, runtimeIdentifier);
+        JdkEntry? entry = PinnedJdk.Find(Major, Implementation, runtimeIdentifier, includeLegacy: true);
 
         if (entry is not { Status: "available", Sha256.Length: >= 12 })
         {

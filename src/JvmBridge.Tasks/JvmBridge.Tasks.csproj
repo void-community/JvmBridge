@@ -20,7 +20,6 @@
     <Compile Include="../Shared/PinnedJdk.cs" Link="Shared/PinnedJdk.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkArchive.cs" Link="Shared/JdkArchive.cs" />
     <Compile Include="../JvmBridge.Build/Models/JdkEntry.cs" Link="Shared/JdkEntry.cs" />
-    <Compile Include="../JvmBridge.Build/Models/JdkLock.cs" Link="Shared/JdkLock.cs" />
-    <EmbeddedResource Include="../JvmBridge.Build/jdks.lock.json" LogicalName="jdks.lock.json" />
+    <Compile Include="../JvmBridge.Build/PinnedJdks.g.cs" Link="Shared/PinnedJdks.g.cs" />
   </ItemGroup>
 </Project>

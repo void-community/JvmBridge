@@ -95,13 +95,13 @@ public sealed class JdkTests
         );
     }
 
-    /// <summary>The Java 6 and 7 JDKs come from the legacy inventory that the package embeds beside the main one, pinned by checksum, and a platform Azul has no build for has none.</summary>
+    /// <summary>The Java 6 and 7 JDKs come from the legacy inventory that the package compiles in beside the main one, pinned by checksum, and a platform Azul has no build for has none.</summary>
     [Fact]
     public void FindsTheLegacyJdks()
     {
         foreach (int major in new[] { 6, 7 })
         {
-            JdkEntry? entry = PinnedJdk.Find(major, implementation: "hotspot", runtimeIdentifier: "linux-x64");
+            JdkEntry? entry = PinnedJdk.Find(major, implementation: "hotspot", runtimeIdentifier: "linux-x64", includeLegacy: true);
 
             Assert.NotNull(entry);
             Assert.Equal(expected: "available", entry.Status);
@@ -109,8 +109,14 @@ public sealed class JdkTests
             Assert.Equal(expected: 64, entry.Sha256?.Length);
         }
 
-        Assert.Equal(expected: "unavailable", PinnedJdk.Find(major: 7, implementation: "hotspot", runtimeIdentifier: "linux-arm64")?.Status);
-        Assert.Equal(expected: "unavailable", PinnedJdk.Find(major: 6, implementation: "hotspot", runtimeIdentifier: "osx-x64")?.Status);
+        Assert.Equal(
+            expected: "unavailable",
+            PinnedJdk.Find(major: 7, implementation: "hotspot", runtimeIdentifier: "linux-arm64", includeLegacy: true)?.Status
+        );
+        Assert.Equal(
+            expected: "unavailable",
+            PinnedJdk.Find(major: 6, implementation: "hotspot", runtimeIdentifier: "osx-x64", includeLegacy: true)?.Status
+        );
     }
 
     /// <summary>An installed JDK is identified from its properties, which Java 8 reports as 1.8, through the noise of JAVA_TOOL_OPTIONS; output without them identifies nothing.</summary>

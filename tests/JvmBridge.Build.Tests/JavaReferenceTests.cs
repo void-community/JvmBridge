@@ -103,7 +103,7 @@ public sealed class JavaReferenceTests
         string runtimeIdentifier = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
         RepositoryContext repository = RepositoryContext.Discover();
 
-        JdkEntry entry = JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "jdks.lock.json"])).Jdks
+        JdkEntry entry = PinnedJdks.Jdks
             .FirstOrDefault(
                 candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available"
             )

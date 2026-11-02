@@ -58,7 +58,7 @@ public sealed class LegacyJavaTests
         RepositoryContext repository = RepositoryContext.Discover();
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         ProcessRunner processes = new(repository);
-        string home = await PinnedJdk.UnpackAsync(Pinned(repository, major), cancellationToken);
+        string home = await PinnedJdk.UnpackAsync(Pinned(major), cancellationToken);
         string fixture = await CompileFixtureAsync(repository, processes, cancellationToken);
         string agent = AgentPath(repository);
 
@@ -127,7 +127,7 @@ public sealed class LegacyJavaTests
         if (File.Exists(Path.Combine(output, path2: "legacy", path3: "LegacyFixture.class")))
             return output;
 
-        string java8 = await PinnedJdk.UnpackAsync(Pinned(repository, major: 8), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string java8 = await PinnedJdk.UnpackAsync(Pinned(major: 8), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         string compiler = Path.Combine(java8, path2: "bin", path3: "javac");
         string staging = output + ".staging-" + Guid.NewGuid().ToString(format: "N");
         FileSystem.EnsureDirectory(staging);
@@ -157,11 +157,10 @@ public sealed class LegacyJavaTests
     }
 
     // Java 6 and 7 are Zulu builds from the legacy inventory; the others are the main inventory's.
-    private static JdkEntry Pinned(RepositoryContext repository, int major)
+    private static JdkEntry Pinned(int major)
     {
-        string inventory = major < 8 ? "legacy-jdks.lock.json" : "jdks.lock.json";
+        IReadOnlyList<JdkEntry> inventory = major < 8 ? PinnedJdks.LegacyJdks : PinnedJdks.Jdks;
 
-        return JsonFile.Read<JdkLock>(repository.PathFromRoot(parts: ["src", "JvmBridge.Build", inventory]))
-            .Jdks.Single(entry => entry.Rid == Rid && entry.Java == major && entry.Implementation == "hotspot" && entry.Status == "available");
+        return inventory.Single(entry => entry.Rid == Rid && entry.Java == major && entry.Implementation == "hotspot" && entry.Status == "available");
     }
 }

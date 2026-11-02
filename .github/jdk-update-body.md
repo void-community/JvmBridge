@@ -20,4 +20,4 @@ Upstream ABI or runtime changes may affect compatibility. Revert this update to 
 Generated public API changes require review; compatible archive updates may auto-merge after checks pass.
 
 ## Links
-See the source URLs and SHA256 values in the header provenance and JDK lock files.
+See the source URLs and SHA256 values in `src/JvmBridge.Build/PinnedJdks.g.cs`, and the header archive in the update log.

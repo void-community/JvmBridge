@@ -1,24 +1,20 @@
 using System.Globalization;
-using System.Text.Json;
 
 using JvmBridge.Build.Models;
 
 namespace JvmBridge.Build.Infrastructure;
 
 /// <summary>
-/// Finds and unpacks the checksum-pinned JDKs of the repository's inventory. Each JDK is cached once under the temporary directory, so tests and builds on a machine share one copy.
-/// The assembly that compiles this file must embed <c>jdks.lock.json</c> under that name, and may embed <c>legacy-jdks.lock.json</c>, the Java 6 and 7 JDKs that only tests run on.
+/// Finds and unpacks the checksum-pinned JDKs of <see cref="PinnedJdks"/>, which the assembly that compiles this file compiles too. Each JDK is cached once under the temporary
+/// directory, so tests and builds on a machine share one copy.
 /// </summary>
 internal static class PinnedJdk
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
-    /// <summary>Finds the inventory entry for a JDK, preferring an available one.</summary>
-    internal static JdkEntry? Find(int major, string implementation, string runtimeIdentifier)
+    /// <summary>Finds the inventory entry for a JDK, preferring an available one. The Java 6 and 7 JDKs that only tests run on are searched only when <paramref name="includeLegacy"/> is set.</summary>
+    internal static JdkEntry? Find(int major, string implementation, string runtimeIdentifier, bool includeLegacy = false)
     {
-        List<JdkEntry> entries = Read(name: "jdks.lock.json") ?? throw new InvalidOperationException(message: "The pinned JDK inventory is missing.");
-        entries.AddRange(Read(name: "legacy-jdks.lock.json") ?? []);
-        JdkEntry[] matches = [.. entries.Where(entry => entry.Rid == runtimeIdentifier && entry.Java == major && entry.Implementation == implementation)];
+        IEnumerable<JdkEntry> inventory = includeLegacy ? PinnedJdks.Jdks.Concat(PinnedJdks.LegacyJdks) : PinnedJdks.Jdks;
+        JdkEntry[] matches = [.. inventory.Where(entry => entry.Rid == runtimeIdentifier && entry.Java == major && entry.Implementation == implementation)];
 
         return matches.FirstOrDefault(entry => entry.Status == "available") ?? matches.FirstOrDefault();
     }
@@ -60,18 +56,6 @@ internal static class PinnedJdk
         }
 
         return Path.Combine(cache, relative);
-    }
-
-    private static List<JdkEntry>? Read(string name)
-    {
-        using Stream? stream = typeof(PinnedJdk).Assembly.GetManifestResourceStream(name);
-
-        if (stream is null)
-            return null;
-
-        JdkLock inventory = JsonSerializer.Deserialize<JdkLock>(stream, JsonOptions) ?? throw new InvalidOperationException("The pinned JDK inventory " + name + " is empty.");
-
-        return inventory.Jdks;
     }
 
     private static JdkArchive ToArchive(JdkEntry entry)

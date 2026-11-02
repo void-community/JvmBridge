@@ -35,9 +35,9 @@ internal sealed class RepositoryContext
         while (directory is not null)
         {
             bool hasSolution = File.Exists(Path.Combine(directory.FullName, path2: "JvmBridge.slnx"));
-            bool hasConfiguration = File.Exists(Path.Combine(directory.FullName, path2: "src", path3: "JvmBridge.Build", path4: "compatibility.json"));
+            bool hasBuildProject = File.Exists(Path.Combine(directory.FullName, path2: "src", path3: "JvmBridge.Build", path4: "JvmBridge.Build.csproj"));
 
-            if (hasSolution && hasConfiguration)
+            if (hasSolution && hasBuildProject)
                 return directory.FullName;
 
             directory = directory.Parent;
