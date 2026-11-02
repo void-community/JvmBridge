@@ -77,11 +77,7 @@ internal sealed class BindingGenerator(RepositoryContext repository, ProcessRunn
             string existing = File.Exists(outputPath) ? await File.ReadAllTextAsync(outputPath, cancellationToken).ConfigureAwait(continueOnCapturedContext: false) : string.Empty;
 
             if (!File.Exists(outputPath) || !string.Equals(existing, result, StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException(
-                    message: "Generated bindings are stale. Run `dotnet build src/JvmBridge.Build -c Release -t:Generate -p:RestoreLockedMode=true`."
-                );
-            }
+                throw new InvalidOperationException(message: "Generated bindings are stale. Run `dotnet build src/JvmBridge.Build -c Release -t:Generate`.");
         }
         else
         {

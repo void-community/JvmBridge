@@ -47,22 +47,22 @@ jobs:
       - name: Prepare the native toolchains
         run: sudo apt-get update -qq && sudo apt-get install -y clang lld mingw-w64-i686-dev zlib1g-dev
       - name: Pack the consumer artifact before restoring samples
-        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+        run: dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt"
       - name: Pack the companion packages and the template that the build tests instantiate
         run: |
-          dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
-          dotnet pack src/JvmBridge.Logging -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
-          dotnet pack src/JvmBridge.Tool -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
-          dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt" -p:RestoreLockedMode=true
+          dotnet pack src/JvmBridge.Testing -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt"
+          dotnet pack src/JvmBridge.Logging -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt"
+          dotnet pack src/JvmBridge.Tool -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt"
+          dotnet pack src/JvmBridge.Templates -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RepositoryCommit="$(git rev-parse HEAD)" -p:ReleaseNotesFile="$GITHUB_WORKSPACE/artifacts/release-notes.txt"
       - name: Restore solution
-        run: dotnet restore JvmBridge.slnx --locked-mode
+        run: dotnet restore JvmBridge.slnx
       - name: Verify generation, manifests, build, and unit tests
         run: |
-          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
+          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated
           dotnet build JvmBridge.slnx -c Release --no-restore
           dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Compile portable Java fixtures with the pinned JDK
-        run: dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures -p:RestoreLockedMode=true
+        run: dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: packages

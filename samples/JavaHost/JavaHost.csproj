@@ -9,8 +9,6 @@
          publishing it fails with MSB3030. Publish runs the full build, as before .NET 11. -->
     <UseOptimizedPublish>false</UseOptimizedPublish>
     <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)../../artifacts/packages')">$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
-    <!-- Each package-consumer run has its own version and native target. -->
-    <NuGetLockFilePath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath.Replace('\', '/'))locks/$(JvmBridgeVersion)/$(TargetFramework)/$(RuntimeIdentifier)/packages.lock.json'))</NuGetLockFilePath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="JvmBridge" />

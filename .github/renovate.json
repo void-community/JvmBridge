@@ -9,15 +9,6 @@
   ],
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
-  "lockFileMaintenance": {
-    "enabled": true,
-    "automerge": true
-  },
-  "nuget": {
-    "ignorePaths": [
-      "src/JvmBridge.Templates/templates/**"
-    ]
-  },
   "customManagers": [
     {
       "customType": "regex",
@@ -30,17 +21,6 @@
       ],
       "depNameTemplate": "dotnet-sdk",
       "datasourceTemplate": "dotnet-version"
-    },
-    {
-      "customType": "regex",
-      "description": "Package versions of the jvmbridge-agent template, which cannot be restored where it lives because it names JvmBridge by a placeholder version",
-      "managerFilePatterns": [
-        "/^src/JvmBridge\\.Templates/templates/.+\\.csproj$/"
-      ],
-      "matchStrings": [
-        "<PackageReference Include=\"(?<depName>[^\"]+)\" Version=\"(?<currentValue>\\d[^\"]*)\""
-      ],
-      "datasourceTemplate": "nuget"
     }
   ],
   "packageRules": [

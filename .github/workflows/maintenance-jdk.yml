@@ -32,16 +32,16 @@ jobs:
           echo "Version=$package_version" >> "$GITHUB_ENV"
           echo "JvmBridgeVersion=$package_version" >> "$GITHUB_ENV"
       - run: dotnet tool restore --tool-manifest src/JvmBridge.Build/.config/dotnet-tools.json
-      - run: dotnet restore src/JvmBridge.Maintenance --locked-mode
+      - run: dotnet restore src/JvmBridge.Maintenance
       - name: Update pinned releases, bindings, and support inventory
         run: |
           dotnet run --project src/JvmBridge.Maintenance --no-restore -- update
-          dotnet build src/JvmBridge.Build -c Release -t:Generate -p:RestoreLockedMode=true
+          dotnet build src/JvmBridge.Build -c Release -t:Generate
       - name: Verify regeneration and unit tests
         run: |
-          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated -p:RestoreLockedMode=true
-          dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion" -p:RestoreLockedMode=true
-          dotnet restore JvmBridge.slnx --locked-mode
+          dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated
+          dotnet pack src/JvmBridge -c Release -o artifacts/packages -p:Version="$JvmBridgeVersion"
+          dotnet restore JvmBridge.slnx
           dotnet build JvmBridge.slnx -c Release --no-restore
           dotnet test JvmBridge.slnx -c Release --no-build --no-restore
       - name: Save generated update for review

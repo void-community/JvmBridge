@@ -10,7 +10,6 @@ TestResults/
 .idea/
 hs_err_pid*
 core
-samples/**/packages.lock.json
 core.*
 javacore.*
 jitdump.*

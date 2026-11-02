@@ -243,4 +243,4 @@ jobs:
           path: artifacts/results
           merge-multiple: true
       - name: Require every expected JVM cell
-        run: dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage -p:RestoreLockedMode=true
+        run: dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage

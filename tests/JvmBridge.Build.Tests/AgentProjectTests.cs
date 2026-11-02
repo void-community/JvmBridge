@@ -41,8 +41,7 @@ public sealed class AgentProjectTests
                 "-restore",
                 "-t:JvmBridgeMergeAgentJars",
                 "-p:JvmBridgeAgentJars=agents/*/Probe.jar",
-                "-p:RestoreAdditionalProjectSources=" + packages,
-                "-p:RestoreLockedMode=false"
+                "-p:RestoreAdditionalProjectSources=" + packages
             ],
             logPath: null,
             environment: environment,

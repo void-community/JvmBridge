@@ -146,7 +146,7 @@ public sealed class JavaSourceTests
             [key: "MSBUILDDISABLENODEREUSE"] = "1"
         };
 
-        List<string> command = ["dotnet", "build", Path.Combine(project, path2: "Consumer.csproj"), "-c", "Release", "-p:RestoreAdditionalProjectSources=" + packages, "-p:RestoreLockedMode=false"];
+        List<string> command = ["dotnet", "build", Path.Combine(project, path2: "Consumer.csproj"), "-c", "Release", "-p:RestoreAdditionalProjectSources=" + packages];
 
         if (jdk is not null)
             command.Add("-p:JvmBridgeJdkHome=" + jdk);

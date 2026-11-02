@@ -6,7 +6,6 @@
     <LangVersion>14.0</LangVersion>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <Authors>void-community</Authors>
     <RepositoryUrl>https://github.com/void-community/JvmBridge</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
