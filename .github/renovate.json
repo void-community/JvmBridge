@@ -17,7 +17,7 @@
         "/^\\.github/workflows/[^/]+\\.ya?ml$/"
       ],
       "matchStrings": [
-        "\\n[ \\t]+(?<currentValue>\\d+\\.\\d+\\.\\d{3}(?:-[0-9A-Za-z.]+)?)[ \\t]*(?=\\n)"
+        "\\n[ \\t]+(?<currentValue>\\d+\\.\\d+\\.\\d{3}(?:-[0-9A-Za-z.]+)?)\\b"
       ],
       "depNameTemplate": "dotnet-sdk",
       "datasourceTemplate": "dotnet-version"
