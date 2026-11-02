@@ -5,9 +5,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
     <JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>
-    <!-- The analyzers generate an XML documentation file, which a native executable has no use for. The .NET 11 SDK's Native AOT publish compiles without the full build
-         (UseOptimizedPublish), so the file never reaches bin, and publishing it would fail with MSB3030. -->
-    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <!-- The .NET 11 SDK's Native AOT publish compiles without the full build, so the XML documentation file that the analyzers generate never reaches bin, and
+         publishing it fails with MSB3030. Publish runs the full build, as before .NET 11. -->
+    <UseOptimizedPublish>false</UseOptimizedPublish>
     <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)../../artifacts/packages')">$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
     <!-- Each package-consumer run has its own version and native target. -->
     <NuGetLockFilePath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath.Replace('\', '/'))locks/$(JvmBridgeVersion)/$(TargetFramework)/$(RuntimeIdentifier)/packages.lock.json'))</NuGetLockFilePath>
