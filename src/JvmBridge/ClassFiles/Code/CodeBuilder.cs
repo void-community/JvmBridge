@@ -245,6 +245,24 @@ public sealed class CodeBuilder
     /// <returns>This builder.</returns>
     public CodeBuilder IStore(int slot) => Local(Opcodes.IStore0, Opcodes.IStore, slot, size: 1, load: false);
 
+    /// <summary>
+    /// Pushes a lambda: an instance of a functional interface whose single abstract method calls a method, as <c>this::method</c> or <c>Type::method</c> does in Java. It writes <c>invokedynamic</c> through
+    /// <c>LambdaMetafactory.metafactory</c> and adds what that needs to the class as javac does: the constants, an entry of the <c>BootstrapMethods</c> attribute and the <c>InnerClasses</c> entry of
+    /// <c>MethodHandles$Lookup</c>, reusing those that exist. It pops the captured values, which come first in the order the implementation takes them: the receiver, unless the implementation is static,
+    /// then the parameters that the interface method does not pass. A private implementation in the class must be declared before the code is written, since the handle that names it depends on that.
+    /// </summary>
+    /// <param name="functionalMethod">The abstract method of the interface, with its erased descriptor, for example <c>JavaMethod.Interface("java/lang/Runnable", "run", "()V")</c>.</param>
+    /// <param name="implementation">The method the lambda calls, for example <c>JavaMethod.Virtual("com/acme/Service", "stop$body", "()V")</c>; a method of an interface is described with <see cref="JavaMethod.Interface"/>.</param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentException">The interface method is not described with <see cref="JavaMethod.Interface"/>, or the implementation takes fewer values than it passes or returns nothing where it returns an object.</exception>
+    /// <exception cref="InvalidOperationException">The class file is older than version 52 (Java 8), which <c>LambdaMetafactory</c> needs.</exception>
+    public CodeBuilder Lambda(JavaMethod functionalMethod, JavaMethod implementation)
+    {
+        (int index, int captured) = LambdaFactory.Add(_pool, functionalMethod, implementation);
+
+        return Emit([Opcodes.InvokeDynamic, (byte)(index >> 8), (byte)index, 0, 0], captured, pushes: 1);
+    }
+
     /// <summary>Pushes a long constant, with <c>lconst_0</c>, <c>lconst_1</c> or <c>ldc2_w</c>.</summary>
     /// <param name="value">The number to push.</param>
     /// <returns>This builder.</returns>

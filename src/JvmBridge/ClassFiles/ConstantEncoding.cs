@@ -50,6 +50,15 @@ internal static class ConstantEncoding
         return entry;
     }
 
+    internal static byte[] MethodHandle(int referenceKind, int reference)
+    {
+        byte[] entry = new byte[4];
+        entry[0] = (byte)ConstantTag.MethodHandle;
+        entry[1] = checked((byte)referenceKind);
+        BinaryPrimitives.WriteUInt16BigEndian(entry.AsSpan(2), checked((ushort)reference));
+        return entry;
+    }
+
     internal static byte[] Reference(ConstantTag tag, int first)
     {
         byte[] entry = new byte[3];

@@ -7,8 +7,9 @@ namespace JvmBridge.ClassFiles;
 
 /// <summary>
 /// Edits a class file in ways that keep every existing constant pool index and code offset: new constants are appended after the existing ones, and everything else is
-/// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed. The one exception is
-/// the method advice that <c>ClassPatch</c> adds: it moves a method's code, byte for byte, into a new method, and gives the old method a short straight-line body.
+/// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed. The exceptions are
+/// <see cref="ReplaceMethodBody"/> and the method advice that <c>ClassPatch</c> adds, which move a method's code, byte for byte, into a new method and give the old method a short straight-line body, and the
+/// entries that a lambda appends to the class's <c>BootstrapMethods</c> and <c>InnerClasses</c> attributes, which come after everything else.
 /// </summary>
 public sealed class ClassFileEditor : IConstantPool
 {
@@ -423,8 +424,44 @@ public sealed class ClassFileEditor : IConstantPool
     public int SetMethodAccess(string name, string? descriptor, int accessFlags) => SetMemberAccess(Model.Methods, name, descriptor, accessFlags);
 
     /// <summary>
-    /// Moves the code of a method into a new private synthetic method and gives the method the code of a stub that calls it. The method keeps its flags, signature and annotations; the new method is <c>static</c> when it is. This is the one edit that adds a method, so it
-    /// is only valid for a class that has not been defined yet: a loaded class cannot gain methods.
+    /// Moves the code of a method into a new private synthetic method and gives the method code that a <see cref="CodeBuilder"/> writes, which may call the moved code, hand it to another thread as a
+    /// <see cref="CodeBuilder.Lambda"/>, or skip it. The moved method keeps the descriptor and is <c>static</c> when the method is; the method keeps its flags, signature and annotations. A loaded class cannot gain
+    /// methods, so this is only for a class that has not been defined yet. The new code is straight-line: branches would need stack map frames, which the editor does not write.
+    /// </summary>
+    /// <param name="name">The name the method is declared with, for example <c>clear</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>()V</c>, which tell overloads apart.</param>
+    /// <param name="movedBodyName">The name of the new method that holds the old code, for example <c>agent$clear</c>.</param>
+    /// <param name="code">Writes the method's new code and returns the builder; the receiver and the parameters are in the first local variables, as in the old code.</param>
+    /// <exception cref="ArgumentException">The new code branches.</exception>
+    /// <exception cref="ClassFormatException">The class has no such method, or it has no code.</exception>
+    /// <exception cref="InvalidOperationException">The class already declares a method with the moved body's name and the descriptor.</exception>
+    public void ReplaceMethodBody(string name, string descriptor, string movedBodyName, Func<CodeBuilder, CodeBuilder> code)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(descriptor);
+        ArgumentException.ThrowIfNullOrEmpty(movedBodyName);
+        ArgumentNullException.ThrowIfNull(code);
+
+        Atomically(() =>
+        {
+            bool isStatic = (RequireMethod(name, descriptor).AccessFlags & 0x0008) != 0;
+
+            // The moved method exists before the new code is written, so a lambda that names it gets the handle a private method needs.
+            CopyBody(name, descriptor, movedBodyName);
+
+            CodeBuilder builder = new(this, Opcodes.CountArgumentSlots(descriptor) + (isStatic ? 0 : 1));
+            CodeBuilder.RequireSame(builder, code(builder));
+
+            if (builder.HasBranches)
+                throw new ArgumentException("The new code cannot branch: a branch target would need a stack map frame, which the editor does not write.", nameof(code));
+
+            ReplaceCodeAttribute(name, descriptor, new StubCode(builder.MaxStack, builder.MaxLocals, builder.ToArray()));
+        });
+    }
+
+    /// <summary>
+    /// Moves the code of a method into a new private synthetic method and gives the method the code of a stub that calls it. The method keeps its flags, signature and annotations; the new method is <c>static</c> when it is. It adds a method, so it is only valid for a
+    /// class that has not been defined yet: a loaded class cannot gain methods.
     /// </summary>
     /// <param name="name">The name the method is declared with, for example <c>toString</c>.</param>
     /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(I)Ljava/lang/String;</c>, which tell overloads apart.</param>
@@ -434,42 +471,8 @@ public sealed class ClassFileEditor : IConstantPool
     {
         Atomically(() =>
         {
-            int bodyNameIndex = AddUtf8(bodyName);
-            int codeNameIndex = AddUtf8("Code");
-            ClassMember method = RequireMethod(name, descriptor);
-
-            if (method.Code is null)
-                throw new ClassFormatException($"{name}{descriptor} has no code.");
-
-            int flags = (method.AccessFlags & 0x0008) | 0x0002 | 0x1000;
-            int start = method.AccessFlagsOffset;
-            ReadOnlySpan<byte> original = _bytes;
-
-            using MemoryStream body = new();
-
-            WriteUInt16To(body, flags);
-            WriteUInt16To(body, bodyNameIndex);
-            body.Write(original.Slice(start + 4, 2));
-            WriteUInt16To(body, value: 1);
-            body.Write(original[method.CodeAttributeStart..method.CodeAttributeEnd]);
-
-            using MemoryStream result = new();
-
-            int count = BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]);
-
-            result.Write(original[..Model.MethodsCountOffset]);
-            WriteUInt16To(result, count + 1);
-            result.Write(original[(Model.MethodsCountOffset + 2)..method.CodeAttributeStart]);
-            result.Write(AdviceStub.CodeAttribute(codeNameIndex, stub));
-            result.Write(original[method.CodeAttributeEnd..Model.MethodsEnd]);
-            result.Write(body.ToArray());
-            result.Write(original[Model.MethodsEnd..]);
-
-            byte[] candidate = result.ToArray();
-
-            _ = JavaClassFile.Read(candidate);
-            _bytes = candidate;
-            _model = null;
+            CopyBody(name, descriptor, bodyName);
+            ReplaceCodeAttribute(name, descriptor, stub);
         });
     }
 
@@ -521,6 +524,59 @@ public sealed class ClassFileEditor : IConstantPool
     /// <returns>A copy of the class file bytes.</returns>
     public byte[] ToArray() => (byte[])_bytes.Clone();
 
+    int IConstantPool.MajorVersion => Model.MajorVersion;
+
+    int IConstantPool.AddMethodHandle(int referenceKind, ConstantTag referenceTag, string owner, string name, string descriptor)
+    {
+        MemberReference wanted = new(referenceTag, owner, name, descriptor);
+
+        return Find<MethodHandleEntry>(entry => entry.ReferenceKind == referenceKind && Model.ConstantPool.ElementAtOrDefault(entry.ReferenceIndex) is MemberReferenceEntry && Model.GetMemberReference(entry.ReferenceIndex) == wanted)
+            ?? Atomically(() => Append(ConstantEncoding.MethodHandle(referenceKind, AddMemberReference(referenceTag, owner, name, descriptor)), slots: 1));
+    }
+
+    int IConstantPool.AddMethodType(string descriptor)
+        => Find<MethodTypeEntry>(entry => IsUtf8(entry.DescriptorIndex, descriptor)) ?? Atomically(() => Append(ConstantEncoding.Reference(ConstantTag.MethodType, AddUtf8(descriptor)), slots: 1));
+
+    int IConstantPool.AddInvokeDynamic(int bootstrapMethod, string name, string descriptor)
+    {
+        bool Matches(DynamicEntry entry) => entry.Kind == ConstantTag.InvokeDynamic && entry.BootstrapMethodIndex == bootstrapMethod && IsNameAndType(entry.NameAndTypeIndex, name, descriptor);
+
+        return Find<DynamicEntry>(Matches) ?? Atomically(() => Append(ConstantEncoding.Reference(ConstantTag.InvokeDynamic, bootstrapMethod, AddNameAndType(name, descriptor)), slots: 1));
+    }
+
+    int IConstantPool.AddBootstrapMethod(int handle, IReadOnlyList<int> arguments)
+    {
+        return ClassAttributes.FindBootstrapMethod(_bytes, Model, handle, arguments) ?? Atomically(() =>
+        {
+            int nameIndex = AddUtf8(ClassAttributes.BootstrapMethods);
+            int index = ClassAttributes.Count(_bytes, Model, ClassAttributes.BootstrapMethods);
+
+            _bytes = ClassAttributes.Append(_bytes, Model, ClassAttributes.BootstrapMethods, nameIndex, ClassAttributes.BootstrapMethod(handle, arguments));
+            _model = null;
+
+            return index;
+        });
+    }
+
+    void IConstantPool.AddInnerClass(string innerClass, string outerClass, string simpleName, int accessFlags)
+    {
+        if (ClassAttributes.ListsInnerClass(_bytes, Model, index => IsClass(index, innerClass)))
+            return;
+
+        Atomically(() =>
+        {
+            int nameIndex = AddUtf8(ClassAttributes.InnerClasses);
+            byte[] entry = ClassAttributes.InnerClass(AddClass(innerClass), AddClass(outerClass), AddUtf8(simpleName), accessFlags);
+
+            _bytes = ClassAttributes.Append(_bytes, Model, ClassAttributes.InnerClasses, nameIndex, entry);
+            _model = null;
+        });
+    }
+
+    bool IConstantPool.IsInterface(string className) => className == Model.Name && (Model.AccessFlags & 0x0200) != 0;
+
+    bool IConstantPool.IsPrivateMethod(string owner, string name, string descriptor) => owner == Model.Name && (Model.FindMethod(name, descriptor)?.AccessFlags & 0x0002) is > 0;
+
     internal static string WithReceiver(string owner, string descriptor)
     {
         if (descriptor.Length == 0 || descriptor[0] != '(')
@@ -550,6 +606,60 @@ public sealed class ClassFileEditor : IConstantPool
     private bool IsNameAndType(int index, string name, string descriptor) => Model.ConstantPool.ElementAtOrDefault(index) is NameAndTypeEntry entry && IsUtf8(entry.NameIndex, name) && IsUtf8(entry.DescriptorIndex, descriptor);
 
     private bool IsUtf8(int index, string value) => Model.ConstantPool.ElementAtOrDefault(index) is Utf8Entry entry && entry.Value == value;
+
+    // Appends a private synthetic method with the descriptor of a method and a verbatim copy of its Code attribute.
+    private void CopyBody(string name, string descriptor, string bodyName)
+    {
+        if (Model.FindMethod(bodyName, descriptor) is not null)
+            throw new InvalidOperationException($"The class already declares {bodyName}{descriptor}.");
+
+        int bodyNameIndex = AddUtf8(bodyName);
+        ClassMember method = RequireMethod(name, descriptor);
+
+        if (method.Code is null)
+            throw new ClassFormatException($"{name}{descriptor} has no code.");
+
+        ReadOnlySpan<byte> original = _bytes;
+        using MemoryStream result = new();
+
+        result.Write(original[..Model.MethodsCountOffset]);
+        WriteUInt16To(result, BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]) + 1);
+        result.Write(original[(Model.MethodsCountOffset + 2)..Model.MethodsEnd]);
+        WriteUInt16To(result, (method.AccessFlags & 0x0008) | 0x0002 | 0x1000);
+        WriteUInt16To(result, bodyNameIndex);
+        result.Write(original.Slice(method.AccessFlagsOffset + 4, length: 2));
+        WriteUInt16To(result, value: 1);
+        result.Write(original[method.CodeAttributeStart..method.CodeAttributeEnd]);
+        result.Write(original[Model.MethodsEnd..]);
+
+        Replace(result.ToArray());
+    }
+
+    // Gives a method a new Code attribute in place of its old one.
+    private void ReplaceCodeAttribute(string name, string descriptor, StubCode code)
+    {
+        int codeNameIndex = AddUtf8("Code");
+        ClassMember method = RequireMethod(name, descriptor);
+
+        if (method.Code is null)
+            throw new ClassFormatException($"{name}{descriptor} has no code.");
+
+        ReadOnlySpan<byte> original = _bytes;
+        using MemoryStream result = new();
+
+        result.Write(original[..method.CodeAttributeStart]);
+        result.Write(AdviceStub.CodeAttribute(codeNameIndex, code));
+        result.Write(original[method.CodeAttributeEnd..]);
+
+        Replace(result.ToArray());
+    }
+
+    private void Replace(byte[] candidate)
+    {
+        _ = JavaClassFile.Read(candidate);
+        _bytes = candidate;
+        _model = null;
+    }
 
     private static void WriteUInt16To(Stream stream, int value)
     {

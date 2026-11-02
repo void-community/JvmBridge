@@ -54,6 +54,12 @@ public sealed class JavaClassFile
 
     internal int AccessFlagsOffset { get; private set; }
 
+    /// <summary>Gets where the count of the class's own attributes sits, just after the last method.</summary>
+    internal int AttributesCountOffset => MethodsEnd;
+
+    /// <summary>Gets the class's own attributes, such as <c>BootstrapMethods</c> and <c>InnerClasses</c>, in file order.</summary>
+    internal IReadOnlyList<ClassAttributeRange> Attributes { get; private set; } = [];
+
     /// <summary>Reads a class file, rejecting truncated input, trailing bytes, unknown constant tags and malformed code.</summary>
     /// <param name="bytes">The class file bytes.</param>
     /// <returns>The decoded class file.</returns>
@@ -92,7 +98,7 @@ public sealed class JavaClassFile
         file.Interfaces = interfaces;
         file.Fields = file.ReadMembers(ref reader, isMethod: false);
         file.Methods = file.ReadMembers(ref reader, isMethod: true);
-        file.SkipAttributes(ref reader);
+        file.Attributes = file.ReadClassAttributes(ref reader);
         if (reader.Remaining != 0)
             throw new ClassFormatException($"The class file has {reader.Remaining} unexpected trailing bytes at offset {reader.Position}.");
         return file;
@@ -275,6 +281,26 @@ public sealed class JavaClassFile
         if (reader.Position > end)
             throw new ClassFormatException($"The Code attribute of {method} overruns its declared length.");
         return new CodeAttribute(maxStack, maxLocals, codeOffset, length, instructions);
+    }
+
+    private ClassAttributeRange[] ReadClassAttributes(ref ClassReader reader)
+    {
+        ClassAttributeRange[] attributes = new ClassAttributeRange[reader.ReadUInt16()];
+
+        for (int attribute = 0; attribute < attributes.Length; attribute++)
+        {
+            int start = reader.Position;
+            string name = GetUtf8(reader.ReadUInt16());
+            int length = reader.ReadInt32();
+
+            if (length < 0)
+                throw new ClassFormatException($"The class attribute {name} has a negative length.");
+
+            reader.Skip(length);
+            attributes[attribute] = new ClassAttributeRange(name, start, reader.Position);
+        }
+
+        return attributes;
     }
 
     private void SkipAttributes(ref ClassReader reader)

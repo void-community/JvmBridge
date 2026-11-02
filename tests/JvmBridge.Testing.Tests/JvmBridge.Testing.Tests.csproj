@@ -17,5 +17,6 @@
     <None Include="ConstructionFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="MemberFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="PoolFixtures/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="LambdaFixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -17,7 +17,9 @@ public sealed class ClassFileWriter : IConstantPool
     public const int PublicStaticNative = 0x0109;
 
     private readonly ConstantPoolBuilder _pool = new();
-    private readonly HashSet<(string Name, string Descriptor)> _declared = [];
+    private readonly Dictionary<(string Name, string Descriptor), int> _declared = [];
+    private readonly List<int[]> _bootstrapMethods = [];
+    private readonly List<(string Inner, byte[] Entry)> _innerClasses = [];
     private readonly List<(int Access, int Name, int Descriptor)> _fields = [];
     private readonly List<(int Access, int Name, int Descriptor, int MaxStack, int MaxLocals, byte[]? Code)> _methods = [];
     private readonly int _majorVersion;
@@ -125,7 +127,7 @@ public sealed class ClassFileWriter : IConstantPool
         int descriptorIndex = _pool.Utf8(descriptor);
         _ = _pool.Utf8("Code");
         _methods.Add((accessFlags, nameIndex, descriptorIndex, maxStack, maxLocals, code.ToArray()));
-        _ = _declared.Add((name, descriptor));
+        _declared[(name, descriptor)] = accessFlags;
         return this;
     }
 
@@ -180,7 +182,7 @@ public sealed class ClassFileWriter : IConstantPool
     {
         ValidateMethod(name, descriptor, accessFlags);
         _methods.Add((accessFlags, _pool.Utf8(name), _pool.Utf8(descriptor), 0, 0, null));
-        _ = _declared.Add((name, descriptor));
+        _declared[(name, descriptor)] = accessFlags;
         return this;
     }
 
@@ -231,8 +233,69 @@ public sealed class ClassFileWriter : IConstantPool
             WriteUInt16(stream, 0);
             WriteUInt16(stream, 0);
         }
-        WriteUInt16(stream, 0);
+        WriteAttributes(stream);
         return stream.ToArray();
+    }
+
+    int IConstantPool.MajorVersion => _majorVersion;
+
+    int IConstantPool.AddBootstrapMethod(int handle, IReadOnlyList<int> arguments)
+    {
+        int[] entry = [handle, .. arguments];
+        int existing = _bootstrapMethods.FindIndex(candidate => candidate.AsSpan().SequenceEqual(entry));
+
+        if (existing >= 0)
+            return existing;
+
+        _ = _pool.Utf8(ClassAttributes.BootstrapMethods);
+        _bootstrapMethods.Add(entry);
+
+        return _bootstrapMethods.Count - 1;
+    }
+
+    void IConstantPool.AddInnerClass(string innerClass, string outerClass, string simpleName, int accessFlags)
+    {
+        if (_innerClasses.Exists(candidate => candidate.Inner == innerClass))
+            return;
+
+        _ = _pool.Utf8(ClassAttributes.InnerClasses);
+        _innerClasses.Add((innerClass, ClassAttributes.InnerClass(_pool.Class(innerClass), _pool.Class(outerClass), _pool.Utf8(simpleName), accessFlags)));
+    }
+
+    int IConstantPool.AddInvokeDynamic(int bootstrapMethod, string name, string descriptor) => _pool.InvokeDynamic(bootstrapMethod, name, descriptor);
+
+    int IConstantPool.AddMethodHandle(int referenceKind, ConstantTag referenceTag, string owner, string name, string descriptor) => _pool.MethodHandle(referenceKind, referenceTag, owner, name, descriptor);
+
+    int IConstantPool.AddMethodType(string descriptor) => _pool.MethodType(descriptor);
+
+    bool IConstantPool.IsInterface(string className) => className == Name && (_accessFlags & 0x0200) != 0;
+
+    bool IConstantPool.IsPrivateMethod(string owner, string name, string descriptor) => owner == Name && _declared.TryGetValue((name, descriptor), out int access) && (access & 0x0002) != 0;
+
+    // The class attributes: BootstrapMethods and InnerClasses, when a lambda needs them. Their names were added to the pool with their first entry, since the pool is written first.
+    private void WriteAttributes(MemoryStream stream)
+    {
+        WriteUInt16(stream, (_bootstrapMethods.Count > 0 ? 1 : 0) + (_innerClasses.Count > 0 ? 1 : 0));
+
+        if (_bootstrapMethods.Count > 0)
+        {
+            byte[][] entries = [.. _bootstrapMethods.Select(static entry => ClassAttributes.BootstrapMethod(entry[0], entry[1..]))];
+
+            WriteAttribute(stream, ClassAttributes.BootstrapMethods, entries);
+        }
+
+        if (_innerClasses.Count > 0)
+            WriteAttribute(stream, ClassAttributes.InnerClasses, [.. _innerClasses.Select(static inner => inner.Entry)]);
+    }
+
+    private void WriteAttribute(MemoryStream stream, string name, byte[][] entries)
+    {
+        WriteUInt16(stream, _pool.Utf8(name));
+        WriteInt32(stream, 2 + entries.Sum(static entry => entry.Length));
+        WriteUInt16(stream, entries.Length);
+
+        foreach (byte[] entry in entries)
+            stream.Write(entry);
     }
 
     private void ValidateMethod(string name, string descriptor, int accessFlags)
@@ -248,7 +311,7 @@ public sealed class ClassFileWriter : IConstantPool
         if (descriptor[0] != '(' || !descriptor.Contains(')'))
             throw new ArgumentException($"'{descriptor}' is not a method descriptor.", nameof(descriptor));
 
-        if (_declared.Contains((name, descriptor)))
+        if (_declared.ContainsKey((name, descriptor)))
             throw new ArgumentException($"The class already declares {name}{descriptor}.", nameof(name));
     }
 

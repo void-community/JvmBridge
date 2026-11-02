@@ -337,8 +337,22 @@ byte[] helper = new ClassFileWriter("acme/agent/Strings")
 - It refuses code that pops more than the stack holds, code that no path reaches, and a branch to a label it never places, instead of writing a method the verifier rejects.
 - It writes no stack map frames. A class of version 51 (Java 7) or later needs them at every branch target, so `AddMethod` refuses a body with branches there. Write a helper with branches as a `JavaSource` item, or in a class of version 50, which every JVM since Java 6 verifies without frames.
 - `ClassFileEditor.AssembleCode(code => ...)` writes instructions against the edited class's constant pool and returns their bytes, for `ReplaceCode` and for comparing with a method's code, without branches. A call or field access names the reference the class's code already uses for that member, so the bytes match the code javac wrote.
+- `Lambda(functionalMethod, implementation)` pushes a lambda, as `this::method` does in Java: an `invokedynamic` through `LambdaMetafactory.metafactory`, with the bootstrap method, the method handles and types, a `BootstrapMethods` entry and the `InnerClasses` entry of `MethodHandles$Lookup` added as javac adds them, or reused when the class has them. It pops the captured values first: the receiver of an instance implementation, then the parameters the interface method does not pass. A private implementation is named with `REF_invokeSpecial` below class version 59 and `REF_invokeVirtual` from it, as javac does, so it must be declared before the code is written. A class older than version 52 is refused.
+- `ClassFileEditor.ReplaceMethodBody(name, descriptor, movedBodyName, code => ...)` moves a method's code into a new private synthetic method and gives the method straight-line code that the builder writes. Because the moved method exists by then, the new code can hand it to another thread. As with advice, the class must not be defined yet, since a loaded class cannot gain methods:
 
-Tests that need an input class build it the same way. A loop of version 50 and straight-line code of version 52 written with it run with `-Xverify:all` on Java 6, 8 and 17.
+```csharp
+// public void clear() { CompletableFuture.runAsync(this::agent$clear, this.executor).join(); }
+patch.Edit(editor => editor.ReplaceMethodBody("clear", "()V", "agent$clear", code => code
+    .ALoad(0)
+    .Lambda(JavaMethod.Interface("java/lang/Runnable", "run", "()V"), JavaMethod.Virtual(owner, "agent$clear", "()V"))
+    .ALoad(0).GetField(owner, "executor", "Ljava/util/concurrent/Executor;")
+    .Invoke(JavaMethod.Static("java/util/concurrent/CompletableFuture", "runAsync", "(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
+    .Invoke(JavaMethod.Virtual("java/util/concurrent/CompletableFuture", "join", "()Ljava/lang/Object;"))
+    .Pop()
+    .Return()));
+```
+
+Tests that need an input class build it the same way. A loop of version 50 and straight-line code of version 52 written with it run with `-Xverify:all` on Java 6, 8 and 17, and so do lambdas written into a javac class that has lambdas of its own, on Java 8 and 17.
 
 ## Defining a class by hand
 

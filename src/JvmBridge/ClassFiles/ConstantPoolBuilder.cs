@@ -44,6 +44,24 @@ internal sealed class ConstantPoolBuilder
         return Intern((kind, string.Empty, classIndex, nameAndType), () => ConstantEncoding.Reference(kind, classIndex, nameAndType), slots: 1);
     }
 
+    internal int MethodHandle(int referenceKind, ConstantTag referenceTag, string owner, string name, string descriptor)
+    {
+        int reference = MemberReference(referenceTag, owner, name, descriptor);
+        return Intern((ConstantTag.MethodHandle, string.Empty, referenceKind, reference), () => ConstantEncoding.MethodHandle(referenceKind, reference), slots: 1);
+    }
+
+    internal int MethodType(string descriptor)
+    {
+        int utf8 = Utf8(descriptor);
+        return Intern((ConstantTag.MethodType, string.Empty, utf8, 0), () => ConstantEncoding.Reference(ConstantTag.MethodType, utf8), slots: 1);
+    }
+
+    internal int InvokeDynamic(int bootstrapMethod, string name, string descriptor)
+    {
+        int nameAndType = NameAndType(name, descriptor);
+        return Intern((ConstantTag.InvokeDynamic, string.Empty, bootstrapMethod, nameAndType), () => ConstantEncoding.Reference(ConstantTag.InvokeDynamic, bootstrapMethod, nameAndType), slots: 1);
+    }
+
     internal IReadOnlyList<byte[]> Entries => _entries;
 
     private int Intern((ConstantTag Tag, string Text, long First, long Second) key, Func<byte[]> encode, int slots)
