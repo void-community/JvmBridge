@@ -72,12 +72,6 @@ jobs:
           cmd /c "`"$installation\VC\Auxiliary\Build\vcvarsall.bat`" $architecture && set" | ForEach-Object {
             if ($_ -match '^([^=]+)=(.*)$') { "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
           }
-      - name: Enable ARM32 emulation
-        if: matrix.emulated
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
-        with:
-          platforms: arm
-          image: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
       - name: Publish and execute the complete target matrix
         if: '!matrix.container && !matrix.crossContainer'
         shell: bash
@@ -98,7 +92,7 @@ jobs:
         if: matrix.rid == 'linux-arm'
         run: dotnet publish tests/JvmBridge.IntegrationTests -c Release -r linux-arm --self-contained -o artifacts/tests/linux-arm
       - name: Cross-publish ARM32 with the .NET toolchain
-        if: matrix.crossContainer
+        if: matrix.crossContainer && runner.arch == 'X64'
         env:
           CROSS_IMAGE: ${{ matrix.crossContainer }}
         run: |
@@ -111,24 +105,40 @@ jobs:
               dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$ROOTFS_DIR" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/host/$TARGET_RID"
               dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~ExportsAsync
             '
+      # The cross image of .NET's toolchain exists for x64 only, and an arm64 runner runs ARM32 code natively but x64 code only under emulation. So on arm64 its ARM32
+      # root file system is copied out of the image without running it, to the same path, since its symbolic links are absolute, and the runner's own clang and lld link
+      # against it.
+      - name: Cross-publish ARM32 on arm64 against the root file system of the .NET toolchain
+        if: matrix.crossContainer && runner.arch == 'ARM64'
+        env:
+          CROSS_IMAGE: ${{ matrix.crossContainer }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y clang lld llvm
+          docker pull --quiet --platform linux/amd64 "$CROSS_IMAGE"
+          image="$(docker create --platform linux/amd64 "$CROSS_IMAGE")"
+          rootfs=/crossrootfs/arm
+          sudo mkdir -p /crossrootfs
+          sudo docker cp "$image:$rootfs" /crossrootfs/
+          docker rm "$image"
+          dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$rootfs" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/agent/$TARGET_RID"
+          dotnet publish samples/JavaHost -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -p:SysRoot="$rootfs" -p:LinkerFlavor=lld -p:ObjCopyName=llvm-objcopy -o "artifacts/host/$TARGET_RID"
+          dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~ExportsAsync
       - name: Publish and execute in the target container
         if: matrix.container
         env:
           SDK_IMAGE: ${{ matrix.container }}
-          EMULATED: ${{ matrix.emulated || false }}
           CROSS_BUILT: ${{ matrix.crossContainer != '' }}
         run: |
+          # linux-arm runs on an arm64 runner, whose CPU runs ARM32 code natively, in the ARM32 variant of the image.
           platform=()
-          emulation=()
-          if [[ "$EMULATED" == true ]]; then
+          if [[ "$TARGET_RID" == linux-arm ]]; then
             platform=(--platform linux/arm/v7)
-            emulation=(-e DOTNET_EnableWriteXorExecute=0 -e QEMU_CPU=cortex-a15)
           fi
           cells=""
           if [[ "$CROSS_BUILT" == true ]]; then
             cells="$(jq -r --arg rid "$TARGET_RID" '.jdks[] | select(.rid == $rid and .status == "available") | "\(.java):\(.implementation)"' src/JvmBridge.Build/jdks.lock.json | paste -sd ' ' -)"
           fi
-          docker run --rm "${platform[@]}" "${emulation[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT -e Version -e VersionTimestamp -e JVM_TEST_CELLS="$cells" \
+          docker run --rm "${platform[@]}" -v "$PWD:/repo" -w /repo -e PACKAGE_VERSION -e TARGET_RID -e CROSS_BUILT -e Version -e VersionTimestamp -e JVM_TEST_CELLS="$cells" \
             "$SDK_IMAGE" \
             sh -ec '
               if command -v apk >/dev/null; then
@@ -142,17 +152,7 @@ jobs:
                 for cell in $JVM_TEST_CELLS; do
                   major="${cell%%:*}"
                   implementation="${cell#*:}"
-                  attempt=1
-                  # QEMU 10.2 now and then aborts on the Thumb code that the ARM32 JIT writes (thumb_tr_translate_insn: pc_next & 1), which kills the
-                  # emulated test runner with SIGABRT, 134. Such a cell runs again, up to three times; any other failure, or a fourth abort, fails the job.
-                  until JVM_JAVA_MAJOR="$major" JVM_IMPLEMENTATION="$implementation" /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit-$major-$implementation.xml"; do
-                    status=$?
-                    if [ "$status" -ne 134 ] || [ "$attempt" -ge 3 ]; then
-                      exit "$status"
-                    fi
-                    echo "::warning::The ARM32 emulator aborted the Java $major $implementation cell (exit 134); running it again."
-                    attempt=$((attempt + 1))
-                  done
+                  JVM_JAVA_MAJOR="$major" JVM_IMPLEMENTATION="$implementation" /repo/artifacts/tests/linux-arm/JvmBridge.IntegrationTests -xml "artifacts/results/$TARGET_RID/xunit-$major-$implementation.xml"
                 done
               else
                 dotnet publish samples/HelloAgent -c Release -r "$TARGET_RID" --self-contained -p:PublishAot=true -p:JvmBridgeVersion="$PACKAGE_VERSION" -o "artifacts/agent/$TARGET_RID"

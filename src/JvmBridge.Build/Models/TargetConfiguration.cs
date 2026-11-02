@@ -12,8 +12,6 @@ internal sealed class TargetConfiguration
 
     public string? CrossContainer { get; init; }
 
-    public bool Emulated { get; init; }
-
     public bool Musl { get; init; }
 
     public string? Os { get; init; }

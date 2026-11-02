@@ -23,8 +23,8 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - id: matrix
         run: |
-          # Footprint is measured on the native runners only: not in containers, under emulation or on x86.
-          echo "footprint=$(jq -c '{include: [.targets[] | select(.agent and (.container | not) and (.crossContainer | not) and (.emulated | not) and .rid != "win-x86")]}' src/JvmBridge.Build/compatibility.json)" >> "$GITHUB_OUTPUT"
+          # Footprint is measured on the native runners only: not in containers or on x86.
+          echo "footprint=$(jq -c '{include: [.targets[] | select(.agent and (.container | not) and (.crossContainer | not) and .rid != "win-x86")]}' src/JvmBridge.Build/compatibility.json)" >> "$GITHUB_OUTPUT"
   # Measures what an agent costs and fails only when the library outgrows docs/footprint.baseline.json by more than its budget. It runs beside the tests, not inside them, so a size regression shows as a red check without holding back a publish.
   footprint:
     needs: matrix

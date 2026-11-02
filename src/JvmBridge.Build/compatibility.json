@@ -41,11 +41,10 @@
     },
     {
       "rid": "linux-arm",
-      "runner": "ubuntu-24.04",
+      "runner": "ubuntu-24.04-arm",
       "os": "linux",
       "arch": "arm",
       "agent": true,
-      "emulated": true,
       "container": "mcr.microsoft.com/dotnet/runtime-deps:10.0.11-noble@sha256:7c9ba479f4a74450a89726851c2af2b096f9bcc70a71b84ac0302869871ff4c5",
       "crossContainer": "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm@sha256:eb77bde7194de32ed305bf62306073464995651a01c8813337d638e223be498c"
     },
@@ -76,7 +75,6 @@
       "status": "experimental",
       "reason": "Native library cross-build and export checks run on AMD64; no matching Java SE musl ARM32 archive is currently configured.",
       "build": true,
-      "emulated": false,
       "musl": true,
       "crossContainer": "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm-alpine@sha256:a295314210c0f21f8e7f37fb4510a3d14b8f54991a702cde92b532298c4c6826"
     },

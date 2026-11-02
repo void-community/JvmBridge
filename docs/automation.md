@@ -26,6 +26,6 @@ The existing trust identity is preserved: repository `void-community/JvmBridge`,
 
 `src/JvmBridge.Build/compatibility.json` describes Java majors and target capabilities; `src/JvmBridge.Build/jdks.lock.json` pins each available vendor archive with SHA256 or records an explicit unavailable cell. The updater refuses to silently drop previously available combinations. Network failures are errors, not evidence of unsupported platforms.
 
-HotSpot uses Temurin with Zulu fallback. OpenJ9 uses IBM Semeru's public release archives. Native builds, ABI probes, JVM host tests, startup agents, and late attachment run against each available combination. Runtime tests are executed inside matching Alpine containers for musl and with a cross toolchain/emulation where needed for ARM32.
+HotSpot uses Temurin with Zulu fallback. OpenJ9 uses IBM Semeru's public release archives. Native builds, ABI probes, JVM host tests, startup agents, and late attachment run against each available combination. Runtime tests are executed inside matching Alpine containers for musl. ARM32 is cross-built on an arm64 runner against the root file system of .NET's ARM32 cross image, and its tests run natively in an ARM32 container on that runner, whose CPU runs 32-bit ARM code without emulation.
 
 Android ART, Apple mobile targets, and missing Java distributions remain explicitly experimental/unavailable until matching runtime fixtures exist. They are never reported as runtime verified merely because source code compiles.
