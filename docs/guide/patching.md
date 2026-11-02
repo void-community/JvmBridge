@@ -6,7 +6,7 @@
 
 `JavaClassFile.Read` exposes the version, flags, hierarchy, fields and methods, the typed constant pool and each `Code` attribute's instructions (offset, opcode, constant operand). It does not interpret stack maps, and it throws `ClassFormatException` for truncated input, trailing bytes, unknown constant tags and malformed code. `file.Invokes(instruction, method)`, `file.AccessesField(instruction, owner, name)` and `file.ReferencesClass(instruction, className)` tell what an instruction refers to without reading the constant pool by hand, and `Opcodes` names every opcode (`Opcodes.InvokeVirtual`, `Opcodes.ALoad0`, `Opcodes.IfICmpEq`), so matching code needs no byte literals.
 
-`ClassFileEditor` only makes edits that keep every existing constant index and code offset, so code, exception tables and stack map frames stay valid without being recomputed: new constants are appended once, a member reference can be retargeted everywhere, an invocation can be replaced in place, constants can be replaced, and access flags can be changed.
+`ClassFileEditor` only makes edits that keep every existing constant index and code offset, so code, exception tables and stack map frames stay valid without being recomputed: new constants are appended once (an existing constant is reused when it resolves to the same class, name, descriptor or value, even through a duplicate entry such as the second Class entry that javac 8 writes for a class a stack map frame names), a member reference can be retargeted everywhere, an invocation can be replaced in place, constants can be replaced, and access flags can be changed.
 
 ```csharp
 using JvmBridge.ClassFiles;
@@ -336,7 +336,7 @@ byte[] helper = new ClassFileWriter("acme/agent/Strings")
 - Branches go to labels: `CodeLabel done = code.NewLabel(); ... .IfNull(done) ... .Mark(done)`. The builder resolves their offsets and checks that every path reaches a label with the same stack depth.
 - It refuses code that pops more than the stack holds, code that no path reaches, and a branch to a label it never places, instead of writing a method the verifier rejects.
 - It writes no stack map frames. A class of version 51 (Java 7) or later needs them at every branch target, so `AddMethod` refuses a body with branches there. Write a helper with branches as a `JavaSource` item, or in a class of version 50, which every JVM since Java 6 verifies without frames.
-- `ClassFileEditor.AssembleCode(code => ...)` writes instructions against the edited class's constant pool and returns their bytes, for `ReplaceCode` and for comparing with a method's code, without branches.
+- `ClassFileEditor.AssembleCode(code => ...)` writes instructions against the edited class's constant pool and returns their bytes, for `ReplaceCode` and for comparing with a method's code, without branches. A call or field access names the reference the class's code already uses for that member, so the bytes match the code javac wrote.
 
 Tests that need an input class build it the same way. A loop of version 50 and straight-line code of version 52 written with it run with `-Xverify:all` on Java 6, 8 and 17.
 

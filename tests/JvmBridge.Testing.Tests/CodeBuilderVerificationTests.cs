@@ -12,6 +12,46 @@ public sealed class CodeBuilderVerificationTests
 
     private static readonly JavaMethod PrintText = JavaMethod.Virtual(owner: "java/io/PrintStream", name: "println", descriptor: "(Ljava/lang/String;)V");
 
+    /// <summary>
+    /// javac 8 writes a second Class entry for a class that a stack map frame names, and the code's references go through it. Code assembled for a call in such a class names the
+    /// reference the code already uses, so it matches the method's bytes, and nothing is added to the class.
+    /// </summary>
+    /// <param name="jdk">The JDK whose javac writes the duplicate.</param>
+    [Theory]
+    [JdkData(8)]
+    public async Task AssembledCodeMatchesWhatJavac8WroteAsync(Jdk jdk)
+    {
+        ArgumentNullException.ThrowIfNull(jdk);
+
+        JavaMethod andThen = JavaMethod.Interface(
+            owner: "java/util/function/BiConsumer",
+            name: "andThen",
+            descriptor: "(Ljava/util/function/BiConsumer;)Ljava/util/function/BiConsumer;"
+        );
+
+        string classes = await jdk.CompileAsync(sources: "PoolFixtures/fixture/*.java", cancellationToken: TestContext.Current.CancellationToken);
+
+        try
+        {
+            byte[] original = await File.ReadAllBytesAsync(Path.Combine(classes, path2: "fixture", path3: "Chain.class"), TestContext.Current.CancellationToken);
+            JavaClassFile file = JavaClassFile.Read(original);
+            CodeAttribute body = file.FindMethod(name: "run")?.Code ?? throw new InvalidOperationException(message: "Chain.run has no code.");
+            Instruction call = body.Instructions.Single(instruction => file.Invokes(instruction, andThen));
+            ClassFileEditor editor = new(original);
+
+            byte[] assembled = editor.AssembleCode(code => code.Invoke(andThen));
+
+            Assert.Equal(expected: 2, file.ConstantPool.OfType<ClassEntry>().Count(entry => file.GetClassName(entry.Index) == andThen.Owner));
+            Assert.Equal(original.AsSpan(body.CodeOffset + call.Offset, call.Length).ToArray(), assembled);
+            Assert.True(editor.ReplaceCode(methodName: "run", methodDescriptor: null, call.Offset, assembled, assembled));
+            Assert.Equal(original, editor.ToArray());
+        }
+        finally
+        {
+            Directory.Delete(classes, recursive: true);
+        }
+    }
+
     /// <summary>A loop with branches in a class of version 50, and straight-line code in one of version 52, which the type-checking verifier checks, both verify and print what they compute.</summary>
     /// <param name="jdk">The JDK to run on.</param>
     [Theory]

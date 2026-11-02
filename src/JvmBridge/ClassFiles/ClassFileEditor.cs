@@ -36,42 +36,34 @@ public sealed class ClassFileEditor : IConstantPool
         return Find<Utf8Entry>(entry => entry.Value == value) ?? Append(ConstantEncoding.Utf8(value), slots: 1);
     }
 
-    /// <summary>Adds a Class constant once.</summary>
+    /// <summary>Adds a Class constant once. An existing one that names the class is reused, whichever Utf8 entry holds the name, so a pool with duplicate entries gets no third.</summary>
     /// <param name="name">The internal class name.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddClass(string name)
     {
-        return Atomically(() =>
-        {
-            int utf8 = AddUtf8(name);
-            return Find<ClassEntry>(entry => entry.NameIndex == utf8) ?? Append(ConstantEncoding.Reference(ConstantTag.Class, utf8), slots: 1);
-        });
+        ArgumentNullException.ThrowIfNull(name);
+        return Find<ClassEntry>(entry => IsUtf8(entry.NameIndex, name)) ?? Atomically(() => Append(ConstantEncoding.Reference(ConstantTag.Class, AddUtf8(name)), slots: 1));
     }
 
-    /// <summary>Adds a String constant once.</summary>
+    /// <summary>Adds a String constant once. An existing one with the value is reused, whichever Utf8 entry holds it.</summary>
     /// <param name="value">The string value.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddString(string value)
     {
-        return Atomically(() =>
-        {
-            int utf8 = AddUtf8(value);
-            return Find<StringEntry>(entry => entry.StringIndex == utf8) ?? Append(ConstantEncoding.Reference(ConstantTag.String, utf8), slots: 1);
-        });
+        ArgumentNullException.ThrowIfNull(value);
+        return Find<StringEntry>(entry => IsUtf8(entry.StringIndex, value)) ?? Atomically(() => Append(ConstantEncoding.Reference(ConstantTag.String, AddUtf8(value)), slots: 1));
     }
 
-    /// <summary>Adds a NameAndType constant once.</summary>
+    /// <summary>Adds a NameAndType constant once. An existing one with the name and descriptor is reused, whichever Utf8 entries hold them.</summary>
     /// <param name="name">The member name.</param>
     /// <param name="descriptor">The member descriptor.</param>
     /// <returns>The index of the new or existing constant.</returns>
     public int AddNameAndType(string name, string descriptor)
     {
-        return Atomically(() =>
-        {
-            int nameIndex = AddUtf8(name);
-            int descriptorIndex = AddUtf8(descriptor);
-            return Find<NameAndTypeEntry>(entry => entry.NameIndex == nameIndex && entry.DescriptorIndex == descriptorIndex) ?? Append(ConstantEncoding.Reference(ConstantTag.NameAndType, nameIndex, descriptorIndex), slots: 1);
-        });
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(descriptor);
+        return Find<NameAndTypeEntry>(entry => IsNameAndType(entry.Index, name, descriptor))
+            ?? Atomically(() => Append(ConstantEncoding.Reference(ConstantTag.NameAndType, AddUtf8(name), AddUtf8(descriptor)), slots: 1));
     }
 
     /// <summary>Adds a field reference once.</summary>
@@ -350,7 +342,7 @@ public sealed class ClassFileEditor : IConstantPool
     }
 
     /// <summary>
-    /// Writes instructions with a <see cref="CodeBuilder"/>, adding the constants they name to this class, and returns their bytes, for <see cref="ReplaceCode"/> and for comparing with a method's code. The method's <c>max_stack</c> is not raised, so
+    /// Writes instructions with a <see cref="CodeBuilder"/>, adding the constants they name to this class unless one that resolves to the same member or value exists, and returns their bytes, for <see cref="ReplaceCode"/> and for comparing with a method's code. The method's <c>max_stack</c> is not raised, so
     /// code put in place of other code must not need a deeper stack than what it replaces. Branches are refused: they would need stack map frames that this editor does not write.
     /// </summary>
     /// <param name="code">Writes the instructions and returns the builder.</param>
@@ -537,15 +529,27 @@ public sealed class ClassFileEditor : IConstantPool
         return string.Concat("(", receiver, descriptor.AsSpan(1));
     }
 
+    // An existing reference is matched by what its Class and NameAndType entries resolve to, not by their indices: javac 8 can write two Class entries for one class, and the
+    // code then uses a reference through the second one, which a lookup by the first Class entry's index would miss and duplicate.
     private int AddMemberReference(ConstantTag kind, string owner, string name, string descriptor)
     {
-        return Atomically(() =>
-        {
-            int ownerIndex = AddClass(owner);
-            int nameAndType = AddNameAndType(name, descriptor);
-            return Find<MemberReferenceEntry>(entry => entry.Kind == kind && entry.ClassIndex == ownerIndex && entry.NameAndTypeIndex == nameAndType) ?? Append(ConstantEncoding.Reference(kind, ownerIndex, nameAndType), slots: 1);
-        });
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(descriptor);
+        return Find<MemberReferenceEntry>(entry => entry.Kind == kind && IsClass(entry.ClassIndex, owner) && IsNameAndType(entry.NameAndTypeIndex, name, descriptor))
+            ?? Atomically(() =>
+            {
+                int ownerIndex = AddClass(owner);
+                int nameAndType = AddNameAndType(name, descriptor);
+                return Append(ConstantEncoding.Reference(kind, ownerIndex, nameAndType), slots: 1);
+            });
     }
+
+    private bool IsClass(int index, string name) => Model.ConstantPool.ElementAtOrDefault(index) is ClassEntry entry && IsUtf8(entry.NameIndex, name);
+
+    private bool IsNameAndType(int index, string name, string descriptor) => Model.ConstantPool.ElementAtOrDefault(index) is NameAndTypeEntry entry && IsUtf8(entry.NameIndex, name) && IsUtf8(entry.DescriptorIndex, descriptor);
+
+    private bool IsUtf8(int index, string value) => Model.ConstantPool.ElementAtOrDefault(index) is Utf8Entry entry && entry.Value == value;
 
     private static void WriteUInt16To(Stream stream, int value)
     {
