@@ -1,13 +1,73 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"],
+  "extends": [
+    "config:best-practices"
+  ],
   "dependencyDashboard": true,
-  "ignoreDeps": ["JvmBridge"],
+  "ignoreDeps": [
+    "JvmBridge"
+  ],
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
-  "lockFileMaintenance": {"enabled": true, "automerge": true},
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "nuget": {
+    "ignorePaths": [
+      "src/JvmBridge.Templates/templates/**"
+    ]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "SDKs listed one per line under setup-dotnet's dotnet-version, which the github-actions manager reads only as a single value",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "\\n[ \\t]+(?<currentValue>\\d+\\.\\d+\\.\\d{3}(?:-[0-9A-Za-z.]+)?)[ \\t]*(?=\\n)"
+      ],
+      "depNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version"
+    },
+    {
+      "customType": "regex",
+      "description": "Package versions of the jvmbridge-agent template, which cannot be restored where it lives because it names JvmBridge by a placeholder version",
+      "managerFilePatterns": [
+        "/^src/JvmBridge\\.Templates/templates/.+\\.csproj$/"
+      ],
+      "matchStrings": [
+        "<PackageReference Include=\"(?<depName>[^\"]+)\" Version=\"(?<currentValue>\\d[^\"]*)\""
+      ],
+      "datasourceTemplate": "nuget"
+    }
+  ],
   "packageRules": [
-    {"matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true},
-    {"matchUpdateTypes": ["major"], "automerge": false}
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "CI keeps a 10.0 SDK beside the 11.0 one, so neither moves to another major",
+      "matchDepNames": [
+        "dotnet-sdk"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
   ]
 }
