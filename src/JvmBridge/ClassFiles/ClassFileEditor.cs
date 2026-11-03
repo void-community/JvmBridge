@@ -8,11 +8,18 @@ namespace JvmBridge.ClassFiles;
 /// <summary>
 /// Edits a class file in ways that keep every existing constant pool index and code offset: new constants are appended after the existing ones, and everything else is
 /// rewritten in place at the same length. Code, exception tables, stack map frames and other attributes therefore stay valid without being recomputed. The exceptions are
-/// <see cref="ReplaceMethodBody"/> and the method advice that <c>ClassPatch</c> adds, which move a method's code, byte for byte, into a new method and give the old method a short straight-line body, and the
-/// entries that a lambda appends to the class's <c>BootstrapMethods</c> and <c>InnerClasses</c> attributes, which come after everything else.
+/// <see cref="ReplaceMethodBody"/> and the method advice that <c>ClassPatch</c> adds, which move a method's code, byte for byte, into a new method and give the old method a short straight-line body,
+/// <see cref="AddMethod(int, string, string, Func{CodeBuilder, CodeBuilder})"/>, which appends a method after the existing ones, and the entries that a lambda appends to the class's <c>BootstrapMethods</c> and <c>InnerClasses</c> attributes, which come after everything else.
 /// </summary>
 public sealed class ClassFileEditor : IConstantPool
 {
+    private const int StaticFlag = 0x0008;
+    private const int NativeFlag = 0x0100;
+    private const int AbstractFlag = 0x0400;
+
+    // From class file version 51, the verifier needs a stack map frame at every branch target.
+    private const int FramesVersion = 51;
+
     private byte[] _bytes;
     private JavaClassFile? _model;
 
@@ -476,7 +483,53 @@ public sealed class ClassFileEditor : IConstantPool
         });
     }
 
-    /// <summary>Appends a method with straight-line code to the class. The class must not declare the method already.</summary>
+    /// <summary>
+    /// Appends a method whose code a <see cref="CodeBuilder"/> writes against this class's constant pool, with the <c>max_stack</c> and <c>max_locals</c> it needs, for a helper that only the edited class can hold, such as one
+    /// that names classes whose names change between releases. A loaded class cannot gain methods, so this is only for a class that has not been defined yet. The editor writes no stack map frames, so the code may
+    /// branch only in a class of version 50 or older, which every JVM verifies without them.
+    /// </summary>
+    /// <param name="accessFlags">The <c>ACC_</c> bits, for example <c>0x100A</c> (private static synthetic). A method with code cannot be <c>abstract</c> or <c>native</c>.</param>
+    /// <param name="name">The name the method is declared with, for example <c>agent$processPackets</c>.</param>
+    /// <param name="descriptor">Its parameter and return types in JVM notation, for example <c>(Lpkg/Connection;)Z</c>.</param>
+    /// <param name="code">Writes the code and returns the builder; the parameters are in the first local variables, after <c>this</c> for an instance method.</param>
+    /// <exception cref="ArgumentException">The name, descriptor or flags are not those of a method with code, or the code branches in a class of version 51 or later.</exception>
+    /// <exception cref="InvalidOperationException">The class already declares the method, or the code is not consistent: it pops more than the stack holds, has code no path reaches, or branches to a label it never places.</exception>
+    public void AddMethod(int accessFlags, string name, string descriptor, Func<CodeBuilder, CodeBuilder> code)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(descriptor);
+        ArgumentNullException.ThrowIfNull(code);
+        ArgumentOutOfRangeException.ThrowIfNegative(accessFlags);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(accessFlags, ushort.MaxValue);
+
+        if ((accessFlags & (AbstractFlag | NativeFlag)) != 0)
+            throw new ArgumentException($"{name}{descriptor} has code, so it cannot be abstract or native.", nameof(accessFlags));
+
+        if (name.AsSpan().IndexOfAny(".;[/<>") >= 0)
+            throw new ArgumentException($"'{name}' is not a valid name for an added method.", nameof(name));
+
+        int parameterSlots;
+
+        try { parameterSlots = MethodDescriptor.Parse(descriptor).Parameters.Sum(MethodDescriptor.Slots); }
+        catch (ClassFormatException exception) { throw new ArgumentException(exception.Message, nameof(descriptor), exception); }
+
+        if (Model.FindMethod(name, descriptor) is not null)
+            throw new InvalidOperationException($"The class already declares {name}{descriptor}.");
+
+        Atomically(() =>
+        {
+            int major = Model.MajorVersion;
+            CodeBuilder builder = new(this, parameterSlots + ((accessFlags & StaticFlag) == 0 ? 1 : 0));
+            CodeBuilder.RequireSame(builder, code(builder));
+
+            if (builder.HasBranches && major >= FramesVersion)
+                throw new ArgumentException($"{name}{descriptor} branches, which a class file of version {major} only allows with stack map frames that the editor does not write.", nameof(code));
+
+            AddMethod(accessFlags, name, descriptor, new StubCode(builder.MaxStack, builder.MaxLocals, builder.ToArray()));
+        });
+    }
+
+    /// <summary>Appends a method with assembled code to the class. The class must not declare the method already.</summary>
     internal void AddMethod(int accessFlags, string name, string descriptor, StubCode code)
     {
         if (Model.FindMethod(name, descriptor) is not null)

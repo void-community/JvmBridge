@@ -352,7 +352,22 @@ patch.Edit(editor => editor.ReplaceMethodBody("clear", "()V", "agent$clear", cod
     .Return()));
 ```
 
-Tests that need an input class build it the same way. A loop of version 50 and straight-line code of version 52 written with it run with `-Xverify:all` on Java 6, 8 and 17, and so do lambdas written into a javac class that has lambdas of its own, on Java 8 and 17.
+- `ClassFileEditor.AddMethod(accessFlags, name, descriptor, code => ...)` appends a method that the builder writes, for a helper that has to live in the edited class: one that names classes whose names change between releases, in a class too old for a lambda. The class must not declare the method already, nor be defined yet. The code may branch only in a class of version 50 or older, as with `ClassFileWriter.AddMethod`. Together with same-length `ReplaceCode` edits it moves work into the helper:
+
+```csharp
+// if (connection.isChannelOpen()) connection.processReceivedPackets(); else ...
+// becomes: if (agent$processReceivedPackets(connection)) { pop; } else ...
+JavaMethod helper = JavaMethod.Static(owner, "agent$processReceivedPackets", $"(L{connection};)Z");
+
+patch.Edit(editor =>
+{
+    editor.AddMethod(0x100A, helper.Name, helper.Descriptor, code => code.ALoad(0).Invoke(process).ALoad(0).Invoke(isOpen).IReturn());
+    editor.ReplaceCode("updateController", "()V", isOpenOffset, editor.AssembleCode(code => code.Invoke(isOpen)), editor.AssembleCode(code => code.Invoke(helper)));
+    editor.ReplaceCode("updateController", "()V", processOffset, editor.AssembleCode(code => code.Invoke(process)), editor.AssembleCode(code => code.Pop().Nop().Nop()));
+});
+```
+
+Tests that need an input class build it the same way. A loop of version 50 and straight-line code of version 52 written with it run with `-Xverify:all` on Java 6, 8 and 17, and so do lambdas written into a javac class that has lambdas of its own, on Java 8 and 17, and a helper added to a javac class of version 50, on Java 8 and 11.
 
 ## Defining a class by hand
 
