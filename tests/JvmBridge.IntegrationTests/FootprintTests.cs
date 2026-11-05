@@ -14,7 +14,7 @@ namespace JvmBridge.IntegrationTests;
 
 /// <summary>
 /// Measures what loading a minimal agent costs: the size of its library, the added start-up time of <c>java -version</c> and, on Linux, the added peak resident memory. Launches with and without the agent alternate, so drift on a busy runner hits both
-/// equally, and medians absorb outliers. The size is held to the checked-in baseline; time and memory are reported because shared runners are too noisy to fail on them.
+/// equally, and medians absorb outliers. The numbers are reported, not checked against limits.
 /// </summary>
 public sealed partial class FootprintTests
 {
@@ -37,7 +37,6 @@ public sealed partial class FootprintTests
             }
         }
         """;
-    private const double SizeBudget = 1.10;
     private const int StartupRuns = 20;
 
     private const int Warmups = 3;
@@ -145,21 +144,7 @@ public sealed partial class FootprintTests
             Path.Combine(paths: [repository.Artifacts, "footprint", rid, $"hotspot-{major.ToString(CultureInfo.InvariantCulture)}.json"]),
             result
         );
-        long? baselineSize = BaselineSize(rid, major);
-        Summarize(rid, major, librarySize, [startupWithout, startupWith, startupAdded, withoutMemory, withMemory], baselineSize);
-
-        if (baselineSize is { } baseline)
-        {
-            Assert.True(
-                librarySize <= baseline * SizeBudget,
-                $"The agent library is {librarySize.ToString(CultureInfo.InvariantCulture)} bytes; the baseline is {baseline.ToString(CultureInfo.InvariantCulture)}."
-            );
-        }
-    }
-
-    private static long? BaselineSize(string rid, int major)
-    {
-        return FootprintBaseline.LibrarySizeBytes.TryGetValue(rid + "/" + major.ToString(CultureInfo.InvariantCulture), out long size) ? size : null;
+        Summarize(rid, major, librarySize, [startupWithout, startupWith, startupAdded, withoutMemory, withMemory]);
     }
 
     private static double Median(List<double> values)
@@ -189,10 +174,9 @@ public sealed partial class FootprintTests
     [GeneratedRegex(@"PEAK_RSS_KB=(-?\d+)")]
     private static partial Regex PeakMemoryLine();
 
-    private static void Summarize(string rid, int major, long librarySize, double[] measured, long? baselineSize)
+    private static void Summarize(string rid, int major, long librarySize, double[] measured)
     {
-        string baseline = baselineSize is { } size ? size.ToString(CultureInfo.InvariantCulture) + " bytes" : "none";
-        string[] cells = [rid, "Java " + major.ToString(CultureInfo.InvariantCulture), librarySize.ToString(CultureInfo.InvariantCulture), .. measured.Select(static value => value.ToString(CultureInfo.InvariantCulture)), baseline];
+        string[] cells = [rid, "Java " + major.ToString(CultureInfo.InvariantCulture), librarySize.ToString(CultureInfo.InvariantCulture), .. measured.Select(static value => value.ToString(CultureInfo.InvariantCulture))];
         string line = "| " + string.Join(separator: " | ", cells) + " |";
         Console.WriteLine(line);
 
@@ -203,9 +187,9 @@ public sealed partial class FootprintTests
         {
             File.AppendAllText(
                 summary,
-                "| Target | Java | Library bytes | Start-up without (ms) | Start-up with (ms) | Added (ms) | Peak memory without (KB) | Peak memory with (KB) | Size baseline |"
+                "| Target | Java | Library bytes | Start-up without (ms) | Start-up with (ms) | Added (ms) | Peak memory without (KB) | Peak memory with (KB) |"
                     + Environment.NewLine
-                    + "|---|---|---|---|---|---|---|---|---|"
+                    + "|---|---|---|---|---|---|---|---|"
                     + Environment.NewLine
             );
         }

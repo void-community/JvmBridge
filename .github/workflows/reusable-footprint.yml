@@ -13,7 +13,7 @@ on:
         type: string
         required: true
 jobs:
-  # Measures what an agent costs and fails only when the library outgrows the baseline of FootprintTests (FootprintBaseline.g.cs) by more than its budget. It runs beside the tests, not inside them, so a size regression shows as a red check without holding back a publish.
+  # Measures what an agent costs and reports it in the job summary. It runs beside the tests, not inside them, and publishing does not wait for it.
   # The agent targets of Compatibility.cs in src/JvmBridge.Build that run on the runner itself, not in a container or as x86; WorkflowMatrixTests fails when the two differ.
   footprint:
     strategy:
