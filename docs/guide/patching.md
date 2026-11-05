@@ -26,7 +26,7 @@ byte[] patched = editor.ToArray();
 
 ## ClassPatch
 
-`ClassPatch.For(className)` describes the edits to one class. It is immutable and reusable. `.Method(name, descriptor)` scopes the edits that follow to one method (`.AnyMethod()` ends the scope); `.RedirectInvocation`, `.ReplaceConstant`, `.ReplaceConstruction`, `.RemoveInvocation`, `.SetAccess`/`.SetFieldAccess` and the `.Edit(editor => ...)` escape hatch add edits. `patch.Apply(bytes)` returns a `ClassPatchResult` that says what changed, or why nothing did, so a test can assert on it without a JVM. A patch is all or nothing: when its method or invocation is missing, the class is left unchanged and the result names the reason.
+`ClassPatch.For(className)` describes the edits to one class. It is immutable and reusable. `.Method(name, descriptor)` scopes the edits that follow to one method, including `.ReplaceConstant`, which then changes only that method's loads (`.AnyMethod()` ends the scope); `.RedirectInvocation`, `.ReplaceConstant`, `.ReplaceConstruction`, `.RemoveInvocation`, `.SetAccess`/`.SetFieldAccess` and the `.Edit(editor => ...)` escape hatch add edits. `patch.Apply(bytes)` returns a `ClassPatchResult` that says what changed, or why nothing did, so a test can assert on it without a JVM. A patch is all or nothing: when its method or invocation is missing, the class is left unchanged and the result names the reason.
 
 ```csharp
 public sealed class PatcherAgent : JavaAgent

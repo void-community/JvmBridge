@@ -30,19 +30,6 @@ public sealed class ClassPatchTests
         Assert.Equal(expected: "field absent not found", noField.SkippedReason);
     }
 
-    /// <summary>Constants belong to the whole class, so a method scope must be ended first.</summary>
-    [Fact]
-    public void ConstantsRequireTheWholeClass()
-    {
-        ClassPatch scoped = Sample.Method(name: "greeting");
-
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => scoped.ReplaceConstant(oldValue: "hello", newValue: "goodbye"));
-        ClassPatchResult result = scoped.AnyMethod().ReplaceConstant(oldValue: "hello", newValue: "goodbye").Apply(ClassFileFixtures.Sample);
-
-        Assert.Contains(expectedSubstring: "AnyMethod()", failure.Message, StringComparison.Ordinal);
-        Assert.True(result.Changed);
-    }
-
     /// <summary>The escape hatch runs a custom edit, and its failure skips the patch instead of throwing.</summary>
     [Fact]
     public void CustomEditsRunAndTheirFailuresAreReported()

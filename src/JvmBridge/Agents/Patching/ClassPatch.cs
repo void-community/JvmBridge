@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 
 using JvmBridge.ClassFiles;
+using JvmBridge.ClassFiles.Code;
 
 namespace JvmBridge.Agents;
 
@@ -273,41 +274,71 @@ public sealed class ClassPatch
         });
     }
 
-    /// <summary>Replaces a String constant. Every use of the constant changes.</summary>
+    /// <summary>
+    /// Replaces a String constant. Without a scope, every use of the constant changes. After <see cref="Method"/>, only that method's loads of it change, or every overload's without a descriptor, and the code elsewhere keeps the old value: so
+    /// <c>.Method("initWindow", "(Ljava/lang/String;)V").ReplaceConstant("10s", "30s")</c> leaves the same constant in other methods alone. Each load keeps its length; an <c>ldc</c> reaches only the first 256 constants, so a class whose only
+    /// entry for the new value would be further out is skipped with the reason.
+    /// </summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one in the scope.</param>
     /// <returns>A new patch.</returns>
     public ClassPatch ReplaceConstant(string oldValue, string newValue)
     {
         ArgumentNullException.ThrowIfNull(oldValue);
         ArgumentNullException.ThrowIfNull(newValue);
 
-        return ReplacingConstant($"string \"{oldValue}\"", editor => editor.ReplaceString(oldValue, newValue));
+        return ReplacingConstant(
+            $"string \"{oldValue}\"",
+            editor => editor.ReplaceString(oldValue, newValue),
+            (editor, name, descriptor) => ConstantLoads.Replace(editor, name, descriptor, (model, entry) => entry is StringEntry text && model.GetUtf8(text.StringIndex) == oldValue, pool => pool.AddString(newValue), $"\"{newValue}\"")
+        );
     }
 
-    /// <summary>Replaces an Integer constant. Values the compiler encodes inline, such as small numbers, are not constants.</summary>
+    /// <summary>
+    /// Replaces an Integer constant, in the whole class or, after <see cref="Method"/>, in that method's loads only, as <see cref="ReplaceConstant(string, string)"/> does. Values the compiler encodes inline, such as small numbers, are not
+    /// constants.
+    /// </summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one in the scope.</param>
     /// <returns>A new patch.</returns>
-    public ClassPatch ReplaceConstant(int oldValue, int newValue) => ReplacingConstant($"int {oldValue}", editor => editor.ReplaceInteger(oldValue, newValue));
+    public ClassPatch ReplaceConstant(int oldValue, int newValue) => ReplacingConstant(
+        $"int {oldValue}",
+        editor => editor.ReplaceInteger(oldValue, newValue),
+        (editor, name, descriptor) => ConstantLoads.Replace(editor, name, descriptor, (_, entry) => entry is IntegerEntry number && number.Value == oldValue, pool => pool.AddInteger(newValue), $"int {newValue}")
+    );
 
-    /// <summary>Replaces a Long constant.</summary>
+    /// <summary>
+    /// Replaces a Long constant, in the whole class or, after <see cref="Method"/>, in that method's loads only, as <see cref="ReplaceConstant(string, string)"/> does:
+    /// <c>.Method("initWindow", "(Ljava/lang/String;)V").ReplaceConstant(10L, 30L)</c>.
+    /// </summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one in the scope.</param>
     /// <returns>A new patch.</returns>
-    public ClassPatch ReplaceConstant(long oldValue, long newValue) => ReplacingConstant($"long {oldValue}", editor => editor.ReplaceLong(oldValue, newValue));
+    public ClassPatch ReplaceConstant(long oldValue, long newValue) => ReplacingConstant(
+        $"long {oldValue}",
+        editor => editor.ReplaceLong(oldValue, newValue),
+        (editor, name, descriptor) => ConstantLoads.Replace(editor, name, descriptor, (_, entry) => entry is LongEntry number && number.Value == oldValue, pool => pool.AddLong(newValue), $"long {newValue}")
+    );
 
-    /// <summary>Replaces a Float constant.</summary>
+    /// <summary>Replaces a Float constant, in the whole class or, after <see cref="Method"/>, in that method's loads only, as <see cref="ReplaceConstant(string, string)"/> does.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one in the scope.</param>
     /// <returns>A new patch.</returns>
-    public ClassPatch ReplaceConstant(float oldValue, float newValue) => ReplacingConstant($"float {oldValue}", editor => editor.ReplaceFloat(oldValue, newValue));
+    public ClassPatch ReplaceConstant(float oldValue, float newValue) => ReplacingConstant(
+        $"float {oldValue}",
+        editor => editor.ReplaceFloat(oldValue, newValue),
+        (editor, name, descriptor) => ConstantLoads.Replace(editor, name, descriptor, (_, entry) => entry is FloatEntry number && BitConverter.SingleToInt32Bits(number.Value) == BitConverter.SingleToInt32Bits(oldValue), pool => pool.AddFloat(newValue), $"float {newValue}")
+    );
 
-    /// <summary>Replaces a Double constant.</summary>
+    /// <summary>Replaces a Double constant, in the whole class or, after <see cref="Method"/>, in that method's loads only, as <see cref="ReplaceConstant(string, string)"/> does.</summary>
     /// <param name="oldValue">The value to replace.</param>
-    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one.</param>
+    /// <param name="newValue">The constant that the code loads instead, wherever it loaded the old one in the scope.</param>
     /// <returns>A new patch.</returns>
-    public ClassPatch ReplaceConstant(double oldValue, double newValue) => ReplacingConstant($"double {oldValue}", editor => editor.ReplaceDouble(oldValue, newValue));
+    public ClassPatch ReplaceConstant(double oldValue, double newValue) => ReplacingConstant(
+        $"double {oldValue}",
+        editor => editor.ReplaceDouble(oldValue, newValue),
+        (editor, name, descriptor) => ConstantLoads.Replace(editor, name, descriptor, (_, entry) => entry is DoubleEntry number && BitConverter.DoubleToInt64Bits(number.Value) == BitConverter.DoubleToInt64Bits(oldValue), pool => pool.AddDouble(newValue), $"double {newValue}")
+    );
 
     /// <summary>Replaces access flags: the scoped method's when <see cref="Method"/> is active, otherwise the class's.</summary>
     /// <param name="accessFlags">The <c>ACC_</c> bits that replace the current ones, for example <c>0x0001</c> (public) to open it to other classes.</param>
@@ -765,15 +796,33 @@ public sealed class ClassPatch
     private static ClassPatchResult Skipped(string className, string reason, PatchSkipCategory category = PatchSkipCategory.Other)
         => new(className, bytes: null, reason, [], redirectedInvocations: 0, replacedConstants: 0, changedAccessFlags: 0, appliedEdits: 0, skipCategory: category);
 
-    private ClassPatch ReplacingConstant(string description, Func<ClassFileEditor, int> replace)
+    private ClassPatch ReplacingConstant(string description, Func<ClassFileEditor, int> replace, Func<ClassFileEditor, string, string?, int> replaceInMethod)
     {
-        RequireWholeClass("ReplaceConstant");
+        MethodScope? scope = _scope;
+
+        if (scope is null)
+        {
+            return With(PatchKind.Constant, editor =>
+            {
+                int count = replace(editor);
+
+                return count == 0 ? StepOutcome.Skip($"constant {description} not found") : StepOutcome.Applied(count, $"{count} constant{(count == 1 ? string.Empty : "s")} {description} replaced");
+            });
+        }
 
         return With(PatchKind.Constant, editor =>
         {
-            int count = replace(editor);
+            if (FindMissingMethod(editor, scope) is { } missing)
+                return StepOutcome.Skip(missing);
 
-            return count == 0 ? StepOutcome.Skip($"constant {description} not found") : StepOutcome.Applied(count, $"{count} constant{(count == 1 ? string.Empty : "s")} {description} replaced");
+            int count;
+
+            try { count = replaceInMethod(editor, scope.Name, scope.Descriptor); }
+            catch (InvalidOperationException exception) { return StepOutcome.Skip(exception.Message); }
+
+            return count == 0
+                ? StepOutcome.Skip($"no load of constant {description} in {scope}")
+                : StepOutcome.Applied(count, $"{Prefix(scope)}{count} load{(count == 1 ? string.Empty : "s")} of constant {description} replaced");
         });
     }
 

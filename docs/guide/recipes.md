@@ -30,9 +30,12 @@ public sealed class SortAgent : JavaAgent
 ```csharp
 ClassPatch.For("com/acme/Config").ReplaceConstant("https://api.acme.com", "http://localhost:8080");
 ClassPatch.For("com/acme/Limits").ReplaceConstant(86_400_000, 1_000);
+
+// Only the watchdog in initWindow waits 30 seconds; the render loop's 10 ms frame time loads the same constant and keeps it.
+ClassPatch.For("com/acme/Window").Method("initWindow", "(Ljava/lang/String;)V").ReplaceConstant(10L, 30L);
 ```
 
-String, `int`, `long`, `float` and `double` constants are replaced everywhere in the class; the result reports how many were found. A constant that is not present leaves the class unchanged and says why. Small integers are not constants: the compiler encodes values such as `30` inline in the instructions, so only values it stores in the constant pool (like `86_400_000`) can be replaced this way.
+String, `int`, `long`, `float` and `double` constants are replaced everywhere in the class; the result reports how many were found. After `Method`, only that method's loads change, or every overload's without a descriptor, and the result counts those loads: the constant pool keeps the old entry for the code elsewhere and gains one for the new value, or reuses one. Each load keeps its length, so offsets and frames stay valid. An `ldc` reaches only the first 256 constants, so when the new value's entry would be further out the class is skipped with that reason; `long` and `double` loads reach any entry. A constant that is not present, in the class or in the scope, leaves the class unchanged and says why. Small integers are not constants: the compiler encodes values such as `30` inline in the instructions, so only values it stores in the constant pool (like `86_400_000`) can be replaced this way.
 
 ## Open up a private member
 
