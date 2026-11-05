@@ -25,23 +25,41 @@ internal static class ConstantLoads
     {
         JavaClassFile model = editor.Model;
 
-        LoadSite[] loads = [.. model.Methods
-            .Where(method => method.Name == methodName && (methodDescriptor is null || method.Descriptor == methodDescriptor))
-            .SelectMany(method => (method.Code?.Instructions ?? [])
-                .Where(instruction => IsLoad(instruction) && model.ConstantPool[instruction.ConstantIndex ?? 0] is { } entry && isOld(model, entry))
-                .Select(instruction => new LoadSite(method.Descriptor, instruction.Offset, instruction.Length, instruction.Opcode)))];
+        // Plain loops and a reference type keep the native code small: LINQ over a struct gets an instantiation of its own in a NativeAOT agent.
+        List<LoadSite> loads = [];
+        LoadSite? narrow = null;
 
-        if (loads.Length == 0)
+        foreach (ClassMember method in model.Methods)
+        {
+            if (method.Name != methodName || (methodDescriptor is not null && method.Descriptor != methodDescriptor) || method.Code is not { } methodCode)
+                continue;
+
+            IReadOnlyList<Instruction> instructions = methodCode.Instructions;
+
+            for (int position = 0; position < instructions.Count; position++)
+            {
+                Instruction instruction = instructions[position];
+
+                if (!IsLoad(instruction) || model.ConstantPool[instruction.ConstantIndex ?? 0] is not { } entry || !isOld(model, entry))
+                    continue;
+
+                LoadSite load = new(method.Descriptor, instruction.Offset, instruction.Length, instruction.Opcode);
+                loads.Add(load);
+
+                if (instruction.Opcode == Opcodes.Ldc)
+                    narrow ??= load;
+            }
+        }
+
+        if (loads.Count == 0)
             return 0;
 
         int index = addReplacement(editor);
 
-        LoadSite[] narrow = [.. loads.Where(static load => load.Opcode == Opcodes.Ldc)];
-
-        if (index > byte.MaxValue && narrow.Length > 0)
+        if (index > byte.MaxValue && narrow is not null)
         {
             throw new InvalidOperationException(
-                $"{methodName}{narrow[0].Descriptor} loads the constant with an ldc at offset {narrow[0].Offset}, which reaches only the first 256 constants, and {replacement} would be constant {index}."
+                $"{methodName}{narrow.Descriptor} loads the constant with an ldc at offset {narrow.Offset}, which reaches only the first 256 constants, and {replacement} would be constant {index}."
             );
         }
 
@@ -59,10 +77,19 @@ internal static class ConstantLoads
                 throw new ClassFormatException($"The load at offset {load.Offset} of {methodName}{load.Descriptor} could not be replaced.");
         }
 
-        return loads.Length;
+        return loads.Count;
     }
 
     private static bool IsLoad(Instruction instruction) => instruction is { Opcode: Opcodes.Ldc or Opcodes.LdcW or Opcodes.Ldc2W, ConstantIndex: not null };
 
-    private readonly record struct LoadSite(string Descriptor, int Offset, int Length, byte Opcode);
+    private sealed class LoadSite(string descriptor, int offset, int length, byte opcode)
+    {
+        internal string Descriptor { get; } = descriptor;
+
+        internal int Offset { get; } = offset;
+
+        internal int Length { get; } = length;
+
+        internal byte Opcode { get; } = opcode;
+    }
 }
