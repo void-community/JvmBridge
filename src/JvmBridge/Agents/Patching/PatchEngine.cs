@@ -109,7 +109,7 @@ internal sealed class PatchEngine(AgentContext context)
         if (candidates.Count == 0 && recorded is null)
             return null;
 
-        List<ClassPatch> matched = [];
+        List<(ClassPatch Patch, ClassPatchResult? Edited)> advising = [];
         byte[]? current = null;
 
         foreach (ClassPatch patch in candidates)
@@ -117,18 +117,36 @@ internal sealed class PatchEngine(AgentContext context)
             if (patch.Matcher.NeedsHeader && !MatchesHeader(patch.Matcher, file.Bytes, ref header))
                 continue;
 
-            matched.Add(patch);
+            if (!patch.HasEdits)
+            {
+                if (patch.HasAdvice)
+                    advising.Add((patch, null));
 
-            if (!patch.HasEdits && patch.HasAdvice)
                 continue;
+            }
 
-            current = Apply(patch, patch.ApplyEdits(current is null ? file.Bytes : current), current);
+            ClassPatchResult edited = patch.ApplyEdits(current is null ? file.Bytes : current);
+            current = edited.Bytes ?? current;
+
+            // A patch with advice is logged once, after its advice, with what its edits did; a patch whose edits skipped the class gets no advice either, as when the whole patch is applied at once.
+            if (patch.HasAdvice && edited.Changed)
+                advising.Add((patch, edited));
+            else
+                Report(patch, edited);
         }
 
         AdviceContext advice = new(file.IsRetransformation, recorded);
 
-        foreach (ClassPatch patch in matched.Where(candidate => candidate.HasAdvice))
-            current = Apply(patch, patch.ApplyAdvice(current is null ? file.Bytes : current, advice), current);
+        foreach ((ClassPatch patch, ClassPatchResult? edited) in advising)
+        {
+            ClassPatchResult result = patch.ApplyAdvice(current is null ? file.Bytes : current, advice, edited);
+
+            // Skipped advice leaves the edits in place, so they are logged before the reason.
+            if (!result.Changed && edited is not null)
+                Report(patch, edited);
+
+            current = Apply(patch, result, current);
+        }
 
         if (recorded is not null)
             current = Neutralize(name, current is null ? file.Bytes : current, recorded, advice) ?? current;

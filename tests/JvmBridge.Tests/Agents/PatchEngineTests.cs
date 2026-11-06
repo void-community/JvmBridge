@@ -12,6 +12,10 @@ namespace JvmBridge.Tests.Agents;
 [Collection(FakeJvm.CollectionName)]
 public sealed class PatchEngineTests
 {
+    private static readonly JavaMethod StringLength = JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I");
+
+    private static readonly JavaMethod StringIsEmpty = JavaMethod.Virtual(owner: "java/lang/String", name: "isEmpty", descriptor: "()Z");
+
     private static byte[] Annotated => ClassFileFixtures.Read(resource: "ClassFiles.Annotated.class");
 
     private static JavaMethod Hook => JavaMethod.Static(owner: "pkg/Hooks", name: "before", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V");
@@ -202,6 +206,59 @@ public sealed class PatchEngineTests
         Assert.False(plain.Patches.Hierarchy.Contains(className: "fixture/Annotated"));
         Assert.Contains(expected: "entry", Strings(learned));
         Assert.True(hierarchical.Patches.Hierarchy.Contains(className: "fixture/Annotated"));
+    }
+
+    /// <summary>A patch with a condition, an added member and advice logs one line per class, with every change, and none for its conditions; a condition that fails leaves out the advice as well.</summary>
+    [Fact]
+    public void LogsAPatchWithAdviceOnce()
+    {
+        ConcurrentQueue<LogLine> lines = [];
+        AgentLogSink previous = AgentLog.Sink;
+
+        try
+        {
+            AgentLog.Sink = (level, source, message) => lines.Enqueue(new LogLine(level, source, message));
+
+            using FakeJvm jvm = new();
+
+            AgentContext context = jvm.CreateContext(name: "once-logged");
+
+            ClassPatch patch = ClassPatch.For(className: "fixture/Sample")
+                .AddFieldSetter(field: "count", name: "agent$count")
+                .Method(name: "length", descriptor: "(Ljava/lang/String;)I")
+                .When(static body => body.Calls(StringLength))
+                .After(JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: "(Ljava/lang/Object;I)I"));
+
+            context.Patches.Add(patch);
+            byte[]? patched = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+
+            LogLine line = Assert.Single(lines, candidate => candidate.Source == "once-logged");
+
+            Assert.Contains(expected: "length$jvmbridge$body", MethodNames(patched));
+            Assert.StartsWith(
+                expectedStartString: "patched fixture/Sample (agent$count(I)V: setter of field count added; length(Ljava/lang/String;)I: After advice added",
+                line.Message,
+                StringComparison.Ordinal
+            );
+
+            AgentContext unmet = jvm.CreateContext(name: "unmet");
+
+            unmet.Patches.Add(
+                ClassPatch.For(className: "fixture/Sample").Method(name: "length", descriptor: "(Ljava/lang/String;)I").When(static body => body.Calls(StringIsEmpty)).Before(Hook)
+            );
+            byte[]? unchanged = Transform(unmet, name: "fixture/Sample", ClassFileFixtures.Sample);
+
+            Assert.Null(unchanged);
+            Assert.StartsWith(
+                expectedStartString: "skipped fixture/Sample: length(Ljava/lang/String;)I: requires isEmpty()",
+                Assert.Single(lines, candidate => candidate.Source == "unmet").Message,
+                StringComparison.Ordinal
+            );
+        }
+        finally
+        {
+            AgentLog.Sink = previous;
+        }
     }
 
     /// <summary>A patch that matches many classes logs only what it changed, at information level, and its skips at debug level; a patch that names its class logs every outcome.</summary>

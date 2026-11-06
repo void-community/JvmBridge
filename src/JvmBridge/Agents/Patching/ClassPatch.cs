@@ -599,10 +599,10 @@ public sealed class ClassPatch
     /// <summary>Runs the edits of the patch, without its advice, which the engine applies to every class after all edits so that edits see the original code.</summary>
     internal ClassPatchResult ApplyEdits(ReadOnlySpan<byte> classBytes) => Run(classBytes, Phases.Edits, advice: null);
 
-    /// <summary>Runs the advice of the patch.</summary>
-    internal ClassPatchResult ApplyAdvice(ReadOnlySpan<byte> classBytes, AdviceContext advice) => Run(classBytes, Phases.Advice, advice);
+    /// <summary>Runs the advice of the patch, and reports what its edits did in the same result, so the class is logged once.</summary>
+    internal ClassPatchResult ApplyAdvice(ReadOnlySpan<byte> classBytes, AdviceContext advice, ClassPatchResult? edited) => Run(classBytes, Phases.Advice, advice, edited);
 
-    private ClassPatchResult Run(ReadOnlySpan<byte> classBytes, Phases phases, AdviceContext? advice)
+    private ClassPatchResult Run(ReadOnlySpan<byte> classBytes, Phases phases, AdviceContext? advice, ClassPatchResult? edited = null)
     {
         if (_steps.Length == 0 && _advice.Length == 0)
             return Skipped(ClassName, "the patch has no edits");
@@ -617,7 +617,7 @@ public sealed class ClassPatch
         if (!_matcher.MatchesName(className))
             return Skipped(className, _matcher.ExactName is null ? $"the class file is {className}, which {ClassName} does not target" : $"the class file is {className}");
 
-        List<string> details = [];
+        List<string> details = [.. edited?.Details ?? []];
         int[] counts = new int[Enum.GetValues<PatchKind>().Length];
 
         if (phases.HasFlag(Phases.Edits))
@@ -685,13 +685,13 @@ public sealed class ClassPatch
             editor.ToArray(),
             skippedReason: null,
             details,
-            counts[(int)PatchKind.Invocation],
-            counts[(int)PatchKind.Constant],
-            counts[(int)PatchKind.Access],
-            counts[(int)PatchKind.Edit],
+            counts[(int)PatchKind.Invocation] + (edited?.RedirectedInvocations ?? 0),
+            counts[(int)PatchKind.Constant] + (edited?.ReplacedConstants ?? 0),
+            counts[(int)PatchKind.Access] + (edited?.ChangedAccessFlags ?? 0),
+            counts[(int)PatchKind.Edit] + (edited?.AppliedEdits ?? 0),
             advised.Count,
-            counts[(int)PatchKind.Construction],
-            counts[(int)PatchKind.Removal],
+            counts[(int)PatchKind.Construction] + (edited?.ReplacedConstructions ?? 0),
+            counts[(int)PatchKind.Removal] + (edited?.RemovedInvocations ?? 0),
             added.Count
         );
     }
