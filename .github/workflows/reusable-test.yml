@@ -77,7 +77,7 @@ jobs:
       - name: Prepare the glibc 2.17 sysroot
         id: sysroot
         if: (matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64') && !matrix.container
-        uses: void-community/actions/glibc-sysroot@378491a53135a5226178f0afe19b491c718814ab # main
+        uses: void-community/actions/glibc-sysroot@013d3fff4477bf54faf7e80658ec93113dded2f7 # main
         with:
           rid: ${{ matrix.rid }}
       - name: Prepare Windows native toolchain
@@ -211,7 +211,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y clang lld build-essential zlib1g-dev
       - name: Prepare the glibc 2.12 sysroot
         id: sysroot
-        uses: void-community/actions/glibc-sysroot@378491a53135a5226178f0afe19b491c718814ab # main
+        uses: void-community/actions/glibc-sysroot@013d3fff4477bf54faf7e80658ec93113dded2f7 # main
         with:
           rid: linux-x64
           glibc: '2.12'
