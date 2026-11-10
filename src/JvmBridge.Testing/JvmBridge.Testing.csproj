@@ -8,8 +8,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JvmBridge.Testing.Tests" />
     <ProjectReference Include="../JvmBridge/JvmBridge.csproj" />
-    <PackageReference Include="xunit.v3.assert" VersionOverride="4.0.2" />
-    <PackageReference Include="xunit.v3.extensibility.core" VersionOverride="4.0.2" />
+    <PackageReference Include="xunit.v3.assert" VersionOverride="4.0.3" />
+    <PackageReference Include="xunit.v3.extensibility.core" VersionOverride="4.0.3" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <!-- The JDK download, checksum and extraction code and the pinned inventory are the ones the repository's own validation uses. -->
     <Compile Include="../JvmBridge.Build/Infrastructure/FileSystem.cs" Link="Shared/FileSystem.cs" />
