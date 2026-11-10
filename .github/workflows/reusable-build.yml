@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           dotnet-version: |
-            10.0.403
+            10.0.404
             11.0.100-rc.3.26522.148
       # Packages carry the subjects of the commits in this push as their release notes. There are no tags to compare against, so the push range from the event is the base.
       - name: Write release notes from the commits in this push
