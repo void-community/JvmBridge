@@ -316,6 +316,35 @@ public final class BridgeFixture {
         System.out.println("ADVICE_OK");
     }
 
+    // The agent redirects these calls of Boolean.getBoolean to two helpers that call jdk.internal.misc.VM.isBooted(), a public method in a package that java.base exports only to the helpers' modules: the bootstrap loader's unnamed module and this loader's.
+    static final class ModuleTarget {
+        static boolean bootstrap() { return Boolean.getBoolean("jvmbridge.module.bootstrap"); }
+        static boolean loader() { return Boolean.getBoolean("jvmbridge.module.loader"); }
+    }
+
+    private static int javaMajor() {
+        String version = System.getProperty("java.specification.version");
+        return Integer.parseInt(version.startsWith("1.") ? version.substring(2) : version);
+    }
+
+    private static void checkModuleExports() {
+        if (javaMajor() < 9) {
+            System.out.println("MODULE_EXPORT_NONE");
+            return;
+        }
+        if (!ModuleTarget.bootstrap()) throw new AssertionError("The bootstrap helper of ModuleTarget did not run");
+        if (!ModuleTarget.loader()) throw new AssertionError("The loader helper of ModuleTarget did not run");
+        System.out.println("MODULE_EXPORT_OK");
+    }
+
+    // Without the exports, neither helper links.
+    private static void checkModulesUnexported() {
+        try { ModuleTarget.bootstrap(); throw new AssertionError("The bootstrap helper linked without the export"); }
+        catch (IllegalAccessError expected) { System.out.println("MODULE_UNEXPORTED_BOOTSTRAP"); }
+        try { ModuleTarget.loader(); throw new AssertionError("The loader helper linked without the export"); }
+        catch (IllegalAccessError expected) { System.out.println("MODULE_UNEXPORTED_LOADER"); }
+    }
+
     // StringJoiner is a class of java.base. The agent redirects its null checks to a helper in the bootstrap loader, so the null delimiter is no longer refused by name.
     private static void checkJavaBase() {
         String message;
@@ -448,6 +477,14 @@ public final class BridgeFixture {
             System.out.println("JAVA_BASELINE_OK");
             return;
         }
+        if (arguments.length > 0 && arguments[0].equals("modules")) {
+            checkModuleExports();
+            return;
+        }
+        if (arguments.length > 0 && arguments[0].equals("unexported")) {
+            checkModulesUnexported();
+            return;
+        }
         boolean attach = arguments.length > 0 && arguments[0].equals("attach");
         if (attach) {
             if (PatchTarget.length("touch") != 5) throw new AssertionError("PatchTarget was patched before the agent attached");
@@ -485,6 +522,7 @@ public final class BridgeFixture {
         if (!attach || retransformable) checkJavaBase();
         if (!attach || retransformable) checkAdvice(attach, retransformable);
         if (attach && retransformable) controlPatches();
+        checkModuleExports();
         checkBootstrapLoader();
         checkLoaderIsolation();
         checkWeakReference();

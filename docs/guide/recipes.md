@@ -183,6 +183,27 @@ This is the `JavaBase` patch of the HelloAgent sample. It was run against HotSpo
 - A patched class of the bootstrap loader that also mentions a `ClassLoaderTarget.PatchedClassLoader` helper is left unpatched, because that helper cannot be defined there. The log says so.
 - Retransforming a JDK class changes method bodies only, like any retransformation.
 
+## Call a class that a JDK module does not export (Java 9 and later)
+
+A helper can call the public classes of a package that its JDK module does not export, such as `sun.nio.ch.FileChannelImpl`, once the agent exports the package to the helper. Without the export, the first call fails with `IllegalAccessError: ... because module java.base does not export sun.nio.ch to unnamed module`.
+
+```csharp
+public override void Configure(AgentContext context)
+{
+    context.DefineClass(JavaClasses.Acme.Agent.Channels, ClassLoaderTarget.Bootstrap);
+    context.ExportPackage(module: "java.base", package: "sun/nio/ch", to: JavaClasses.Acme.Agent.Channels);
+    context.Patch(Zip);
+}
+```
+
+- **Where.** The package goes to the module of each loader the helper is defined in: the boot loader's unnamed module for a `Bootstrap` helper, and each patched class loader's unnamed module for a `PatchedClassLoader` one. It is exported right after the helper is defined there, before patched code can call the helper. Every other class of that unnamed module can use the package too, which for a patched class loader means the application's classes of that loader as well.
+- **Opens.** `OpenPackage` has the same shape, for a helper that needs deep reflection, such as `setAccessible` on a private field. An open package is exported as well.
+- **Java 8 and earlier** have no modules, so both calls do nothing there. Keep the helper from calling methods that Java 8 lacks on Java 8.
+- **A module or package that does not exist** is logged once, as `could not export java.base/acme/missing to acme/agent/Channels: module java.base has no package acme/missing`, and the agent starts without it.
+- **Launch modes.** It is the same with `-agentpath`, `-javaagent` and a late attach.
+
+Pass the same packages to the link check, so a test fails for a helper that names a package nobody exports: `ClassFileAssert.LinksAsync(jdk, JavaClasses.Acme.Agent.Channels, classPath, patches, exportedPackages: ["java.base/sun/nio/ch"])`. The HelloAgent sample exports `java.base/jdk/internal/misc` to a bootstrap helper and opens it to a `PatchedClassLoader` one, and the integration tests run both with `-Xverify:all` on every JVM of the CI matrix, and again without the exports to check for the `IllegalAccessError`.
+
 ## Run more than one agent in a JVM
 
 Agents are separate: each load of a library gets its own JVMTI environment, and each library carries its own .NET runtime, so two agents do not share state. A few things are shared by the JVM and are worth knowing:

@@ -50,6 +50,7 @@ public sealed unsafe class AgentContext
         Agent = agent;
         Name = name ?? DefaultName(agent);
         _patches = new PatchEngine(this);
+        Modules = new ModuleAccess(this);
         Events = new AgentEvents(this);
         Options = options;
         ParsedOptions = AgentOptions.Parse(options);
@@ -68,6 +69,8 @@ public sealed unsafe class AgentContext
     }
 
     internal PatchEngine Patches => _patches;
+
+    internal ModuleAccess Modules { get; }
 
     /// <summary>Gets the patches that are registered now, in the order the runtime applies them. A tool reads it to preview what an agent would change; <see cref="Patch"/> and <see cref="Unpatch"/> change it.</summary>
     public IReadOnlyList<ClassPatch> RegisteredPatches => _patches.Registered;
@@ -137,6 +140,46 @@ public sealed unsafe class AgentContext
             throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown class loader target.");
 
         _patches.Add(definition, target);
+    }
+
+    /// <summary>
+    /// Exports a package of a JDK module to the module a helper is defined in, so the helper can call the public classes of a package that the module does not export, such as <c>java.base/sun/nio/ch</c>. The package is exported to the boot loader's
+    /// unnamed module for a <see cref="ClassLoaderTarget.Bootstrap"/> helper and to each patched class loader's unnamed module for a <see cref="ClassLoaderTarget.PatchedClassLoader"/> helper, right after the helper is defined there, so it is in place
+    /// before patched code can call the helper. Every class of that unnamed module can use the package from then on, which for a patched class loader means the application's classes of that loader too. A JVM before Java 9 has no modules, and there
+    /// this does nothing. When the module or the package does not exist, the agent logs one line and starts without the export. Call from <see cref="JavaAgent.Configure"/>, after <see cref="DefineClass"/>.
+    /// </summary>
+    /// <param name="module">The name of a module of the boot layer, for example <c>java.base</c>.</param>
+    /// <param name="package">The package in internal form, for example <c>sun/nio/ch</c>.</param>
+    /// <param name="to">The helper, as it was passed to <see cref="DefineClass"/>, or one of its nested classes.</param>
+    public void ExportPackage(string module, string package, JavaClassDefinition to) => AddModuleAccess(module, package, to, open: false);
+
+    /// <summary>
+    /// Opens a package of a JDK module to the module a helper is defined in, for a helper that needs deep reflection on its classes, such as <c>setAccessible</c> on a private field. An open package is exported as well. The package is opened where and
+    /// when <see cref="ExportPackage"/> would export it, and the same rules apply. Call from <see cref="JavaAgent.Configure"/>, after <see cref="DefineClass"/>.
+    /// </summary>
+    /// <param name="module">The name of a module of the boot layer, for example <c>java.base</c>.</param>
+    /// <param name="package">The package in internal form, for example <c>java/lang/invoke</c>.</param>
+    /// <param name="to">The helper, as it was passed to <see cref="DefineClass"/>, or one of its nested classes.</param>
+    public void OpenPackage(string module, string package, JavaClassDefinition to) => AddModuleAccess(module, package, to, open: true);
+
+    private void AddModuleAccess(string module, string package, JavaClassDefinition to, bool open)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(module);
+        ArgumentException.ThrowIfNullOrWhiteSpace(package);
+        ArgumentNullException.ThrowIfNull(to);
+        EnsureAccessible();
+
+        if (EventsEnabled)
+            throw new InvalidOperationException("Export and open packages from Configure, before events are enabled.");
+
+        string internalName = package.Replace(oldChar: '.', newChar: '/');
+
+        if (internalName.StartsWith(value: '/') || internalName.EndsWith(value: '/') || internalName.Contains("//", StringComparison.Ordinal))
+            throw new ArgumentException($"{package} is not a package name.", nameof(package));
+
+        string helper = _patches.FindHelper(to.Name) ?? throw new InvalidOperationException($"{to.Name} is not a helper of this agent; declare it with DefineClass first.");
+
+        Modules.Add(module, internalName, helper, open);
     }
 
     /// <summary>Logs an <see cref="AgentLogLevel.Information"/> line. By default the line is written prefixed with <see cref="Name"/> to standard error; <see cref="AgentLog.Sink"/> redirects it. It is safe in every callback, needs no ICU, and never throws.</summary>

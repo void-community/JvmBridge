@@ -50,6 +50,13 @@ internal sealed class PatchEngine(AgentContext context)
         _helpers.Add(new HelperState(definition, target));
     }
 
+    /// <summary>Finds the helper that declares a class, by the name of the helper or of one of its nested classes.</summary>
+    /// <returns>The name of the helper, or <see langword="null"/> when no helper declares the class.</returns>
+    internal string? FindHelper(string name)
+    {
+        return _helpers.FirstOrDefault(helper => helper.Definition.GetDefinitionOrder().Exists(definition => definition.Name == name))?.Definition.Name;
+    }
+
     // A redirect, factory or hook that names a helper of the agent must find its method there; otherwise the patched class would fail with NoSuchMethodError when it runs.
     private static void RequireTargets(IReadOnlyList<ClassPatch> patches, IReadOnlyList<JavaClassDefinition> helpers)
     {
@@ -451,7 +458,7 @@ internal sealed class PatchEngine(AgentContext context)
         return names;
     }
 
-    private static string? DefineInBootstrapLoader(JavaEnvironment environment, HelperState[] pending)
+    private string? DefineInBootstrapLoader(JavaEnvironment environment, HelperState[] pending)
     {
         foreach (HelperState helper in pending)
         {
@@ -462,6 +469,7 @@ internal sealed class PatchEngine(AgentContext context)
                     using JavaLocalReference type = environment.DefineClass(definition.Name, loader: 0, definition.Bytes.Span);
 
                     definition.RegisterNatives?.Invoke(environment, type.Handle);
+                    GrantModules(environment, helper, definition, type.Handle);
                 }
             }
             catch (Exception exception) when (exception is JavaException or JniException)
@@ -473,6 +481,13 @@ internal sealed class PatchEngine(AgentContext context)
         }
 
         return null;
+    }
+
+    // The packages exported or opened to a helper go to the module its class was defined in, once per loader, before any patched class that calls the helper is defined.
+    private void GrantModules(JavaEnvironment environment, HelperState helper, JavaClassDefinition definition, nint type)
+    {
+        if (definition.Name == helper.Definition.Name)
+            context.Modules.GrantTo(environment, helper.Definition.Name, type);
     }
 
     private string? DefineInBootstrapSearchPath(JavaEnvironment environment, HelperState[] pending)
@@ -487,11 +502,15 @@ internal sealed class PatchEngine(AgentContext context)
             _bootstrapJars.Add(jar);
 
             // Loading each class now registers its native methods before any code can call it.
-            foreach (JavaClassDefinition definition in classes)
+            foreach (HelperState helper in pending)
             {
-                using JavaLocalReference type = environment.FindClass(definition.Name);
+                foreach (JavaClassDefinition definition in helper.Definition.GetDefinitionOrder())
+                {
+                    using JavaLocalReference type = environment.FindClass(definition.Name);
 
-                definition.RegisterNatives?.Invoke(environment, type.Handle);
+                    definition.RegisterNatives?.Invoke(environment, type.Handle);
+                    GrantModules(environment, helper, definition, type.Handle);
+                }
             }
 
             foreach (HelperState helper in pending)
@@ -539,7 +558,7 @@ internal sealed class PatchEngine(AgentContext context)
     }
 
     /// <summary>Defines a helper and its nested classes in a loader unless it already is, returning the reason when that fails.</summary>
-    private static string? DefineIn(HelperState helper, JavaEnvironment environment, nint loader)
+    private string? DefineIn(HelperState helper, JavaEnvironment environment, nint loader)
     {
         lock (helper.Sync)
         {
@@ -554,6 +573,7 @@ internal sealed class PatchEngine(AgentContext context)
                     using JavaLocalReference type = environment.DefineClass(definition.Name, loader, definition.Bytes.Span);
 
                     definition.RegisterNatives?.Invoke(environment, type.Handle);
+                    GrantModules(environment, helper, definition, type.Handle);
                 }
             }
             catch (Exception exception) when (exception is JavaException or JniException)

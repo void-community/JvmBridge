@@ -20,7 +20,10 @@ internal static class HelperLinks
         import java.lang.reflect.Field;
         import java.lang.reflect.Method;
 
-        /** Answers, for each line "C|F|M owner [name descriptor]" of a file, whether the JDK has the class and the class or a supertype declares the member. */
+        /**
+         * Answers, for each line "C|F|M owner [name descriptor]" of a file, whether the JDK has the class and the class or a supertype declares the member, and for each line "E owner" whether the module of the class exports its package to the
+         * unnamed modules.
+         */
         public final class JvmBridgeLinkCheck {
             private JvmBridgeLinkCheck() {
             }
@@ -38,12 +41,32 @@ internal static class HelperLinks
                             System.out.println("LINK NOCLASS");
                             continue;
                         }
+                        if (parts[0].equals("E")) {
+                            System.out.println("LINK " + exported(type));
+                            continue;
+                        }
                         boolean found = parts[0].equals("C") || (parts[0].equals("F") ? hasField(type, parts[2], parts[3]) : hasMethod(type, parts[2], parts[3]));
                         System.out.println(found ? "LINK FOUND" : "LINK MISSING");
                     }
                 } finally {
                     reader.close();
                 }
+            }
+
+            // Reflection keeps this compiling for Java 8, which has no modules and so exports everything.
+            private static String exported(Class<?> type) throws Exception {
+                Method getModule;
+                try {
+                    getModule = Class.class.getMethod("getModule");
+                } catch (NoSuchMethodException none) {
+                    return "EXPORTED";
+                }
+                Class<?> moduleType = getModule.getReturnType();
+                Object module = getModule.invoke(type);
+                String name = type.getName();
+                String packageName = name.lastIndexOf('.') < 0 ? "" : name.substring(0, name.lastIndexOf('.'));
+                Object exported = moduleType.getMethod("isExported", String.class, moduleType).invoke(module, packageName, getModule.invoke(JvmBridgeLinkCheck.class));
+                return Boolean.TRUE.equals(exported) ? "EXPORTED" : "UNEXPORTED " + moduleType.getMethod("getName").invoke(module);
             }
 
             private static boolean hasField(Class<?> type, String name, String descriptor) {
@@ -112,15 +135,17 @@ internal static class HelperLinks
 
     private const int PublicFlag = 0x0001;
 
-    /// <summary>Lists what a helper refers to and cannot link to, one line each; empty when everything resolves and is accessible.</summary>
+    /// <summary>Lists what a helper refers to and cannot link to, one line each; empty when everything resolves and is accessible. The exported packages are those the agent exports or opens to the helper, as <c>module/package</c>.</summary>
     internal static async Task<IReadOnlyList<string>> FindProblemsAsync(
         Jdk jdk,
         JavaClassDefinition helper,
         IEnumerable<string> classPath,
         IEnumerable<ClassPatch> patches,
+        IEnumerable<string> exportedPackages,
         CancellationToken cancellationToken
     )
     {
+        HashSet<string> exported = [.. exportedPackages.Select(ParseExport)];
         Dictionary<string, JavaClassFile> application = ReadClassPath(classPath, [.. patches]);
         List<JavaClassFile> helpers = [.. Flatten(helper).Select(static definition => JavaClassFile.Read(definition.Bytes.Span))];
         HashSet<string> own = [.. helpers.Select(static file => file.Name)];
@@ -130,12 +155,18 @@ internal static class HelperLinks
         List<Lookup> lookups = [];
         List<Question> questions = [];
 
+        // The JDK classes a helper names directly, whose packages their modules must export to it.
+        List<ClassUse> jdkUses = [];
+
         foreach (MemberUse use in helpers.SelectMany(static file => MemberReferences(file).Select(reference => new MemberUse(file.Name, reference))).Distinct())
         {
             MemberReference reference = use.Reference;
 
             if (own.Contains(reference.Owner) || reference.Owner.StartsWith(value: '['))
                 continue;
+
+            if (!application.ContainsKey(reference.Owner))
+                jdkUses.Add(new ClassUse(use.From, reference.Owner));
 
             bool isField = reference.Kind == ConstantTag.Fieldref;
             string member = $"{reference.Owner}.{reference.Name}{(isField ? ":" : string.Empty)}{reference.Descriptor}";
@@ -173,6 +204,7 @@ internal static class HelperLinks
             if (!application.TryGetValue(use.Type, out JavaClassFile? file))
             {
                 string absent = $"{use.From} uses the class {use.Type}, which is neither on the class path nor in the JDK";
+                jdkUses.Add(use);
 
                 lookups.Add(new Lookup(absent, absent));
                 questions.Add(new Question($"C {use.Type}", lookups.Count - 1));
@@ -183,10 +215,25 @@ internal static class HelperLinks
             }
         }
 
-        if (questions.Count == 0)
+        string[] exportQueries = [.. jdkUses.Select(static use => use.Type).Distinct(StringComparer.Ordinal)];
+
+        if (questions.Count == 0 && exportQueries.Length == 0)
             return problems;
 
-        string[] answers = await AskJdkAsync(jdk, [.. questions.Select(static question => question.Query)], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string[] all = await AskJdkAsync(
+            jdk,
+            [.. questions.Select(static question => question.Query), .. exportQueries.Select(static type => "E " + type)],
+            cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        string[] answers = all[..questions.Count];
+        Dictionary<string, string> modules = new(StringComparer.Ordinal);
+
+        for (int index = 0; index < exportQueries.Length; index++)
+        {
+            if (all[questions.Count + index].StartsWith(value: "UNEXPORTED ", StringComparison.Ordinal))
+                modules[exportQueries[index]] = all[questions.Count + index]["UNEXPORTED ".Length..];
+        }
 
         for (int index = 0; index < lookups.Count; index++)
         {
@@ -200,6 +247,16 @@ internal static class HelperLinks
 
             if (!mine.Contains(item: "FOUND"))
                 problems.Add(mine.TrueForAll(static answer => answer == "NOCLASS") ? lookups[index].NoClass : lookups[index].Missing);
+        }
+
+        foreach (ClassUse use in jdkUses.Distinct())
+        {
+            if (modules.TryGetValue(use.Type, out string? module) && !exported.Contains(module + "/" + Package(use.Type)))
+            {
+                problems.Add(
+                    $"{use.From} uses {use.Type}, but {module} does not export {Package(use.Type)}: export it to the helper with ExportPackage(module: \"{module}\", package: \"{Package(use.Type)}\", ...) and pass {module}/{Package(use.Type)} as an exported package here"
+                );
+            }
         }
 
         return problems;
@@ -297,6 +354,16 @@ internal static class HelperLinks
         int slash = name.LastIndexOf(value: '/');
 
         return slash >= 0 ? name[..slash] : string.Empty;
+    }
+
+    // module/package, with the package in internal form or with dots, as the module/package of --add-exports.
+    private static string ParseExport(string entry)
+    {
+        int slash = entry.IndexOf(value: '/', StringComparison.Ordinal);
+
+        return slash <= 0 || slash == entry.Length - 1
+            ? throw new ArgumentException($"{entry} is not module/package, such as java.base/sun/nio/ch.", nameof(entry))
+            : entry[..slash] + "/" + entry[(slash + 1)..].Replace(oldChar: '.', newChar: '/');
     }
 
     // The application's classes from jars and class directories, the first of a name winning as on a class path, each with the patches applied that target it.

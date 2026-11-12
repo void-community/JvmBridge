@@ -25,6 +25,8 @@ A patched class often needs a helper class to call. `ClassLoaderTarget` decides 
 
 Appending to the bootstrap search path makes HotSpot print a class-data-sharing notice, which is why HotSpot uses the direct route.
 
+From Java 9, a helper lands in the unnamed module of its loader, which can use only the packages that JDK modules export. `ExportPackage` and `OpenPackage` give it others, such as `java.base/sun/nio/ch`: see [**Call a class that a JDK module does not export**](recipes.md#call-a-class-that-a-jdk-module-does-not-export-java-9-and-later).
+
 ## References and ownership
 
 Agent callbacks borrow their JNI environment, and every Java reference belongs to a thread and a scope:

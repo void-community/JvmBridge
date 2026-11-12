@@ -23,6 +23,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             Log(message: "RETRANSFORM_UNAVAILABLE");
 
         PatchDemo.Register(context);
+        ModuleDemo.Register(context);
         Interop.Context = context;
         context.DefineClass(Interop.Definition, ClassLoaderTarget.Bootstrap);
 

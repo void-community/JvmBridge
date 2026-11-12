@@ -36,7 +36,7 @@ public static class ClassFileAssert
     }
 
     /// <summary>
-    /// Asserts that a helper links: every class, field and method it refers to exists, with that descriptor, in the classes of a class path or the JDK, walking superclasses and interfaces as the JVM does, and is accessible from the helper. The
+    /// Asserts that a helper links: every class, field and method it refers to exists, with that descriptor, in the classes of a class path or the JDK, walking superclasses and interfaces as the JVM does, and is accessible from the helper, which on Java 9 and later means that a JDK class is in a package its module exports. The
     /// application's classes are read with the given patches applied, so the members they add (<c>AddFieldGetter</c>, <c>AddInvoker</c>) or open (<c>SetFieldAccess</c>, <c>SetMethodAccess</c>) count. A stub that declares a member the real class lacks,
     /// or with another type, fails here instead of with <c>NoSuchMethodError</c> or <c>NoSuchFieldError</c> on the version that differs.
     /// </summary>
@@ -46,7 +46,7 @@ public static class ClassFileAssert
     /// <param name="patches">The patches the agent registers, or none.</param>
     /// <param name="cancellationToken">Cancels the check.</param>
     /// <returns>A task that fails the test with one line per reference that does not link.</returns>
-    public static async Task LinksAsync(
+    public static Task LinksAsync(
         Jdk jdk,
         JavaClassDefinition helper,
         IEnumerable<string> classPath,
@@ -54,11 +54,36 @@ public static class ClassFileAssert
         CancellationToken cancellationToken = default
     )
     {
+        return LinksAsync(jdk, helper, classPath, patches ?? [], [], cancellationToken);
+    }
+
+    /// <summary>
+    /// Asserts that a helper links, as <see cref="LinksAsync(Jdk, JavaClassDefinition, IEnumerable{string}, IEnumerable{ClassPatch}?, CancellationToken)"/> does, with packages of JDK modules that the agent exports or opens to the helper. On Java 9 and later a
+    /// helper may name a class of a JDK module only when the module exports its package, as <c>java.base</c> exports <c>java/util</c> but not <c>sun/nio/ch</c>; a package listed here counts as exported.
+    /// </summary>
+    /// <param name="jdk">The JDK whose classes the helper may use; it runs a small program to look them up.</param>
+    /// <param name="helper">The helper, such as <c>JavaClasses.Acme.Agent.Network</c>, with its nested classes.</param>
+    /// <param name="classPath">Jars and class directories of the application; their own dependencies need not be there.</param>
+    /// <param name="patches">The patches the agent registers.</param>
+    /// <param name="exportedPackages">The packages the agent passes to <c>AgentContext.ExportPackage</c> or <c>AgentContext.OpenPackage</c> for this helper, as <c>module/package</c>, for example <c>java.base/sun/nio/ch</c>.</param>
+    /// <param name="cancellationToken">Cancels the check.</param>
+    /// <returns>A task that fails the test with one line per reference that does not link.</returns>
+    public static async Task LinksAsync(
+        Jdk jdk,
+        JavaClassDefinition helper,
+        IEnumerable<string> classPath,
+        IEnumerable<ClassPatch> patches,
+        IEnumerable<string> exportedPackages,
+        CancellationToken cancellationToken = default
+    )
+    {
         ArgumentNullException.ThrowIfNull(jdk);
         ArgumentNullException.ThrowIfNull(helper);
         ArgumentNullException.ThrowIfNull(classPath);
+        ArgumentNullException.ThrowIfNull(patches);
+        ArgumentNullException.ThrowIfNull(exportedPackages);
 
-        IReadOnlyList<string> problems = await HelperLinks.FindProblemsAsync(jdk, helper, classPath, patches ?? [], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        IReadOnlyList<string> problems = await HelperLinks.FindProblemsAsync(jdk, helper, classPath, patches, exportedPackages, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         if (problems.Count > 0)
             Assert.Fail($"{helper.Name} does not link:" + Environment.NewLine + string.Join(Environment.NewLine, problems));

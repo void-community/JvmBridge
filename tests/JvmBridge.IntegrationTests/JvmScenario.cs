@@ -171,6 +171,12 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
         }
 
+        // Java 9 and later have modules, so the helpers of BridgeFixture$ModuleTarget need the packages the agent exports to them; before, there is nothing to export.
+        if (!result.Output.Contains(entry.Java >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE", StringComparison.Ordinal) || result.Output.Contains(value: "could not export", StringComparison.Ordinal))
+            throw new InvalidOperationException("The module exports of the helpers did not work in " + identifier);
+
+        await ModuleExportTestAsync(java, agent, fixture, directory, entry.Java, environment, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         bool missingSelectedRetransformation = !result.Output.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
             || !result.Output.Contains(value: "SELECTED_RETRANSFORM", StringComparison.Ordinal);
 
@@ -573,7 +579,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             cancellationToken: cancellationToken
         ).ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "MATCHER_PATCH_OK", "UNLOAD" })
+        foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "MATCHER_PATCH_OK", "MODULE_EXPORT_", "UNLOAD" })
         {
             if (!launched.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Missing {marker} when {launcher} started the agent with -javaagent.");
@@ -631,6 +637,49 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             command.Add(options);
 
         await _processRunner.RunCheckedAsync(command, logPath, environment: environment, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+    }
+
+    // Under the verifier, the helpers link with the packages exported to their modules; without the exports they fail with IllegalAccessError, and a module or package that does not exist is one log line each while the agent starts.
+    private async Task ModuleExportTestAsync(
+        string java,
+        string agent,
+        string fixture,
+        string directory,
+        int major,
+        IReadOnlyDictionary<string, string?> environment,
+        CancellationToken cancellationToken
+    )
+    {
+        ProcessResult exported = await _processRunner.RunAsync(
+            [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "BridgeFixture", "modules"],
+            Path.Combine(directory, path2: "modules.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        if (!exported.Output.Contains(major >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE", StringComparison.Ordinal))
+            throw new InvalidOperationException(message: "The helpers did not run with the packages exported to their modules under -Xverify:all.");
+
+        if (major < 9)
+            return;
+
+        ProcessResult unexported = await _processRunner.RunAsync(
+            [java, "-Xverify:all", "-agentpath:" + agent + "=no-exports", "-cp", fixture, "BridgeFixture", "unexported"],
+            Path.Combine(directory, path2: "modules-unexported.log"),
+            environment: environment,
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        string[] expected =
+        [
+            "MODULE_UNEXPORTED_BOOTSTRAP",
+            "MODULE_UNEXPORTED_LOADER",
+            "HelloAgent: could not export jvmbridge.missing/jdk/internal/misc to jvmbridge/sample/BootstrapModuleHelpers: the boot layer has no module jvmbridge.missing",
+            "HelloAgent: could not open java.base/jvmbridge/missing to jvmbridge/sample/LoaderModuleHelpers: module java.base has no package jvmbridge/missing",
+        ];
+
+        if (expected.FirstOrDefault(line => !unexported.Output.Contains(line, StringComparison.Ordinal)) is { } missing)
+            throw new InvalidOperationException("Missing \"" + missing + "\" when the agent did not export the packages.");
     }
 
     // Standard error redirected to a file, as java ... > app.log 2>&1 does: every line the agent logs must be in the file, as it is on a pipe. Windows writes through the console API.
