@@ -172,7 +172,10 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         }
 
         // Java 9 and later have modules, so the helpers of BridgeFixture$ModuleTarget need the packages the agent exports to them; before, there is nothing to export.
-        if (!result.Output.Contains(entry.Java >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE", StringComparison.Ordinal) || result.Output.Contains(value: "could not export", StringComparison.Ordinal))
+        string moduleMarker = entry.Java >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE";
+        bool modulesFailed = !result.Output.Contains(moduleMarker, StringComparison.Ordinal) || result.Output.Contains(value: "could not export", StringComparison.Ordinal);
+
+        if (modulesFailed)
             throw new InvalidOperationException("The module exports of the helpers did not work in " + identifier);
 
         await ModuleExportTestAsync(java, agent, fixture, directory, entry.Java, environment, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
