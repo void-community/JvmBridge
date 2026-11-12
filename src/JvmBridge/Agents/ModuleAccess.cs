@@ -78,6 +78,12 @@ internal sealed unsafe class ModuleAccess(AgentContext context)
         using JavaLocalReference classType = environment.GetObjectClass(type);
         nint getModule = environment.GetMethod(classType.Handle, name: "getModule", signature: "()Ljava/lang/Module;");
         using JavaLocalReference target = environment.CallObject(type, getModule, []);
+
+        // OpenJ9 before 0.54 calls the void Module.implAddExportsOrOpens with CallObjectMethod in these two functions, which its checked JNI aborts on and which otherwise turns whatever the call leaves behind into a local reference. There
+        // the grant goes through jdk.internal.module.Modules instead, as HotSpot's own AddModuleExports and AddModuleOpens do.
+        if (context.IsOpenJ9)
+            return CallModules(environment, grant, source.Handle, target.Handle);
+
         jvmtiInterface_1_** tooling = (jvmtiInterface_1_**)context.RawHandle;
         jvmtiError result;
 
@@ -97,6 +103,25 @@ internal sealed unsafe class ModuleAccess(AgentContext context)
             jvmtiError.JVMTI_ERROR_WRONG_PHASE => "the JVM is not live yet",
             _ => $"JVMTI error {result}",
         };
+    }
+
+    // JNI ignores module boundaries, so the class of an unexported package can be called; it throws IllegalArgumentException for a package the module does not have.
+    private static string? CallModules(JavaEnvironment environment, Grant grant, nint source, nint target)
+    {
+        using JavaLocalReference modules = environment.FindClass(name: "jdk/internal/module/Modules");
+        nint method = environment.GetMethod(modules.Handle, grant.Open ? "addOpens" : "addExports", signature: "(Ljava/lang/Module;Ljava/lang/String;Ljava/lang/Module;)V", isStatic: true);
+        using JavaLocalReference package = environment.NewString(grant.Package.Replace(oldChar: '/', newChar: '.'));
+
+        try
+        {
+            environment.CallVoid(modules.Handle, method, [JavaValue.Object(source), JavaValue.Object(package.Handle), JavaValue.Object(target)], isStatic: true);
+        }
+        catch (JavaException exception) when (exception.JavaTypeName == "java.lang.IllegalArgumentException")
+        {
+            return $"module {grant.Module} has no package {grant.Package}";
+        }
+
+        return null;
     }
 
     private sealed record Grant(string Module, string Package, string Helper, bool Open)
