@@ -61,7 +61,7 @@ public sealed class LauncherTests
             Architecture.X64 => "x64",
             Architecture.X86 => "x86",
             Architecture.Arm64 => "arm64",
-            Architecture.Arm => throw new NotImplementedException(),
+            Architecture.Arm => "arm",
             Architecture.Wasm => throw new NotImplementedException(),
             Architecture.S390x => throw new NotImplementedException(),
             Architecture.LoongArch64 => throw new NotImplementedException(),

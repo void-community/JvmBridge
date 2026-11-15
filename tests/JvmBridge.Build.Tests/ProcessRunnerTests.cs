@@ -12,6 +12,9 @@ namespace JvmBridge.Build.Tests;
 /// </summary>
 public sealed class ProcessRunnerTests
 {
+    // The parent has to have started and named its child before it is stopped, which takes PowerShell seconds on a busy Windows runner.
+    private static TimeSpan DescendantTimeout => OperatingSystem.IsWindows() ? TimeSpan.FromSeconds(seconds: 30) : TimeSpan.FromMilliseconds(milliseconds: 500);
+
     /// <summary>Inherited output handles cannot make process capture outlive its timeout.</summary>
     [Fact]
     public async Task ExitedParentDoesNotLeaveOutputCaptureUnboundedAsync()
@@ -72,13 +75,11 @@ public sealed class ProcessRunnerTests
         ProcessRunner runner = new(RepositoryContext.Discover());
         Stopwatch elapsed = Stopwatch.StartNew();
 
-        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(
-            () => runner.RunAsync(DescendantCommand(), log, timeout: TimeSpan.FromMilliseconds(milliseconds: 500), cancellationToken: CancellationToken.None)
-        );
+        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(() => runner.RunAsync(DescendantCommand(), log, DescendantTimeout, cancellationToken: CancellationToken.None));
 
         elapsed.Stop();
         Assert.Contains(expectedSubstring: "Timed out", failure.Message, StringComparison.Ordinal);
-        Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(seconds: 20), $"Process termination took {elapsed.Elapsed}.");
+        Assert.True(elapsed.Elapsed < DescendantTimeout + TimeSpan.FromSeconds(seconds: 20), $"Process termination took {elapsed.Elapsed}.");
 
         string evidence = await File.ReadAllTextAsync(log, CancellationToken.None);
         string identifierText = evidence.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries).First();
@@ -93,7 +94,10 @@ public sealed class ProcessRunnerTests
         {
             const string script = "$child = Start-Process -PassThru -FilePath $env:ComSpec -ArgumentList '/d','/c','ping -n 60 127.0.0.1 > nul'; Write-Output $child.Id; Wait-Process -Id $child.Id";
 
-            return ["powershell", "-NoProfile", "-NonInteractive", "-Command", script];
+            // Windows PowerShell takes more than twenty seconds to start on a Windows arm64 runner and PowerShell 7 less than one, so PowerShell 7 runs the script where it is installed.
+            string shell = ProcessRunner.FindExecutable(name: "pwsh") is null ? "powershell" : "pwsh";
+
+            return [shell, "-NoProfile", "-NonInteractive", "-Command", script];
         }
 
         return ["/bin/sh", "-c", "sleep 60 & child=$!; printf '%s\\n' \"$child\"; wait \"$child\""];

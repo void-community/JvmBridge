@@ -104,6 +104,14 @@ public sealed class NativeTests
             CancellationToken cancellationToken = TestContext.Current.CancellationToken;
             string home = localHome ?? await archives.UnpackAsync(FixtureCompiler.ToArchive(entry), temporary.Path, cancellationToken);
             string compiler = Environment.GetEnvironmentVariable(variable: "NATIVE_COMPILER") ?? (OperatingSystem.IsWindows() ? "cl" : "cc");
+
+            // OpenJ9 18 to 22 mark their libj9vm29.so as needing an executable stack, which glibc from 2.41 no longer grants to a library that is loaded after the start. The tunable gives every process the tests
+            // start an executable stack from its start, as such a process had it before; an older glibc and musl ignore it.
+            bool tunable = OperatingSystem.IsLinux() && implementation == "openj9" && Environment.GetEnvironmentVariable(variable: "GLIBC_TUNABLES") is null;
+
+            if (tunable)
+                Environment.SetEnvironmentVariable(variable: "GLIBC_TUNABLES", value: "glibc.rtld.execstack=2");
+
             JsonObject result = await scenario.ExerciseAsync(Path.GetFullPath(home), entry, rid, compiler, cancellationToken);
             JsonFile.WriteNode(resultPath, result);
         }

@@ -301,8 +301,7 @@ public sealed unsafe class NativeHelperGeneratorTests
 
     private static CSharpCompilation CreateCompilation(string source)
     {
-        string runtimeDirectory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
-        List<MetadataReference> references = [.. Directory.EnumerateFiles(runtimeDirectory, searchPattern: "*.dll").Select(static path => MetadataReference.CreateFromFile(path))];
+        List<MetadataReference> references = RuntimeReferences.Create();
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
         return CSharpCompilation.Create(

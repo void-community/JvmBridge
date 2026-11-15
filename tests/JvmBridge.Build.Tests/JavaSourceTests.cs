@@ -75,6 +75,11 @@ public sealed class JavaSourceTests
     [Fact]
     public async Task JavaRelease6CompilesWithTheProvisionedJdk11Async()
     {
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        bool pinned = PinnedJdks.Jdks.Any(entry => entry.Rid == rid && entry.Java == 11 && entry.Implementation == "hotspot" && entry.Status == "available");
+
+        Assert.SkipUnless(pinned, reason: "This platform has no pinned JDK 11, the newest javac that compiles for Java 6.");
+
         using TemporaryDirectory project = CreateProject(PackedVersion());
 
         string newer = Path.Combine(project.Path, path2: "newer-jdk");

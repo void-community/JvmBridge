@@ -121,12 +121,7 @@ public sealed class GeneratorTests
 
     private static CSharpCompilation CreateCompilation(string source)
     {
-        string runtimeDirectory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
-        List<MetadataReference> references = [];
-
-        foreach (string assemblyPath in Directory.EnumerateFiles(runtimeDirectory, searchPattern: "*.dll"))
-            references.Add(MetadataReference.CreateFromFile(assemblyPath));
-
+        List<MetadataReference> references = RuntimeReferences.Create();
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
         return CSharpCompilation.Create(

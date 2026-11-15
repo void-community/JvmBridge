@@ -28,7 +28,8 @@ internal sealed class FixtureCompiler(RepositoryContext repository, JdkArchiveMa
     {
         string compiler = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
         FileSystem.EnsureDirectory(output);
-        List<string> arguments = major == 8 ? ["-source", "8", "-target", "8", "-Xlint:-options"] : ["--release", "8"];
+        // The fixtures are UTF-8, which javac only assumes where the machine does: not on Windows, nor in a container without a locale.
+        List<string> arguments = major == 8 ? ["-encoding", "UTF-8", "-source", "8", "-target", "8", "-Xlint:-options"] : ["-encoding", "UTF-8", "--release", "8"];
         await _processRunner.RunCheckedAsync(
             [compiler, .. arguments, "-cp", output, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "BridgeFixture.java"])],
             Path.Combine(output, path2: "javac.log"),
@@ -38,7 +39,7 @@ internal sealed class FixtureCompiler(RepositoryContext repository, JdkArchiveMa
 
         string classpath = major == 8 ? Path.Combine(home, path2: "lib", path3: "tools.jar") + Path.PathSeparator.ToString() + output : output;
         await _processRunner.RunCheckedAsync(
-            [compiler, "-source", "8", "-target", "8", "-Xlint:-options", "-cp", classpath, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "AttachFixture.java"])],
+            [compiler, "-encoding", "UTF-8", "-source", "8", "-target", "8", "-Xlint:-options", "-cp", classpath, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "AttachFixture.java"])],
             Path.Combine(output, path2: "javac-attach.log"),
             workingDirectory: output,
             cancellationToken: cancellationToken
