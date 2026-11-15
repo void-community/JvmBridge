@@ -9,7 +9,7 @@ namespace JvmBridge.IntegrationTests;
 public sealed class WindowsX86CompatibilityTests
 {
     /// <summary>Gets whether the Windows x86 package consumers are selected.</summary>
-    public static bool Enabled => OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable(variable: "TARGET_RID") == "win-x86";
+    public static bool Enabled => OperatingSystem.IsWindows() && TestTarget.Selected && TestTarget.Rid == "win-x86";
 
     /// <summary>Recovers only the legacy probe, including concurrent calls and DLL lifetime.</summary>
     [Fact(SkipUnless = nameof(Enabled), Skip = "Requires the published Windows x86 package consumer.")]
@@ -23,6 +23,7 @@ public sealed class WindowsX86CompatibilityTests
         Assert.True(File.Exists(library), userMessage: "The NuGet native asset must be copied to the published host.");
         ProcessRunner processes = new(repository);
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        NativeToolchain.Ensure();
         await processes.RunCheckedAsync(
             ["cl", "/nologo", "/O2", "/W4", "/WX", repository.PathFromRoot(parts: ["tests", "Fixtures", "WindowsX86SafeFetch.c"]), "/Fe:" + executable, "/Fo:" + Path.Combine(directory, path2: "SafeFetchTests.obj")],
             Path.Combine(directory, path2: "compile.log"),

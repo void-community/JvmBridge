@@ -1,8 +1,8 @@
 namespace JvmBridge.Build.Models;
 
 /// <summary>
-/// The targets that CI builds and tests, the Java majors and implementations of its JVM grid, and the JVM options some cells need. The test and footprint workflows list the
-/// same targets in their matrices, which <c>WorkflowMatrixTests</c> holds to this list.
+/// The targets that CI builds and tests, the Java majors and implementations of its JVM grid, and the JVM options some cells need. The shared workflow of void-community/Actions builds the samples and runs the
+/// tests for each runtime it has; a target it has not names the image its agent is cross-built in.
 /// </summary>
 internal static class Compatibility
 {
@@ -16,7 +16,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "linux-x64",
-                Runner = "ubuntu-24.04",
                 Os = "linux",
                 Arch = "x64",
                 Agent = true
@@ -24,7 +23,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "linux-arm64",
-                Runner = "ubuntu-24.04-arm",
                 Os = "linux",
                 Arch = "aarch64",
                 Agent = true
@@ -32,37 +30,29 @@ internal static class Compatibility
             new()
             {
                 Rid = "linux-arm",
-                Runner = "ubuntu-24.04-arm",
                 Os = "linux",
                 Arch = "arm",
                 Agent = true,
-                Container = "mcr.microsoft.com/dotnet/runtime-deps:10.0.11-noble@sha256:7c9ba479f4a74450a89726851c2af2b096f9bcc70a71b84ac0302869871ff4c5",
-                CrossContainer = "mcr.microsoft.com/dotnet-buildtools/prereqs:azurelinux-3.0-net10.0-cross-arm@sha256:eb77bde7194de32ed305bf62306073464995651a01c8813337d638e223be498c"
             },
             new()
             {
                 Rid = "linux-musl-x64",
-                Runner = "ubuntu-24.04",
                 Os = "linux",
                 Arch = "x64",
                 Agent = true,
                 Musl = true,
-                Container = "mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23@sha256:b36516b249f0cccf9e5017082f51d4bda2d61469f205a7167fbf3b8498ecdd59"
             },
             new()
             {
                 Rid = "linux-musl-arm64",
-                Runner = "ubuntu-24.04-arm",
                 Os = "linux",
                 Arch = "aarch64",
                 Agent = true,
                 Musl = true,
-                Container = "mcr.microsoft.com/dotnet/sdk:10.0.400-alpine3.23@sha256:b36516b249f0cccf9e5017082f51d4bda2d61469f205a7167fbf3b8498ecdd59"
             },
             new()
             {
                 Rid = "linux-musl-arm",
-                Runner = "ubuntu-24.04",
                 Os = "linux",
                 Arch = "arm",
                 Build = true,
@@ -74,7 +64,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "win-x64",
-                Runner = "windows-2025",
                 Os = "windows",
                 Arch = "x64",
                 Agent = true
@@ -82,7 +71,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "win-arm64",
-                Runner = "windows-11-arm",
                 Os = "windows",
                 Arch = "aarch64",
                 Agent = true
@@ -90,7 +78,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "win-x86",
-                Runner = "windows-2025",
                 Os = "windows",
                 Arch = "x86",
                 Agent = true
@@ -98,7 +85,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "osx-x64",
-                Runner = "macos-15-intel",
                 Os = "mac",
                 Arch = "x64",
                 Agent = true
@@ -106,7 +92,6 @@ internal static class Compatibility
             new()
             {
                 Rid = "osx-arm64",
-                Runner = "macos-15",
                 Os = "mac",
                 Arch = "aarch64",
                 Agent = true

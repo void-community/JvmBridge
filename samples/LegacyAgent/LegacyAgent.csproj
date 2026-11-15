@@ -8,8 +8,15 @@
     <JvmBridgeProvisionJdk>true</JvmBridgeProvisionJdk>
     <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)../../artifacts/packages')">$(MSBuildThisFileDirectory)../../artifacts/packages</RestoreAdditionalProjectSources>
   </PropertyGroup>
+  <!-- Java 6 classes take a javac that still compiles them, JDK 11 at the newest, and Windows on ARM64 has none. The solution builds there all the same, so there this project builds nothing. -->
+  <PropertyGroup Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'win-arm64'">
+    <JvmBridgeAgent>false</JvmBridgeAgent>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="JvmBridge" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NETCoreSdkRuntimeIdentifier)' != 'win-arm64'">
     <JavaSource Include="java/**/*.java" />
     <!-- Stand-ins for the application's classes that the typed helpers name: compiled first, never embedded. -->
     <JavaStubSource Include="stubs/**/*.java" />

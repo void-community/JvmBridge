@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
 
 using JvmBridge.Build;
 using JvmBridge.Build.Infrastructure;
@@ -19,7 +18,7 @@ public sealed class GlibcFloorTests
     private const string ImageVariable = "JVMBRIDGE_GLIBC_IMAGE";
 
     /// <summary>Gets whether a container image is named and the target is a glibc platform that the sysroot covers.</summary>
-    public static bool Enabled => Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } && Rid is "linux-x64" or "linux-arm64";
+    public static bool Enabled => Image is not null && Rid is "linux-x64" or "linux-arm64";
 
     /// <summary>Gets the Java major versions the agent is run on.</summary>
     public static IEnumerable<TheoryDataRow<int>> Majors => [new(p1: 8), new(p1: 17), new(p1: 21)];
@@ -27,7 +26,13 @@ public sealed class GlibcFloorTests
     /// <summary>Gets the lowest glibc that such an agent supports.</summary>
     internal static Version Floor { get; } = new(major: 2, minor: 17);
 
-    private static string Rid => Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
+    // CI links the agents of these platforms against the sysroot itself, so there the image needs no naming.
+    private static string? Image =>
+        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named ? named
+        : TestTarget.PublishedByCi ? TestTarget.GlibcImage
+        : null;
+
+    private static string Rid => TestTarget.Rid;
 
     /// <summary>
     /// The published agent asks for no glibc symbol version newer than the floor, and every global symbol it needs from another library is bound to a version. A symbol that the sysroot lacks is linked unresolved without an error, and
@@ -69,7 +74,7 @@ public sealed class GlibcFloorTests
     {
         RepositoryContext repository = RepositoryContext.Discover();
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        string image = Environment.GetEnvironmentVariable(ImageVariable) ?? throw new InvalidOperationException(message: "No image is named.");
+        string image = Image ?? throw new InvalidOperationException(message: "No image is named.");
         string published = Path.Combine(repository.Artifacts, path2: "agent", Rid);
 
         JdkEntry entry = PinnedJdks.Jdks.Single(candidate => candidate.Rid == Rid && candidate.Java == major && candidate.Implementation == "hotspot");

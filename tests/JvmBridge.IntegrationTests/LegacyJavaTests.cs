@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
@@ -10,24 +11,35 @@ namespace JvmBridge.IntegrationTests;
 
 /// <summary>
 /// Runs samples/LegacyAgent, an agent built with JavaRelease 6, on Java 6, 7, 8 and 21 from one build, through -agentpath and through its jar with -javaagent. When JVMBRIDGE_LEGACY_GLIBC_IMAGE names a container image (CentOS 6,
-/// glibc 2.12, in CI), the agent was published against the glibc 2.12 sysroot: it must need no newer glibc, and it also runs on Java 6 and 7 in that image.
+/// glibc 2.12), the agent was published against the glibc 2.12 sysroot: it must need no newer glibc, and it also runs on Java 6 and 7 in that image. CI's linux-x64 tests publish the agent against that sysroot
+/// themselves, as <see cref="LegacySysroot"/> builds it, and run it in that image.
 /// </summary>
 public sealed class LegacyJavaTests
 {
+    private const string CiImage = "centos:6@sha256:a93df2e96e07f56ea48f215425c6f1673ab922927894595bb5c0ee4c5a955133";
+
     private const string ImageVariable = "JVMBRIDGE_LEGACY_GLIBC_IMAGE";
 
     private const string Rid = "linux-x64";
 
     private const string Skip = "Publish samples/LegacyAgent for linux-x64 to artifacts/legacy-agent/linux-x64 and set TARGET_RID=linux-x64.";
 
-    /// <summary>Gets whether the target is linux-x64, the one platform with pinned Java 6 and 7 JDKs that CI runs, and the sample is published for it.</summary>
-    public static bool Enabled => Environment.GetEnvironmentVariable(variable: "TARGET_RID") == Rid && File.Exists(AgentPath(RepositoryContext.Discover()));
+    /// <summary>Gets whether the target is linux-x64, the one platform with pinned Java 6 and 7 JDKs that CI runs, and the sample is published for it or these are CI's tests, which publish it.</summary>
+    public static bool Enabled => (Environment.GetEnvironmentVariable(variable: "TARGET_RID") == Rid && File.Exists(AgentPath(RepositoryContext.Discover()))) || PublishedByTests;
 
-    /// <summary>Gets whether the agent was published against the glibc 2.12 sysroot and an image to run it in is named.</summary>
-    public static bool ImageEnabled => Enabled && Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 };
+    /// <summary>Gets whether the agent is published against the glibc 2.12 sysroot and there is an image to run it in.</summary>
+    public static bool ImageEnabled => Enabled && Image is not null;
 
     /// <summary>Gets the Java major versions the agent runs on.</summary>
     public static IEnumerable<TheoryDataRow<int>> Majors => [new(p1: 6), new(p1: 7), new(p1: 8), new(p1: 21)];
+
+    private static string? Image =>
+        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named ? named
+        : PublishedByTests ? CiImage
+        : null;
+
+    // CI publishes the samples that every runtime has; this one is for linux-x64 and its own sysroot, so the linux-x64 tests publish it.
+    private static bool PublishedByTests => TestTarget.PublishedByCi && RuntimeInformation.RuntimeIdentifier == Rid;
 
     /// <summary>The agent published against the glibc 2.12 sysroot needs no newer glibc and binds every symbol it takes from another library to a version.</summary>
     [Fact(
@@ -37,7 +49,7 @@ public sealed class LegacyJavaTests
     public async Task TheAgentNeedsNoNewerGlibcThan212Async()
     {
         RepositoryContext repository = RepositoryContext.Discover();
-        string agent = AgentPath(repository);
+        string agent = await AgentAsync(repository, TestContext.Current.CancellationToken);
 
         ProcessResult symbols = await new ProcessRunner(repository).RunAsync(["readelf", "-V", agent], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -60,7 +72,7 @@ public sealed class LegacyJavaTests
         ProcessRunner processes = new(repository);
         string home = await PinnedJdk.UnpackAsync(Pinned(major), cancellationToken);
         string fixture = await CompileFixtureAsync(repository, processes, cancellationToken);
-        string agent = AgentPath(repository);
+        string agent = await AgentAsync(repository, cancellationToken);
 
         using TemporaryDirectory work = new(prefix: "jvmbridge-legacy-");
 
@@ -89,7 +101,7 @@ public sealed class LegacyJavaTests
         if (!ImageEnabled || major > 7)
             return;
 
-        string image = Environment.GetEnvironmentVariable(ImageVariable) ?? throw new InvalidOperationException(message: "No image is named.");
+        string image = Image ?? throw new InvalidOperationException(message: "No image is named.");
         List<string> container = ["docker", "run", "--rm", "-v", home + ":/jdk:ro", "-v", Path.GetDirectoryName(agent) + ":/a:ro", "-v", work.Path + ":/j:ro", "-v", fixture + ":/f:ro", image];
 
         ProcessResult oldLibrary = await processes.RunAsync(
@@ -106,6 +118,31 @@ public sealed class LegacyJavaTests
 
         AssertRan(oldLibrary.Output, expectedVersion, "-agentpath in " + image, "VM_INIT" + javaMajor);
         AssertRan(oldLaunched.Output, expectedVersion, "-javaagent in " + image, "ATTACH" + javaMajor);
+    }
+
+    // A developer publishes the agent before the tests; CI's tests publish it here, once, against the glibc 2.12 sysroot.
+    private static async Task<string> AgentAsync(RepositoryContext repository, CancellationToken cancellationToken)
+    {
+        string agent = AgentPath(repository);
+
+        if (File.Exists(agent))
+            return agent;
+
+        ProcessRunner processes = new(repository);
+        string sysroot = await LegacySysroot.PrepareAsync(repository, processes, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        await processes.RunCheckedAsync(
+            [
+                "dotnet", "publish", repository.PathFromRoot(parts: ["samples", "LegacyAgent"]),
+                "--configuration", "Release", "--runtime", Rid, "--property:SysRoot=" + sysroot, "--property:LinkerFlavor=lld",
+                "--output", Path.Combine(repository.Artifacts, path2: "legacy-agent", Rid)
+            ],
+            LogPath(repository, name: "publish.log"),
+            TimeSpan.FromMinutes(minutes: 15),
+            cancellationToken: cancellationToken
+        ).ConfigureAwait(continueOnCapturedContext: false);
+
+        return agent;
     }
 
     private static string AgentPath(RepositoryContext repository)

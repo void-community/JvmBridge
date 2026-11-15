@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <JvmBridgeHost>true</JvmBridgeHost>
+    <PublishAot>true</PublishAot>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
     <JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>

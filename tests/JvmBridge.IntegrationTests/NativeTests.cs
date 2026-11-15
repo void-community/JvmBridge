@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 using JvmBridge.Build;
@@ -18,7 +17,7 @@ public sealed class NativeTests
     {
         get
         {
-            string rid = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
+            string rid = TestTarget.Rid;
 
             if (Environment.GetEnvironmentVariable(variable: "JVM_JDK_HOME") is not null)
             {
@@ -48,29 +47,13 @@ public sealed class NativeTests
     }
 
     /// <summary>Gets whether packed native consumers are selected for execution.</summary>
-    public static bool NativeEnabled => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID"));
+    public static bool NativeEnabled => TestTarget.Selected;
 
     /// <summary>Verifies required exports without loading the native agent library.</summary>
     [Fact(SkipUnless = nameof(NativeEnabled), Skip = "Set TARGET_RID and publish both samples with dotnet publish as described in README.")]
     public async Task ExportsAsync()
     {
-        RepositoryContext repository = RepositoryContext.Discover();
-        string rid = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? throw new InvalidOperationException(message: "TARGET_RID is required.");
-        string extension = rid.StartsWith(value: "win-", StringComparison.Ordinal) ? ".dll" : rid.StartsWith(value: "osx-", StringComparison.Ordinal) ? ".dylib" : ".so";
-        string agent = Path.Combine(repository.Artifacts, path2: "agent", rid, "HelloAgent" + extension);
-        string symbolTool = ProcessRunner.FindExecutable(name: "llvm-nm") ?? ProcessRunner.FindExecutable(name: "nm") ?? "nm";
-        string[] command = OperatingSystem.IsWindows() ? ["dumpbin", "/exports", agent] : [symbolTool, OperatingSystem.IsMacOS() ? "-g" : "-D", agent];
-
-        ProcessResult result = await new ProcessRunner(repository).RunAsync(
-            command,
-            Path.Combine(repository.Artifacts, path2: "results", rid, path4: "exports.log"),
-            cancellationToken: TestContext.Current.CancellationToken
-        );
-
-        foreach (string symbol in new[] { "Agent_OnLoad", "Agent_OnAttach", "Agent_OnUnload", "JNI_OnLoad" })
-            Assert.Contains(symbol, result.Output, StringComparison.Ordinal);
-
-        JsonFile.Write(Path.Combine(repository.Artifacts, path2: "results", rid, path4: "build-summary.json"), new BuildSummary { Rid = rid });
+        await AssertExportsAsync(RepositoryContext.Discover(), TestTarget.Rid, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Checks ABI, startup, attach, hosting, Unicode, references, transformations, and failure containment.</summary>
@@ -104,6 +87,7 @@ public sealed class NativeTests
             CancellationToken cancellationToken = TestContext.Current.CancellationToken;
             string home = localHome ?? await archives.UnpackAsync(FixtureCompiler.ToArchive(entry), temporary.Path, cancellationToken);
             string compiler = Environment.GetEnvironmentVariable(variable: "NATIVE_COMPILER") ?? (OperatingSystem.IsWindows() ? "cl" : "cc");
+            NativeToolchain.Ensure();
 
             // OpenJ9 18 to 22 mark their libj9vm29.so as needing an executable stack, which glibc from 2.41 no longer grants to a library that is loaded after the start. The tunable gives every process the tests
             // start an executable stack from its start, as such a process had it before; an older glibc and musl ignore it.
@@ -124,5 +108,25 @@ public sealed class NativeTests
 
             throw;
         }
+    }
+
+    /// <summary>Checks that the published HelloAgent of a target exports the entry points that a JVM calls, and records that the target was built.</summary>
+    /// <param name="repository">The repository whose artifacts hold the agent.</param>
+    /// <param name="rid">The target's runtime identifier.</param>
+    /// <param name="cancellationToken">Stops the check.</param>
+    internal static async Task AssertExportsAsync(RepositoryContext repository, string rid, CancellationToken cancellationToken)
+    {
+        string extension = rid.StartsWith(value: "win-", StringComparison.Ordinal) ? ".dll" : rid.StartsWith(value: "osx-", StringComparison.Ordinal) ? ".dylib" : ".so";
+        string agent = Path.Combine(repository.Artifacts, path2: "agent", rid, "HelloAgent" + extension);
+        NativeToolchain.Ensure();
+        string symbolTool = ProcessRunner.FindExecutable(name: "llvm-nm") ?? ProcessRunner.FindExecutable(name: "nm") ?? "nm";
+        string[] command = OperatingSystem.IsWindows() ? ["dumpbin", "/exports", agent] : [symbolTool, OperatingSystem.IsMacOS() ? "-g" : "-D", agent];
+
+        ProcessResult result = await new ProcessRunner(repository).RunAsync(command, Path.Combine(repository.Artifacts, path2: "results", rid, path4: "exports.log"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        foreach (string symbol in new[] { "Agent_OnLoad", "Agent_OnAttach", "Agent_OnUnload", "JNI_OnLoad" })
+            Assert.Contains(symbol, result.Output, StringComparison.Ordinal);
+
+        JsonFile.Write(Path.Combine(repository.Artifacts, path2: "results", rid, path4: "build-summary.json"), new BuildSummary { Rid = rid });
     }
 }
