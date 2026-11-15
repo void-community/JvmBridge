@@ -1,7 +1,9 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Published sample baseline; CI supplies the freshly packed version explicitly. -->
+    <!-- The samples and the tests use the package that this version was packed as, when artifacts/packages has it, as it has in CI. -->
+    <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == '' and Exists('$(MSBuildThisFileDirectory)artifacts/packages/JvmBridge.$(Version).nupkg')">$(Version)</JvmBridgeVersion>
+    <!-- Published sample baseline. -->
     <JvmBridgeVersion Condition="'$(JvmBridgeVersion)' == ''">26.10.5.2586</JvmBridgeVersion>
   </PropertyGroup>
   <ItemGroup>

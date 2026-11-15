@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+permissions:
+  packages: write
+  pages: write
+  id-token: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  entrypoint:
+    uses: void-community/actions/.github/workflows/entrypoint.yml@main
+    secrets:
+      RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+    with:
+      # Version scheme: release-please or timestamp
+      version: timestamp
+      # The .NET SDK
+      dotnet-version: 11.0.100
+      # Jobs the tests are split into for every runtime
+      shards: 2
+      # Projects packed and pushed to nuget.org, separated by spaces
+      pack: src/JvmBridge src/JvmBridge.Testing src/JvmBridge.Logging src/JvmBridge.Tool src/JvmBridge.Templates
+      # Projects published as executables for every runtime, separated by spaces
+      publish: samples/HelloAgent samples/JavaHost samples/FootprintAgent
+      # Whether the published projects are released on GitHub
+      release: false
+      # More apt packages for the Linux runners, separated by spaces
+      linux-packages: mingw-w64-i686-dev rpm2cpio
+
+  # TODO: Remove once nuget.org lets the entrypoint push the packages: https://github.com/NuGet/NuGetGallery/issues/11000
+  nuget:
+    needs: entrypoint
+    if: ${{ needs.entrypoint.outputs.nuget == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: void-community/actions/nuget-push@main

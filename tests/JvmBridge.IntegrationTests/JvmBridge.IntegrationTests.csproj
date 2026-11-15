@@ -15,4 +15,17 @@
     <!-- The JDK cache that JvmBridge.Testing and the build tasks share, so LegacyJavaTests unpacks each pinned JDK once per machine. -->
     <Compile Include="../../src/Shared/PinnedJdk.cs" Link="Shared/PinnedJdk.cs" />
   </ItemGroup>
+  <!--
+    CI publishes the samples for every runtime and hands them to the tests in artifacts/publish-<runtime>. The tests look for the samples of their target where the README has a developer publish them, so those
+    of the runtime that the tests run on go there.
+  -->
+  <Target Name="CopyPublishedSamples" AfterTargets="Build">
+    <ItemGroup>
+      <PublishedSample Include="HelloAgent" Destination="agent" />
+      <PublishedSample Include="JavaHost" Destination="host" />
+      <PublishedSample Include="FootprintAgent" Destination="footprint-agent" />
+      <PublishedSampleFile Include="../../artifacts/publish-$(NETCoreSdkRuntimeIdentifier)/%(PublishedSample.Identity)/**" Destination="%(PublishedSample.Destination)" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishedSampleFile)" DestinationFiles="@(PublishedSampleFile->'../../artifacts/%(Destination)/$(NETCoreSdkRuntimeIdentifier)/%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
 </Project>

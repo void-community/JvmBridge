@@ -8,8 +8,6 @@ internal sealed class TargetConfiguration
 
     public bool Build { get; init; }
 
-    public string? Container { get; init; }
-
     public string? CrossContainer { get; init; }
 
     public bool Musl { get; init; }
@@ -19,8 +17,6 @@ internal sealed class TargetConfiguration
     public string? Reason { get; init; }
 
     public required string Rid { get; init; }
-
-    public string? Runner { get; init; }
 
     public string? Status { get; init; }
 }

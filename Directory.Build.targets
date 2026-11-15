@@ -5,10 +5,14 @@
     <Copyright>Copyright (c) void-community</Copyright>
     <PackageTags Condition="'$(PackageTags)' == ''">jvm;jni;jvmti;java;agent;nativeaot</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-    <!-- CI writes the subjects of the commits in the push to a file; local packs have none. -->
-    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == '' and '$(ReleaseNotesFile)' != '' and Exists('$(ReleaseNotesFile)')">$([System.IO.File]::ReadAllText('$(ReleaseNotesFile)'))</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup Condition="'$(PackageId)' != ''">
     <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
+  <!-- A package carries the subject of the commit it was packed from as its release notes. -->
+  <Target Name="WriteReleaseNotes" BeforeTargets="GenerateNuspec" Condition="'$(PackageId)' != '' and '$(PackageReleaseNotes)' == ''">
+    <Exec Command="git log -1 --format=&quot;- %25s (%25h)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="PackageReleaseNotes" />
+    </Exec>
+  </Target>
 </Project>

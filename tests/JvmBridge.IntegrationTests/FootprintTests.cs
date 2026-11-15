@@ -48,7 +48,7 @@ public sealed partial class FootprintTests
     {
         get
         {
-            string rid = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+            string rid = TestTarget.Rid;
 
             foreach (int major in Majors)
             {
@@ -59,8 +59,10 @@ public sealed partial class FootprintTests
         }
     }
 
-    /// <summary>Gets whether footprint measurement was requested for a published target.</summary>
-    public static bool FootprintEnabled => Environment.GetEnvironmentVariable(variable: "JVMBRIDGE_FOOTPRINT") == "1" && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID"));
+    /// <summary>Gets whether footprint measurement was requested for a published target, or CI published the agent and the run has a job summary to report the figures in.</summary>
+    public static bool FootprintEnabled =>
+        (Environment.GetEnvironmentVariable(variable: "JVMBRIDGE_FOOTPRINT") == "1" && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID")))
+        || (TestTarget.PublishedByCi && Environment.GetEnvironmentVariable(variable: "GITHUB_STEP_SUMMARY") is { Length: > 0 });
 
     /// <summary>Measures one Java major on one target and writes the result under <c>artifacts/footprint</c>.</summary>
     /// <param name="rid">The runtime identifier of the published agent.</param>

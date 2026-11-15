@@ -4,7 +4,7 @@ How to build, test and maintain JvmBridge itself. The conventions for agents and
 
 ## Build and test
 
-Install the .NET 11 RC1 SDK, the .NET 10 runtime, and the native publishing toolchain. Packing also compiles the Windows x86 compatibility DLL: on Ubuntu install `clang lld mingw-w64-i686-dev`; on Windows use an x86 Native Tools command prompt. Other Unix hosts need LLVM and a MinGW-w64 i686 toolchain; set `WindowsX86ToolchainRoot` to its directory if it is not `/usr/i686-w64-mingw32`. Package consumers need no additional compiler for this DLL. CI pins its SDK versions in the workflows; local builds use your installed SDK. To verify the current source through the samples, pack the library and pass that version when restoring, building, and testing the solution:
+Install the .NET 11 SDK, the .NET 10 runtime, and the native publishing toolchain. Packing also compiles the Windows x86 compatibility DLL: on Ubuntu install `clang lld mingw-w64-i686-dev`; on Windows use an x86 Native Tools command prompt. Other Unix hosts need LLVM and a MinGW-w64 i686 toolchain; set `WindowsX86ToolchainRoot` to its directory if it is not `/usr/i686-w64-mingw32`. Package consumers need no additional compiler for this DLL. CI pins its SDK in `ci.yml`; local builds use your installed SDK. To verify the current source through the samples, pack the library and pass that version when restoring, building, and testing the solution:
 
 ```sh
 export VersionTimestamp="$(date -u '+%y %m %d %H %M %S')"
@@ -23,7 +23,7 @@ dotnet publish samples/JavaHost -c Release -r linux-x64 --self-contained -p:Publ
 TARGET_RID=linux-x64 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
-MSBuild publishes standalone consumers from the packed artifact; xUnit executes each pinned JVM cell as a separate test, downloading one JDK at a time. Native tests are explicitly skipped in ordinary solution test runs unless `TARGET_RID` is set. CI compiles portable Java 8 fixture bytecode once with `dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures` and runs it unchanged on all target JVMs; local runs can compile fixtures with the supplied JDK. Coverage includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
+MSBuild publishes standalone consumers from the packed artifact; xUnit executes each pinned JVM cell as a separate test, downloading one JDK at a time. Native tests are explicitly skipped in ordinary solution test runs unless `TARGET_RID` is set; CI's tests need no `TARGET_RID`, as they run on the runtime that CI published the samples for. `dotnet build src/JvmBridge.Build -c Release -t:CompileFixtures` compiles portable Java 8 fixture bytecode once into `artifacts/fixtures`; without it, as in CI, each cell compiles the fixtures with its own JDK. Coverage includes startup, late attachment, native exports, ABI comparisons, JNI calls, Unicode, references, native threads, transformation/retransformation, failure containment, and shutdown.
 
 For a focused run with an installed JDK:
 
@@ -33,7 +33,7 @@ dotnet publish samples/JavaHost -c Release -r linux-arm64 --self-contained -p:Pu
 TARGET_RID=linux-arm64 JVM_JDK_HOME=/path/to/jdk JVM_JAVA_MAJOR=25 dotnet test tests/JvmBridge.IntegrationTests -c Release
 ```
 
-Set `NATIVE_COMPILER` when the C compiler is not `cc` (`cl` on Windows). Logs, native/managed ABI reports, and per-cell results are written to `artifacts/results`. `dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage` requires all available manifest cells to have passed; it is intended for the aggregated CI run. Do not treat a subset run as full coverage.
+Set `NATIVE_COMPILER` when the C compiler is not `cc` (`cl` on Windows). Logs, native/managed ABI reports, and per-cell results are written to `artifacts/results`. `dotnet build src/JvmBridge.Build -c Release -t:VerifyCoverage` requires all available manifest cells under `artifacts/results` to have passed; it is for results gathered from every target, which CI doesn't gather: each of its test jobs fails on its own cells. Do not treat a subset run as full coverage.
 
 ## Footprint
 
@@ -44,7 +44,7 @@ dotnet publish samples/FootprintAgent -c Release -r linux-arm64 --self-contained
 TARGET_RID=linux-arm64 JVMBRIDGE_FOOTPRINT=1 dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~FootprintTests
 ```
 
-Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's footprint workflow does the same on each native runner and reports the figures in the job summary without checking them against limits. To refresh the published table, download the `footprint-*` artifacts of a run and run `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
+Results go to `artifacts/footprint/<rid>/hotspot-<major>.json`. CI's tests do the same on every runtime that runs on a runner, without the variable, and report the figures in the job summary without checking them against limits. To refresh the published table, gather the `artifacts/footprint` directories of a run on each target and run `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory>`.
 
 ## Java 6 and 7
 
@@ -55,7 +55,7 @@ dotnet publish samples/LegacyAgent -c Release -r linux-x64 --self-contained -p:P
 TARGET_RID=linux-x64 JVMBRIDGE_LEGACY_GLIBC_IMAGE=centos:6 dotnet test tests/JvmBridge.IntegrationTests -c Release --filter FullyQualifiedName~LegacyJavaTests
 ```
 
-CI's `legacy` job in the test workflow does this on every commit and gates publishing. The maintenance tool's `resolve` and `update` refresh the legacy inventory with the main one.
+CI's linux-x64 tests do this on every commit, and publishing waits for them: they build the sysroot from the CentOS 6 packages themselves, as `LegacySysroot` in the tests does, publish the sample against it and name the image. The maintenance tool's `resolve` and `update` refresh the legacy inventory with the main one.
 
 ## Reproducible maintenance
 
@@ -66,10 +66,10 @@ dotnet build src/JvmBridge.Build -c Release -t:VerifyGenerated
 
 Generation verifies header checksums and uses a fixed Clang target and shim headers to avoid host-dependent declarations. The shims cover only unused stdio declarations and Clang's target-specific va_list. Upstream headers are unmodified. Native C probes independently validate the actual target ABI, including capability bits and callback/function-table offsets.
 
-Scheduled JDK maintenance discovers stable releases, pins archive checksums, regenerates bindings, and opens tested update PRs. Renovate maintains the SDK, packages, tools, and actions. Compatible updates may merge after protected checks pass. Public API changes and new platforms require review.
+The maintenance tool discovers stable releases, pins archive checksums and regenerates bindings when it is run; nothing runs it on a schedule. Renovate maintains the SDK, packages and tools. Compatible updates may merge after the checks pass. Public API changes and new platforms require review.
 
-Every validated commit to `main` publishes its tested NuGet package using Trusted Publishing. Versions follow [**NetAgents' timestamp scheme**](https://github.com/caunt/NetAgents): `YY.M.D.B`, with a UTC time-of-day bucket from 1000 through 9999. CI freezes the timestamp once and uses the same version throughout packaging, testing, and publishing. There are no release PRs, tags or GitHub releases; the publisher never rebuilds the package. Each package carries the subjects of the commits in its push as its release notes, written by the build workflow from the push range.
+Every validated commit to `main` publishes its tested NuGet package using Trusted Publishing. Versions follow [**NetAgents' timestamp scheme**](https://github.com/caunt/NetAgents): `YY.M.D.B`, with a UTC time-of-day bucket from 1000 through 9999. CI works the version out once and uses it throughout packaging, testing, and publishing. There are no release PRs, tags or GitHub releases; the publisher never rebuilds the package. Each package carries the subject of the commit it was packed from as its release notes.
 
-The samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. Ordinary restores use the published JvmBridge baseline in `Directory.Packages.props`; the local feed is added only when `artifacts/packages` exists. CI supplies `JvmBridgeVersion` to test its freshly packed artifact. Renovate ignores JvmBridge itself to prevent publishing a package from triggering another sample dependency update and publication; update the published baseline deliberately when the examples require newer APIs. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
+The samples belong to the solution and inherit NetAgents and central package management. They use package references, never project references. Ordinary restores use the published JvmBridge baseline in `Directory.Packages.props`; the local feed is added only when `artifacts/packages` exists. CI packs first, and the samples take the run's version when `artifacts/packages` has the package of that version, so they test the freshly packed artifact. Renovate ignores JvmBridge itself to prevent publishing a package from triggering another sample dependency update and publication; update the published baseline deliberately when the examples require newer APIs. Set `<JvmBridgeAbiInspector>true</JvmBridgeAbiInspector>` to generate the ABI inspector during compilation from the referenced package's native types; no inspector source is checked in.
 
 See also [**automation setup**](automation.md) and [**agent instructions**](../AGENTS.md). Original code is [**MIT licensed**](../LICENSE); see [**upstream notices**](../NOTICE.md) for header provenance.

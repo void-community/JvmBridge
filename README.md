@@ -1,6 +1,6 @@
 # JvmBridge
 
-[![CI](https://img.shields.io/github/actions/workflow/status/void-community/JvmBridge/runnable-commit.yml?branch=main&style=for-the-badge)](https://github.com/void-community/JvmBridge/actions/workflows/runnable-commit.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/void-community/JvmBridge/ci.yml?branch=main&style=for-the-badge)](https://github.com/void-community/JvmBridge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/void-community/JvmBridge?style=for-the-badge)](LICENSE)
 
 **Write JVM agents in C#. Generate the native bindings. Test the actual binaries.**
