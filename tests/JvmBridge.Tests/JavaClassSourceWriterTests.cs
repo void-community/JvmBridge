@@ -101,8 +101,7 @@ public sealed class JavaClassSourceWriterTests
 
     private static Assembly Compile(string source)
     {
-        string runtimeDirectory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
-        List<MetadataReference> references = [.. Directory.EnumerateFiles(runtimeDirectory, searchPattern: "*.dll").Select(static path => MetadataReference.CreateFromFile(path))];
+        List<MetadataReference> references = RuntimeReferences.Create();
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
         CSharpCompilation compilation = CSharpCompilation.Create(

@@ -14,6 +14,11 @@ public sealed class TemplateTests
     [Fact]
     public async Task GeneratedProjectsKeepTheirPropertiesAndBuildAsync()
     {
+        Assert.SkipWhen(
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X86,
+            reason: "The test publishes the generated agent for the machine it runs on, and the x86 .NET SDK brings no NativeAOT compiler of its own."
+        );
+
         RepositoryContext repository = RepositoryContext.Discover();
         string version = PackedVersion(repository);
         string packages = Path.Combine(repository.Artifacts, path2: "packages");
@@ -98,8 +103,11 @@ public sealed class TemplateTests
             await File.ReadAllBytesAsync(Path.Combine(project, path2: "Demo.jar"), TestContext.Current.CancellationToken)
         );
 
+        // The test project is named from the project's directory, the way a developer types it: macOS keeps the temporary directory behind a link, and MSBuild copies the fixtures beside the assembly, out of their directories, when the project is named through one.
+        string testProject = Path.Combine(path1: "tests", path2: "Demo.Tests", path3: "Demo.Tests.csproj");
+
         ProcessResult build = await runner.RunAsync(
-            ["dotnet", "build", Path.Combine(project, path2: "tests", path3: "Demo.Tests", path4: "Demo.Tests.csproj"), "-c", "Release", .. restore],
+            ["dotnet", "build", testProject, "-c", "Release", .. restore],
             logPath: null,
             environment: environment,
             workingDirectory: project,
@@ -109,7 +117,7 @@ public sealed class TemplateTests
         );
 
         ProcessResult test = await runner.RunAsync(
-            ["dotnet", "test", Path.Combine(project, path2: "tests", path3: "Demo.Tests", path4: "Demo.Tests.csproj"), "-c", "Release", "--no-build"],
+            ["dotnet", "test", testProject, "-c", "Release", "--no-build"],
             logPath: null,
             environment: environment,
             workingDirectory: project,
@@ -120,7 +128,15 @@ public sealed class TemplateTests
 
         Assert.True(build.ExitCode == 0, build.Output);
         Assert.True(test.ExitCode == 0, test.Output);
-        Assert.Contains(expectedSubstring: "Passed:     7, Skipped:     0", test.Output, StringComparison.Ordinal);
+
+        // The generated tests ask for Java 8 once and for Java 8, 17 and 21 twice, and skip a Java that this platform has no pinned JDK of.
+        int[] majors = [8, 8, 17, 21, 8, 17, 21];
+
+        int passed = majors.Count(
+            major => PinnedJdks.Jdks.Any(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == "hotspot" && entry.Status == "available")
+        );
+
+        Assert.Contains($"Passed: {passed,5}, Skipped: {majors.Length - passed,5}", test.Output, StringComparison.Ordinal);
     }
 
     private static string PackedVersion(RepositoryContext repository)

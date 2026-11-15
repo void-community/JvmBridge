@@ -122,9 +122,16 @@ public sealed class JavaReferenceTests
         ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
         string libjvm = Directory.EnumerateFiles(home, searchPattern: "*jvm.*", SearchOption.AllDirectories).First(path => Path.GetFileName(path) is "libjvm.so" or "libjvm.dylib" or "jvm.dll");
 
+        // The JVM's own libraries name libjvm.so. glibc knows the one that is loaded already; musl looks for it again, so its directory is on the search path, as a Java launcher puts it there.
+        string search = Path.GetDirectoryName(libjvm) ?? throw new InvalidOperationException(message: "The JVM library has no directory.");
+
+        if (Environment.GetEnvironmentVariable(variable: "LD_LIBRARY_PATH") is { Length: > 0 } inherited)
+            search += Path.PathSeparator.ToString() + inherited;
+
         ProcessResult run = await new ProcessRunner(repository).RunAsync(
             ["dotnet", Path.Combine(paths: [project.Path, "bin", "Release", "net10.0", "Consumer.dll"]), libjvm, jar],
             logPath: null,
+            environment: new Dictionary<string, string?> { [key: "LD_LIBRARY_PATH"] = search },
             workingDirectory: project.Path,
             cancellationToken: TestContext.Current.CancellationToken
         );
