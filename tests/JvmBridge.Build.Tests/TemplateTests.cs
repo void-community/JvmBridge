@@ -74,10 +74,14 @@ public sealed class TemplateTests
         string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
         string published = Path.Combine(project, path2: "artifacts", path3: "agent", rid);
 
+        // The commands below restore into an empty package cache, compile the agent ahead of time and download three JDKs. The Intel macOS runner needed more than the runner's three minutes for the generated tests alone.
+        TimeSpan limit = TimeSpan.FromMinutes(minutes: 10);
+
         // The agent is published for this machine, so the JVM tests run instead of skipping: through the library and through the jar that JvmBridgeAgentJar writes beside it.
         ProcessResult publish = await runner.RunAsync(
             ["dotnet", "publish", Path.Combine(project, path2: "Demo.csproj"), "-c", "Release", "-r", rid, "--self-contained", "-o", published, .. restore],
             logPath: null,
+            timeout: limit,
             environment: environment,
             workingDirectory: project,
             expectedExitCode: null,
@@ -91,6 +95,7 @@ public sealed class TemplateTests
         ProcessResult merge = await runner.RunAsync(
             ["dotnet", "msbuild", Path.Combine(project, path2: "Demo.csproj"), "-restore", "-t:JvmBridgeMergeAgentJars", "-p:JvmBridgeAgentJars=artifacts/agent/*/Demo.jar", "-p:JvmBridgeAgentJarOutput=Demo.jar", .. restore],
             logPath: null,
+            timeout: limit,
             environment: environment,
             workingDirectory: project,
             expectedExitCode: null,
@@ -109,6 +114,7 @@ public sealed class TemplateTests
         ProcessResult build = await runner.RunAsync(
             ["dotnet", "build", testProject, "-c", "Release", .. restore],
             logPath: null,
+            timeout: limit,
             environment: environment,
             workingDirectory: project,
             expectedExitCode: null
@@ -119,6 +125,7 @@ public sealed class TemplateTests
         ProcessResult test = await runner.RunAsync(
             ["dotnet", "test", testProject, "-c", "Release", "--no-build"],
             logPath: null,
+            timeout: limit,
             environment: environment,
             workingDirectory: project,
             expectedExitCode: null
