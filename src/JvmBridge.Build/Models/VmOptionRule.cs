@@ -10,5 +10,7 @@ internal sealed class VmOptionRule
 
     public required List<string> Options { get; init; }
 
+    public string? Os { get; init; }
+
     public required string Reason { get; init; }
 }

@@ -32,3 +32,9 @@ Each available Java/implementation/target combination is required by CI. Version
 Java majors: 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26. One pinned GA build per available major/distribution/target; historical patch releases are not exhaustively tested. Android ART is not a Java SE version and needs its own platform suite. Browser/WASI and other non-NativeAOT targets cannot load this agent.
 
 Java 10 hotspot x64 is exercised with `-XX:UseAVX=2`. Constrain the obsolete JVM vector instruction set on modern hosted CPUs; baseline and agent processes use identical settings.
+
+Java 18 openj9 mac aarch64 is exercised with `-Xnoaot`. Keep the ahead-of-time code of OpenJ9's shared classes cache out of the JVM: with it, a JVM that a host creates through JNI fails at random while it starts, in a plain C host too; baseline and agent processes use identical settings.
+
+Java 19 openj9 mac aarch64 is exercised with `-Xnoaot`. Keep the ahead-of-time code of OpenJ9's shared classes cache out of the JVM: with it, a JVM that a host creates through JNI fails at random while it starts, in a plain C host too; baseline and agent processes use identical settings.
+
+Java 20 openj9 mac aarch64 is exercised with `-Xnoaot`. Keep the ahead-of-time code of OpenJ9's shared classes cache out of the JVM: with it, a JVM that a host creates through JNI fails at random while it starts, in a plain C host too; baseline and agent processes use identical settings.

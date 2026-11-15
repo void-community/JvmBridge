@@ -79,8 +79,10 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
 
         foreach (VmOptionRule rule in configuration.VmOptionRules)
         {
+            string platform = rule.Os is null ? rule.Architecture : rule.Os + " " + rule.Architecture;
+
             text.Write(
-                $"\nJava {rule.Java} {rule.Implementation} {rule.Architecture} is exercised with `{string.Join(separator: ' ', rule.Options)}`. {rule.Reason}\n"
+                $"\nJava {rule.Java} {rule.Implementation} {platform} is exercised with `{string.Join(separator: ' ', rule.Options)}`. {rule.Reason}\n"
             );
         }
 

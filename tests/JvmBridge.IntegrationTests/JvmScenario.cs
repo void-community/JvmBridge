@@ -42,7 +42,9 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         TargetConfiguration target = configuration.Targets.First(value => value.Rid == rid);
 
         List<string> vmOptions = [.. configuration.VmOptionRules
-            .Where(rule => rule.Java == entry.Java && rule.Implementation == entry.Implementation && rule.Architecture == target.Arch)
+            .Where(
+                rule => rule.Java == entry.Java && rule.Implementation == entry.Implementation && rule.Architecture == target.Arch && (rule.Os is null || rule.Os == target.Os)
+            )
             .SelectMany(rule => rule.Options)];
 
         if (vmOptions.Count > 0)
