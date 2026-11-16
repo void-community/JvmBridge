@@ -20,5 +20,6 @@
     <None Include="LambdaFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="AddedMethodFixtures/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ConstantFixtures/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ProcessFixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

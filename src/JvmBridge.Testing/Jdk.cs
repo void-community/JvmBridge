@@ -77,14 +77,43 @@ public sealed class Jdk
         return pending.Value.WaitAsync(cancellationToken);
     }
 
-    /// <summary>Runs a class with this JDK.</summary>
+    /// <summary>Runs a class with this JDK to its end. Its standard input is closed, so a program that reads it sees the end of it.</summary>
     /// <param name="mainClass">The class with a <c>main</c> method, for example <c>pkg.Main</c>.</param>
     /// <param name="classPath">The class path, for example the directory <see cref="CompileAsync"/> returned.</param>
     /// <param name="agent">An agent to load: a native library with <c>-agentpath</c>, a jar (see <see cref="PublishedAgent.FindJar"/>) with <c>-javaagent</c>, or <see langword="null"/> to run without one. <see cref="JavaRunOptions.AgentOptions"/> follow the <c>=</c> either way.</param>
     /// <param name="options">Further options, or <see langword="null"/> for the defaults.</param>
-    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <param name="cancellationToken">Cancels the run and ends the program.</param>
     /// <returns>The exit code and combined output.</returns>
+    /// <exception cref="TimeoutException">The program was still running when <see cref="JavaRunOptions.Timeout"/> ran out, and was ended.</exception>
     public async Task<JavaRun> RunAsync(
+        string mainClass,
+        string classPath,
+        PublishedAgent? agent = null,
+        JavaRunOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        JavaProcess process = await StartAsync(mainClass, classPath, agent, options, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        await using (process.ConfigureAwait(continueOnCapturedContext: false))
+        {
+            process.CloseInput();
+
+            return await process.WaitForExitAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        }
+    }
+
+    /// <summary>
+    /// Starts a class with this JDK and returns while it runs, so a test can wait for its output, write to its input and stop it, as it drives a server: <c>await using JavaProcess server = await jdk.StartAsync(...)</c>. The arguments and options mean
+    /// what they mean to <see cref="RunAsync"/>; <see cref="JavaRunOptions.Timeout"/> is how long the program may run in all.
+    /// </summary>
+    /// <param name="mainClass">The class with a <c>main</c> method, for example <c>pkg.Main</c>.</param>
+    /// <param name="classPath">The class path: a directory of classes or a jar, relative to <see cref="JavaRunOptions.WorkingDirectory"/> when it is set.</param>
+    /// <param name="agent">An agent to load, as for <see cref="RunAsync"/>, or <see langword="null"/> to run without one.</param>
+    /// <param name="options">Further options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Cancels waiting for the JDK.</param>
+    /// <returns>The running program, which ends when it is disposed.</returns>
+    public async Task<JavaProcess> StartAsync(
         string mainClass,
         string classPath,
         PublishedAgent? agent = null,
@@ -121,7 +150,7 @@ public sealed class Jdk
                 environment[OperatingSystem.IsMacOS() ? "DYLD_INSERT_LIBRARIES" : "LD_PRELOAD"] = signals;
         }
 
-        return await ProcessExecution.RunAsync(java, arguments, environment, settings.Timeout, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        return JavaProcess.Start(java, arguments, environment, settings.WorkingDirectory, settings.Timeout);
     }
 
     /// <inheritdoc/>
