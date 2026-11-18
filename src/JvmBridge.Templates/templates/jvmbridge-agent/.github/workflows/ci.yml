@@ -33,7 +33,7 @@ jobs:
       - name: Prepare the glibc 2.17 sysroot
         id: sysroot
         if: runner.os == 'Linux'
-        uses: void-community/actions/glibc-sysroot@6f577d1b3443e14e75dfe90e631c162138eabc87 # main
+        uses: void-community/actions/glibc-sysroot@5b58d5637386a56fda978aa2e994df5e83860b11 # main
         with:
           rid: ${{ matrix.rid }}
       - name: Publish the agent library and its jar
