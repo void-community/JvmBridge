@@ -56,7 +56,7 @@ An agent project (`JvmBridgeAgent` true) must set `<PublishAot>true</PublishAot>
 
 ### JVMB008: JDK download failed
 
-The pinned JDK archive could not be downloaded, its checksum did not match, or it could not be unpacked. Check the network and proxy settings, or set `JvmBridgeJdkHome` to an installed JDK to avoid the download. A checksum failure is never retried with an unchecked download.
+The pinned JDK archive could not be downloaded, its checksum did not match, or it could not be unpacked. A download is asked five times, with 2, 4, 8 and 16 seconds between, when a request gets no answer, the server answers with a transient status or the connection is reset while the archive is read, and the message names the address. Check the network and proxy settings, or set `JvmBridgeJdkHome` to an installed JDK to avoid the download. A checksum failure is never retried with an unchecked download.
 
 ### JVMB009: Provisioning needs dotnet build
 
