@@ -22,7 +22,7 @@ What the shared workflow has no runtime for is a test of its own, in CI's `linux
 
 ## Repository settings
 
-Use `main` and enable automatic branch deletion. When `main` is protected, require the `entrypoint / required` check. Renovate needs the `RENOVATE_TOKEN` secret of the organization.
+Use `main` and enable automatic branch deletion. Renovate needs the `RENOVATE_TOKEN` secret of the organization.
 
 `ci.yml` asks the shared workflow for two more apt packages on the Linux runners: `mingw-w64-i686-dev`, which packing the Windows x86 compatibility DLL needs, and `rpm2cpio`, which unpacks the glibc 2.12 sysroot.
 
