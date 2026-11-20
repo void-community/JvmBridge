@@ -14,21 +14,27 @@ namespace HelloAgent;
 internal static partial class Interop
 {
     private const int NameLimit = 2000;
+
+    // How many class, exception and method events arrived.
     private static readonly EventCounter ClassLoads = new();
     private static readonly EventCounter Exceptions = new();
     private static readonly EventCounter MethodExits = new();
+
+    // How many monitor and thread events arrived.
     private static readonly EventCounter MonitorEntered = new();
     private static readonly EventCounter MonitorEnters = new();
     private static readonly EventCounter ThreadEnds = new();
     private static readonly EventCounter ThreadStarts = new();
+
+    // The names of the threads that started, and of the methods that were entered while tracing was on.
     private static readonly ConcurrentQueue<string> ThreadNames = [];
     private static readonly ConcurrentQueue<string> TracedMethods = [];
+
     private static int s_collectionFinishes;
     private static int s_collectionStarts;
     private static volatile bool s_tracing;
 
     internal static AgentContext? Context { get; set; }
-
     internal static string Subscription { get; set; } = string.Empty;
 
     internal static void ClassLoaded()
@@ -51,10 +57,12 @@ internal static partial class Interop
     [JavaMethod]
     internal static string Events()
     {
-        string subscribed = Context?.Events.Subscribed.ToString().Replace(oldValue: ", ", newValue: "+", StringComparison.Ordinal) ?? string.Empty;
+        string subscribed = Context?.Events.Subscribed
+            .ToString()
+            .Replace(oldValue: ", ", newValue: "+", StringComparison.Ordinal)
+            ?? string.Empty;
 
-        return string.Join(
-            separator: ";",
+        return string.Join(separator: ";",
             "threadStart=" + ThreadStarts.Value.ToString(CultureInfo.InvariantCulture),
             "threadEnd=" + ThreadEnds.Value.ToString(CultureInfo.InvariantCulture),
             "classLoad=" + ClassLoads.Value.ToString(CultureInfo.InvariantCulture),
@@ -65,8 +73,7 @@ internal static partial class Interop
             "monitorEntered=" + MonitorEntered.Value.ToString(CultureInfo.InvariantCulture),
             "methodExit=" + MethodExits.Value.ToString(CultureInfo.InvariantCulture),
             "subscribed=" + subscribed,
-            "subscription=" + Subscription
-        );
+            "subscription=" + Subscription);
     }
 
     internal static void ExceptionThrown()
@@ -112,7 +119,9 @@ internal static partial class Interop
     [JavaMethod]
     internal static int Positive(int value)
     {
-        return value > 0 ? value : throw new JavaThrowException(javaClassName: "java/lang/IllegalArgumentException", "must be positive: " + value.ToString(CultureInfo.InvariantCulture));
+        return value > 0
+            ? value
+            : throw new JavaThrowException(javaClassName: "java/lang/IllegalArgumentException", "must be positive: " + value.ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>Redefines a loaded class with its own bytes after a patch has changed a constant, so the new behavior shows without reloading anything.</summary>
@@ -124,12 +133,14 @@ internal static partial class Interop
         if (!context.IsGranted(JavaCapability.RedefineClasses))
             return "unavailable";
 
-        ClassPatchResult patched = ClassPatch.For(className: "BridgeFixture$Redefinable").ReplaceConstant(oldValue: "before", newValue: "after").Apply(bytes);
+        ClassPatchResult patched = ClassPatch.For(className: "BridgeFixture$Redefinable")
+            .ReplaceConstant(oldValue: "before", newValue: "after")
+            .Apply(bytes);
 
         if (patched.Bytes is not { } changed)
             return "patch failed: " + patched.SkippedReason;
 
-        context.RedefineClasses([new ClassRedefinition(type, changed)]);
+        context.RedefineClasses(definitions: [new ClassRedefinition(type, changed)]);
 
         return "ok";
     }
@@ -142,6 +153,7 @@ internal static partial class Interop
             return null;
 
         byte[] reversed = [.. values];
+
         Array.Reverse(reversed);
 
         return reversed;
@@ -153,7 +165,8 @@ internal static partial class Interop
     {
         AgentContext context = Context ?? throw new InvalidOperationException(message: "The agent is not initialized.");
 
-        return string.Join(separator: ",", context.GetStackTrace(environment, thread: 0, maxFrames: 16).Select(static frame => frame.Method.ToString()));
+        return string.Join(separator: ",",
+            context.GetStackTrace(environment, thread: 0, maxFrames: 16).Select(static frame => frame.Method.ToString()));
     }
 
     internal static void ThreadEnded(AgentContext context, JavaEnvironment environment, nint thread)
@@ -199,15 +212,17 @@ internal static partial class Interop
         if (!on)
         {
             s_tracing = false;
+
             context.Events.Unsubscribe(JavaEvents.MethodEntry | JavaEvents.MethodExit);
 
             return "off";
         }
 
-        EventSubscriptionResult result = context.Events.Subscribe(JavaEvents.MethodEntry | JavaEvents.MethodExit);
-        s_tracing = result.AllEnabled;
+        EventSubscriptionResult subscription = context.Events.Subscribe(JavaEvents.MethodEntry | JavaEvents.MethodExit);
 
-        return result.AllEnabled ? "on" : "denied: " + result;
+        s_tracing = subscription.AllEnabled;
+
+        return subscription.AllEnabled ? "on" : "denied: " + subscription;
     }
 
     /// <summary>Returns the methods seen while tracing was on.</summary>

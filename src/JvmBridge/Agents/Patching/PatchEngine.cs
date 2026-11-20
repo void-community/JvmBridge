@@ -133,6 +133,7 @@ internal sealed class PatchEngine(AgentContext context)
             }
 
             ClassPatchResult edited = patch.ApplyEdits(current is null ? file.Bytes : current);
+
             current = edited.Bytes ?? current;
 
             // A patch with advice is logged once, after its advice, with what its edits did; a patch whose edits skipped the class gets no advice either, as when the whole patch is applied at once.
@@ -498,6 +499,7 @@ internal sealed class PatchEngine(AgentContext context)
         try
         {
             jar = BootstrapJar.Create(classes);
+
             context.AddToBootstrapSearch(jar);
             _bootstrapJars.Add(jar);
 
@@ -564,7 +566,6 @@ internal sealed class PatchEngine(AgentContext context)
         {
             if (helper.IsDefinedIn(environment, loader))
                 return null;
-
 
             try
             {

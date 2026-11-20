@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices;
+using Xunit.Sdk;
 
-using Xunit;
+using System.Runtime.InteropServices;
 
 namespace JvmBridge.Testing;
 
@@ -9,23 +9,26 @@ namespace JvmBridge.Testing;
 public sealed record PublishedAgent(string FilePath)
 {
     /// <summary>Gets whether this is an agent jar, loaded with <c>-javaagent</c>, rather than a native library.</summary>
+    /// <value><see langword="true"/> if <see cref="FilePath"/> ends in <c>.jar</c>; otherwise, <see langword="false"/>.</value>
     public bool IsJar => FilePath.EndsWith(value: ".jar", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Finds a published agent library in <c>artifacts/agent/&lt;rid&gt;</c>, searching upward from the test assembly and the current directory, or in <c>JVMBRIDGE_AGENT_DIRECTORY</c>. The test is skipped when the agent has not been published.</summary>
     /// <param name="name">The agent's assembly name, without extension.</param>
     /// <param name="runtimeIdentifier">The runtime identifier, or <see langword="null"/> for <c>TARGET_RID</c> or the current platform.</param>
     /// <returns>The published agent.</returns>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="SkipException">No library of the agent was found, which ends the test as skipped.</exception>
     public static PublishedAgent Find(string name, string? runtimeIdentifier = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
-        string identifier = runtimeIdentifier ?? Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
 
-        if (TryFind(name, identifier, [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]) is { } agent)
-            return agent;
+        string identifier = runtimeIdentifier
+            ?? Environment.GetEnvironmentVariable(variable: "TARGET_RID")
+            ?? RuntimeInformation.RuntimeIdentifier;
 
-        Assert.Skip(MissingMessage(name, identifier));
-
-        throw new InvalidOperationException(message: "Assert.Skip returned.");
+        return TryFind(name, identifier, starts: [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]) is { } agent
+            ? agent
+            : throw SkipException.ForSkip(MissingMessage(name, identifier));
     }
 
     /// <summary>
@@ -35,17 +38,19 @@ public sealed record PublishedAgent(string FilePath)
     /// <param name="name">The agent's assembly name, without extension.</param>
     /// <param name="runtimeIdentifier">The runtime identifier, or <see langword="null"/> for <c>TARGET_RID</c> or the current platform.</param>
     /// <returns>The published agent jar.</returns>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="SkipException">No jar of the agent was found, which ends the test as skipped.</exception>
     public static PublishedAgent FindJar(string name, string? runtimeIdentifier = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
-        string identifier = runtimeIdentifier ?? Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
 
-        if (TryFind(name + ".jar", identifier, [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]) is { } agent)
-            return agent;
+        string identifier = runtimeIdentifier
+            ?? Environment.GetEnvironmentVariable(variable: "TARGET_RID")
+            ?? RuntimeInformation.RuntimeIdentifier;
 
-        Assert.Skip(MissingJarMessage(name, identifier));
-
-        throw new InvalidOperationException(message: "Assert.Skip returned.");
+        return TryFind(name + ".jar", identifier, starts: [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]) is { } agent
+            ? agent
+            : throw SkipException.ForSkip(MissingJarMessage(name, identifier));
     }
 
     internal static string MissingJarMessage(string name, string identifier)
@@ -60,7 +65,9 @@ public sealed record PublishedAgent(string FilePath)
 
     internal static PublishedAgent? TryFind(string name, string identifier, IEnumerable<string> starts)
     {
-        string file = name.EndsWith(value: ".jar", StringComparison.OrdinalIgnoreCase) ? name : name + (OperatingSystem.IsWindows() ? ".dll" : OperatingSystem.IsMacOS() ? ".dylib" : ".so");
+        string file = name.EndsWith(value: ".jar", StringComparison.OrdinalIgnoreCase)
+            ? name
+            : name + (OperatingSystem.IsWindows() ? ".dll" : OperatingSystem.IsMacOS() ? ".dylib" : ".so");
 
         if (Environment.GetEnvironmentVariable(variable: "JVMBRIDGE_AGENT_DIRECTORY") is { Length: > 0 } configured)
         {

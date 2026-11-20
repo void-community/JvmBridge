@@ -19,7 +19,9 @@ internal ref struct ClassReader(ReadOnlySpan<byte> bytes)
     internal int ReadUInt16()
     {
         Require(2);
+
         int value = BinaryPrimitives.ReadUInt16BigEndian(_bytes[Position..]);
+
         Position += 2;
         return value;
     }
@@ -27,7 +29,9 @@ internal ref struct ClassReader(ReadOnlySpan<byte> bytes)
     internal int ReadInt32()
     {
         Require(4);
+
         int value = BinaryPrimitives.ReadInt32BigEndian(_bytes[Position..]);
+
         Position += 4;
         return value;
     }
@@ -35,7 +39,9 @@ internal ref struct ClassReader(ReadOnlySpan<byte> bytes)
     internal long ReadInt64()
     {
         Require(8);
+
         long value = BinaryPrimitives.ReadInt64BigEndian(_bytes[Position..]);
+
         Position += 8;
         return value;
     }
@@ -43,7 +49,9 @@ internal ref struct ClassReader(ReadOnlySpan<byte> bytes)
     internal ReadOnlySpan<byte> ReadBytes(int count)
     {
         Require(count);
+
         ReadOnlySpan<byte> value = _bytes.Slice(Position, count);
+
         Position += count;
         return value;
     }
@@ -51,6 +59,7 @@ internal ref struct ClassReader(ReadOnlySpan<byte> bytes)
     internal void Skip(int count)
     {
         Require(count);
+
         Position += count;
     }
 

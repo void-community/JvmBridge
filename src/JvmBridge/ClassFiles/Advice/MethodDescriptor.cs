@@ -42,6 +42,7 @@ internal sealed class MethodDescriptor
             int end = EndOfType(descriptor, index);
 
             parameters.Add(descriptor[index..end]);
+
             index = end;
         }
 

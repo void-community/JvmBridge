@@ -37,6 +37,7 @@ public static class ClassFileDisassembler
         {
             string superName = file.SuperName ?? "none";
             string interfaces = file.Interfaces.Count == 0 ? string.Empty : " implements " + string.Join(separator: ", ", file.Interfaces);
+
             lines.Add($"class {file.Name} extends {superName}{interfaces}");
             lines.Add($"  version {file.MajorVersion.ToString(CultureInfo.InvariantCulture)}.{file.MinorVersion.ToString(CultureInfo.InvariantCulture)}, flags {Flags(file.AccessFlags, kind: "class")}");
 
@@ -52,6 +53,7 @@ public static class ClassFileDisassembler
                 continue;
 
             lines.Add($"    max_stack={code.MaxStack.ToString(CultureInfo.InvariantCulture)} max_locals={code.MaxLocals.ToString(CultureInfo.InvariantCulture)}");
+
             ReadOnlySpan<byte> bytes = classBytes.Slice(code.CodeOffset, code.CodeLength);
 
             foreach (Instruction instruction in code.Instructions)
@@ -194,13 +196,16 @@ public static class ClassFileDisassembler
     {
         int position = at + 1 + ((4 - ((at + 1) % 4)) % 4);
         int defaultTarget = at + BinaryPrimitives.ReadInt32BigEndian(code[position..]);
+
         position += 4;
+
         List<string> cases = [];
 
         if (table)
         {
             int low = BinaryPrimitives.ReadInt32BigEndian(code[position..]);
             int high = BinaryPrimitives.ReadInt32BigEndian(code[(position + 4)..]);
+
             position += 8;
 
             for (int value = low; value <= high; value++, position += 4)
@@ -209,6 +214,7 @@ public static class ClassFileDisassembler
         else
         {
             int count = BinaryPrimitives.ReadInt32BigEndian(code[position..]);
+
             position += 4;
 
             for (int index = 0; index < count; index++, position += 8)

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 
 using Xunit;
 
@@ -13,7 +14,9 @@ namespace JvmBridge.Build.Tests;
 public sealed class ProcessRunnerTests
 {
     // The parent has to have started and named its child before it is stopped, which takes PowerShell seconds on a busy Windows runner.
-    private static TimeSpan DescendantTimeout => OperatingSystem.IsWindows() ? TimeSpan.FromSeconds(seconds: 30) : TimeSpan.FromMilliseconds(milliseconds: 500);
+    private static TimeSpan DescendantTimeout => OperatingSystem.IsWindows()
+        ? TimeSpan.FromSeconds(seconds: 30)
+        : TimeSpan.FromMilliseconds(milliseconds: 500);
 
     /// <summary>Inherited output handles cannot make process capture outlive its timeout.</summary>
     [Fact]
@@ -28,19 +31,18 @@ public sealed class ProcessRunnerTests
         ProcessRunner runner = new(RepositoryContext.Discover());
         Stopwatch elapsed = Stopwatch.StartNew();
 
-        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(
-            () => runner.RunAsync(
-                ["/bin/sh", "-c", "sleep 30 & child=$!; printf '%s\\n' \"$child\""],
-                log,
-                timeout: TimeSpan.FromMilliseconds(milliseconds: 500),
-                cancellationToken: CancellationToken.None
-            )
-        );
+        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(() => runner.RunAsync(command: ["/bin/sh", "-c", "sleep 30 & child=$!; printf '%s\\n' \"$child\""],
+            log,
+            timeout: TimeSpan.FromMilliseconds(milliseconds: 500),
+            cancellationToken: CancellationToken.None));
 
         Assert.Contains(expectedSubstring: "Timed out", failure.Message, StringComparison.Ordinal);
-        string identifier = (await File.ReadAllTextAsync(log, CancellationToken.None)).Trim();
 
-        using Process descendant = Process.GetProcessById(int.Parse(identifier, System.Globalization.CultureInfo.InvariantCulture));
+        string evidence = await File.ReadAllTextAsync(log, CancellationToken.None);
+
+        string identifier = evidence.Trim();
+
+        using Process descendant = Process.GetProcessById(int.Parse(identifier, CultureInfo.InvariantCulture));
 
         ProcessRunner.Terminate(descendant);
         Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(seconds: 10));
@@ -56,11 +58,15 @@ public sealed class ProcessRunnerTests
 
         string log = Path.Combine(temporary.Path, path2: "success.log");
         ProcessRunner runner = new(RepositoryContext.Discover());
-        ProcessResult result = await runner.RunAsync(SuccessCommand(), log, cancellationToken: CancellationToken.None);
 
-        Assert.Equal(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "fixture-ok", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "fixture-ok", await File.ReadAllTextAsync(log, CancellationToken.None), StringComparison.Ordinal);
+        ProcessResult completed = await runner.RunAsync(SuccessCommand(), log, cancellationToken: CancellationToken.None);
+
+        Assert.Equal(expected: 0, completed.ExitCode);
+        Assert.Contains(expectedSubstring: "fixture-ok", completed.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "fixture-ok",
+            await File.ReadAllTextAsync(log, CancellationToken.None),
+            StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -75,15 +81,21 @@ public sealed class ProcessRunnerTests
         ProcessRunner runner = new(RepositoryContext.Discover());
         Stopwatch elapsed = Stopwatch.StartNew();
 
-        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(() => runner.RunAsync(DescendantCommand(), log, DescendantTimeout, cancellationToken: CancellationToken.None));
+        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(() => runner.RunAsync(DescendantCommand(),
+            log,
+            DescendantTimeout,
+            cancellationToken: CancellationToken.None));
 
         elapsed.Stop();
         Assert.Contains(expectedSubstring: "Timed out", failure.Message, StringComparison.Ordinal);
-        Assert.True(elapsed.Elapsed < DescendantTimeout + TimeSpan.FromSeconds(seconds: 20), $"Process termination took {elapsed.Elapsed}.");
+
+        Assert.True(elapsed.Elapsed < DescendantTimeout + TimeSpan.FromSeconds(seconds: 20),
+            $"Process termination took {elapsed.Elapsed}.");
 
         string evidence = await File.ReadAllTextAsync(log, CancellationToken.None);
+
         string identifierText = evidence.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries).First();
-        int identifier = int.Parse(identifierText, System.Globalization.CultureInfo.InvariantCulture);
+        int identifier = int.Parse(identifierText, CultureInfo.InvariantCulture);
 
         Assert.True(await HasExitedAsync(identifier), $"Descendant process {identifier} survived its parent timeout.");
     }
@@ -109,7 +121,9 @@ public sealed class ProcessRunnerTests
         {
             using Process descendant = Process.GetProcessById(identifier);
 
-            await descendant.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(seconds: 5), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+            await descendant.WaitForExitAsync(CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(seconds: 5), CancellationToken.None)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             return descendant.HasExited;
         }

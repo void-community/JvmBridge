@@ -38,8 +38,14 @@ internal sealed unsafe class ModuleAccess(AgentContext context)
         {
             string? failure;
 
-            try { failure = Make(environment, grant, type); }
-            catch (Exception exception) when (exception is JavaException or JniException or MissingMethodException) { failure = exception is JavaException { JavaTypeName: { } name } java ? $"{name}: {java.JavaMessage}" : exception.Message; }
+            try
+            {
+                failure = Make(environment, grant, type);
+            }
+            catch (Exception exception) when (exception is JavaException or JniException or MissingMethodException)
+            {
+                failure = exception is JavaException { JavaTypeName: { } name } java ? $"{name}: {java.JavaMessage}" : exception.Message;
+            }
 
             if (failure is null)
                 context.Log(AgentLogLevel.Debug, $"{grant.Verb}ed {grant.Module}/{grant.Package} to the module of {helper}");

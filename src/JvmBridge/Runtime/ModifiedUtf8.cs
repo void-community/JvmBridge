@@ -16,6 +16,7 @@ public static class ModifiedUtf8
     public static byte[] GetBytes(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
+
         List<byte> bytes = new(value.Length * 3);
         foreach (char character in value)
         {

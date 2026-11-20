@@ -17,8 +17,7 @@ public sealed class AgentLoggerTests
         AgentLogger logger = new(string.Empty, level => true, (level, message) => lines.Add(message));
 
         logger.Log(LogLevel.Error, new EventId(id: 1), state: "bare", exception: null, Format);
-
-        Assert.Equal(["bare"], lines);
+        Assert.Equal(expected: ["bare"], lines);
     }
 
     /// <summary>Levels the context drops are reported disabled and never formatted.</summary>
@@ -27,15 +26,19 @@ public sealed class AgentLoggerTests
     {
         List<string> lines = [];
         int formatted = 0;
-        AgentLogger logger = new(category: "category", level => level >= AgentLogLevel.Warning, (level, message) => lines.Add(message));
+
+        AgentLogger logger = new(category: "category",
+            level => level >= AgentLogLevel.Warning,
+            (level, message) => lines.Add(message));
 
         logger.Log(LogLevel.Debug, new EventId(id: 1), state: "state", exception: null, Count);
         logger.Log(LogLevel.Error, new EventId(id: 2), state: "state", exception: null, Format);
 
+        // Only the error got through the filter, and the debug line was dropped before its formatter could run.
         Assert.False(logger.IsEnabled(LogLevel.Information));
         Assert.True(logger.IsEnabled(LogLevel.Critical));
         Assert.Equal(expected: 0, formatted);
-        Assert.Equal(["category: state"], lines);
+        Assert.Equal(expected: ["category: state"], lines);
 
         string Count(string state, Exception? exception)
         {
@@ -49,13 +52,21 @@ public sealed class AgentLoggerTests
     [Fact]
     public void MapsLevels()
     {
-        AgentLogLevel[] levels = [AgentLogLevel.Trace, AgentLogLevel.Debug, AgentLogLevel.Information, AgentLogLevel.Warning, AgentLogLevel.Error, AgentLogLevel.None];
+        AgentLogLevel[] levels =
+        [
+            AgentLogLevel.Trace,
+            AgentLogLevel.Debug,
+            AgentLogLevel.Information,
+            AgentLogLevel.Warning,
+            AgentLogLevel.Error,
+            AgentLogLevel.None,
+        ];
 
         foreach (AgentLogLevel level in levels)
-            Assert.Equal(level, AgentLogLevels.ToAgentLevel(AgentLogLevels.ToLogLevel(level)));
+            Assert.Equal(level, AgentLogLevels.Convert(AgentLogLevels.Convert(level)));
 
-        Assert.Equal(AgentLogLevel.Error, AgentLogLevels.ToAgentLevel(LogLevel.Critical));
-        Assert.Equal(AgentLogLevel.None, AgentLogLevels.ToAgentLevel(LogLevel.None));
+        Assert.Equal(AgentLogLevel.Error, AgentLogLevels.Convert(LogLevel.Critical));
+        Assert.Equal(AgentLogLevel.None, AgentLogLevels.Convert(LogLevel.None));
     }
 
     /// <summary>A line is prefixed with its category, mapped to the agent level and followed by the exception text.</summary>
@@ -63,11 +74,20 @@ public sealed class AgentLoggerTests
     public void WritesCategoryLevelAndException()
     {
         List<string> lines = [];
-        AgentLogger logger = new(category: "Acme.Service", level => true, (level, message) => lines.Add(level.ToString() + "|" + message));
 
-        logger.Log(LogLevel.Warning, new EventId(id: 2), state: "failed", new InvalidOperationException(message: "boom"), Format);
+        AgentLogger logger = new(category: "Acme.Service",
+            level => true,
+            (level, message) => lines.Add(level.ToString() + "|" + message));
+
+        logger.Log(LogLevel.Warning,
+            new EventId(id: 2),
+            state: "failed",
+            new InvalidOperationException(message: "boom"),
+            Format);
+
         logger.Log(LogLevel.Information, new EventId(id: 3), state: "plain", exception: null, Format);
 
+        // Each entry became one line, and only the entry that carried an exception has its text appended.
         Assert.Equal(expected: 2, lines.Count);
         Assert.StartsWith(expectedStartString: "Warning|Acme.Service: failed", lines[index: 0], StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "InvalidOperationException: boom", lines[index: 0], StringComparison.Ordinal);

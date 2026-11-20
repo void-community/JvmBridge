@@ -14,14 +14,29 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaEnvironment(nint environment)
     {
         ArgumentOutOfRangeException.ThrowIfZero(environment);
+
         _environment = (JNINativeInterface_**)environment;
     }
 
     /// <summary>Gets the JNI function table after validating thread and scope ownership.</summary>
-    public JNINativeInterface_* Functions { get { EnsureAccessible(); return *_environment; } }
+    public JNINativeInterface_* Functions
+    {
+        get
+        {
+            EnsureAccessible();
+            return *_environment;
+        }
+    }
 
     /// <summary>Gets the raw JNI environment pointer after validating thread and scope ownership.</summary>
-    public nint Handle { get { EnsureAccessible(); return (nint)_environment; } }
+    public nint Handle
+    {
+        get
+        {
+            EnsureAccessible();
+            return (nint)_environment;
+        }
+    }
 
     /// <summary>Gets the JNI version reported by this environment.</summary>
     public int Version => Functions->GetVersion(_environment);
@@ -36,7 +51,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
+
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -58,7 +75,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
+
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -79,7 +98,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
+
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -100,6 +121,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentOutOfRangeException.ThrowIfZero(bytes.Length);
+
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* pinnedBytes = bytes)
             return Own(Functions->DefineClass(_environment, encodedName, (_jobject*)loader, (sbyte*)pinnedBytes, bytes.Length), nameof(DefineClass));
@@ -135,6 +157,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public nint GetField(nint type, string name, string descriptor, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* encodedDescriptor = ModifiedUtf8.Encode(descriptor))
         {
@@ -192,7 +215,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaLocalReference GetSuperclass(nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         _jobject* result = Functions->GetSuperclass(_environment, (_jobject*)type);
+
         ThrowIfException(nameof(GetSuperclass));
         return new JavaLocalReference(this, (nint)result);
     }
@@ -201,7 +226,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public bool IsInstanceOf(nint value, nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         bool result = Functions->IsInstanceOf(_environment, (_jobject*)value, (_jobject*)type) != 0;
+
         ThrowIfException(nameof(IsInstanceOf));
         return result;
     }
@@ -274,6 +301,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     private jvalue GetPrimitiveField(nint receiver, nint field, PrimitiveKind kind, bool isStatic)
     {
         ValidateField(receiver, field);
+
         JNINativeInterface_* functions = Functions;
         _jobject* target = (_jobject*)receiver;
         _jfieldID* identifier = (_jfieldID*)field;
@@ -317,6 +345,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     private void SetPrimitiveField(nint receiver, nint field, jvalue value, PrimitiveKind kind, bool isStatic)
     {
         ValidateField(receiver, field);
+
         JNINativeInterface_* functions = Functions;
         _jobject* target = (_jobject*)receiver;
         _jfieldID* identifier = (_jfieldID*)field;
@@ -401,7 +430,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
         ArgumentOutOfRangeException.ThrowIfZero(constructor);
+
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -413,11 +444,15 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(receiver);
         ArgumentOutOfRangeException.ThrowIfZero(method);
+
         JNINativeInterface_* functions = Functions;
         _jobject* target = (_jobject*)receiver;
         _jmethodID* identifier = (_jmethodID*)method;
+
+        // A call without arguments still hands JNI a pointer to a value.
         jvalue result = default;
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -456,6 +491,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
                 }
             }
         }
+
         ThrowIfException($"Call{kind}");
         return result;
     }
@@ -465,6 +501,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
         if (_disposed)
             return;
         EnsureAccessible();
+
         _disposed = true;
     }
 
@@ -486,6 +523,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public nint GetMethod(nint type, string name, string signature, bool isStatic = false)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* encodedSignature = ModifiedUtf8.Encode(signature))
         {
@@ -506,6 +544,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
         if (value == 0)
             return null;
         ushort* characters = Functions->GetStringChars(_environment, (_jobject*)value, null);
+
         ThrowIfException(nameof(GetString));
         if (characters == null)
             throw new InvalidOperationException(message: "GetStringChars returned null.");
@@ -525,6 +564,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaVirtualMachine GetVirtualMachine()
     {
         JNIInvokeInterface_** machine = null;
+
         JavaVirtualMachine.Check(Functions->GetJavaVM(_environment, &machine), nameof(GetVirtualMachine));
         return JavaVirtualMachine.Borrow((nint)machine);
     }
@@ -536,6 +576,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public bool IsSameObject(nint first, nint second)
     {
         bool same = Functions->IsSameObject(_environment, (_jobject*)first, (_jobject*)second) != 0;
+
         ThrowIfException(nameof(IsSameObject));
         return same;
     }
@@ -546,8 +587,10 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaWeakGlobalReference NewWeakGlobalReference(nint value)
     {
         ArgumentOutOfRangeException.ThrowIfZero(value);
+
         JavaVirtualMachine machine = GetVirtualMachine();
         _jobject* weak = Functions->NewWeakGlobalRef(_environment, (_jobject*)value);
+
         ThrowIfException(nameof(NewWeakGlobalReference));
         return weak == null
             ? throw new InvalidOperationException("NewWeakGlobalRef returned a null JNI reference.")
@@ -560,6 +603,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaLocalReference NewLocalReference(nint value)
     {
         _jobject* result = Functions->NewLocalRef(_environment, (_jobject*)value);
+
         ThrowIfException(nameof(NewLocalReference));
         if (result == null && value != 0)
             throw new InvalidOperationException("NewLocalReference returned a null JNI reference.");
@@ -572,6 +616,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     public JavaLocalReference NewString(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
+
         fixed (char* characters = value)
             return Own(Functions->NewString(_environment, (ushort*)characters, value.Length), nameof(NewString));
     }
@@ -588,6 +633,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
         ArgumentOutOfRangeException.ThrowIfZero(function);
+
         fixed (byte* encodedName = ModifiedUtf8.Encode(name))
         fixed (byte* encodedSignature = ModifiedUtf8.Encode(signature))
         {
@@ -604,6 +650,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
 
             JNINativeMethod method = new() { name = encodedName, signature = encodedSignature, fnPtr = (void*)function };
             int result = Functions->RegisterNatives(_environment, (_jobject*)type, &method, 1);
+
             ThrowIfException(nameof(RegisterNative));
             JavaVirtualMachine.Check(result, nameof(RegisterNative));
         }
@@ -617,7 +664,9 @@ public sealed unsafe class JavaEnvironment : IDisposable
         if (functions->ExceptionCheck(_environment) == 0)
             return;
         _jobject* throwable = functions->ExceptionOccurred == null ? null : functions->ExceptionOccurred(_environment);
+
         functions->ExceptionClear(_environment);
+
         string? typeName = null;
         string? message = null;
         string? stackTrace = null;
@@ -665,6 +714,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     {
         JavaVirtualMachine machine = GetVirtualMachine();
         _jobject* global = Functions->NewGlobalRef(_environment, (_jobject*)value);
+
         ThrowIfException(nameof(Promote));
         return global == null
             ? throw new InvalidOperationException(message: "NewGlobalRef failed; the original local reference is still owned by the caller.")
@@ -674,6 +724,7 @@ public sealed unsafe class JavaEnvironment : IDisposable
     internal JavaLocalReference? TryPromoteWeak(nint value)
     {
         _jobject* local = Functions->NewLocalRef(_environment, (_jobject*)value);
+
         ThrowIfException(nameof(TryPromoteWeak));
         return local == null ? null : new JavaLocalReference(this, (nint)local);
     }

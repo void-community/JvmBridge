@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace JvmBridge.Testing;
 
 /// <summary>What an installed JDK says it is: the major version of its Java specification and its JVM implementation.</summary>
@@ -11,7 +12,7 @@ internal sealed record InstalledJdk(int Major, string Implementation)
     /// <inheritdoc/>
     public override string ToString()
     {
-        return $"Java {Major.ToString(System.Globalization.CultureInfo.InvariantCulture)} ({Implementation})";
+        return $"Java {Major.ToString(CultureInfo.InvariantCulture)} ({Implementation})";
     }
 
     /// <summary>Reads the output of <c>java -XshowSettings:properties -version</c>, which every JDK from Java 8 prints, unlike the <c>release</c> file that some builds of Java 8 lack.</summary>
@@ -38,9 +39,8 @@ internal sealed record InstalledJdk(int Major, string Implementation)
         // Java 8 and earlier report 1.<major>; Java 9 and later report the major itself.
         string majorText = version.StartsWith(value: "1.", StringComparison.Ordinal) ? version[2..] : version;
         int dot = majorText.IndexOf(value: '.', StringComparison.Ordinal);
-
         string digits = dot < 0 ? majorText : majorText[..dot];
-        bool parsed = int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int major);
+        bool parsed = int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out int major);
 
         if (!parsed)
             return null;

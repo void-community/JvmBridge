@@ -13,8 +13,11 @@ public static unsafe class JavaMonitors
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentOutOfRangeException.ThrowIfZero(target);
+
         environment.EnsureAccessible();
+
         int result = environment.Functions->MonitorEnter((JNINativeInterface_**)environment.Handle, (_jobject*)target);
+
         environment.ThrowIfException(nameof(MonitorEnter));
 
         if (result != 0)

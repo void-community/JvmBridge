@@ -13,13 +13,16 @@ internal sealed class JdkArchiveManager(HttpService http)
     public async Task<string> UnpackAsync(JdkArchive archive, string directory, CancellationToken cancellationToken)
     {
         FileSystem.EnsureDirectory(directory);
+
         bool zipped = archive.Url.EndsWith(value: ".zip", StringComparison.OrdinalIgnoreCase);
         string archivePath = Path.Combine(directory, zipped ? "jdk.zip" : "jdk.tar.gz");
         string downloadLog = Path.Combine(directory, path2: "download.log");
 
         try
         {
-            await _http.DownloadFileAsync(archive.Url, archivePath, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await _http.DownloadFileAsync(archive.Url, archivePath, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             TextFile.Write(downloadLog, $"Downloaded {archive.Url}\n");
         }
         catch (Exception failure)
@@ -31,13 +34,15 @@ internal sealed class JdkArchiveManager(HttpService http)
 
         using (FileStream stream = File.OpenRead(archivePath))
         {
-            string actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+            string actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false));
 
             if (!string.Equals(actual, archive.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("JDK SHA256 mismatch: " + archive.Url);
         }
 
         string target = Path.Combine(directory, path2: "jdk");
+
         FileSystem.EnsureDirectory(target);
 
         if (zipped)
@@ -50,9 +55,7 @@ internal sealed class JdkArchiveManager(HttpService http)
         string executable = OperatingSystem.IsWindows() ? "java.exe" : "java";
 
         string? home = Directory.EnumerateFiles(target, executable, SearchOption.AllDirectories)
-            .Where(
-                static path => string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), b: "bin", StringComparison.Ordinal) && File.Exists(Path.Combine(Directory.GetParent(path)?.Parent?.FullName ?? string.Empty, path2: "include", path3: "jni.h"))
-            )
+            .Where(static path => Path.GetFileName(Path.GetDirectoryName(path)) is "bin" && File.Exists(Path.Combine(Directory.GetParent(path)?.Parent?.FullName ?? string.Empty, path2: "include", path3: "jni.h")))
             .Select(static path => Directory.GetParent(path)?.Parent?.FullName)
             .Where(static path => path is not null)
             .Cast<string>()
@@ -108,8 +111,12 @@ internal sealed class JdkArchiveManager(HttpService http)
         string fullRoot = Path.GetFullPath(root) + Path.DirectorySeparatorChar.ToString();
         string destination = Path.GetFullPath(Path.Combine(root, name));
 
-        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        bool outsideRoot = !destination.StartsWith(fullRoot, comparison) && !string.Equals(destination, fullRoot[..^1], comparison);
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        bool outsideRoot = !destination.StartsWith(fullRoot, comparison)
+            && !string.Equals(destination, fullRoot[..^1], comparison);
 
         return outsideRoot ? throw new InvalidOperationException("Unsafe archive path: " + name) : destination;
     }

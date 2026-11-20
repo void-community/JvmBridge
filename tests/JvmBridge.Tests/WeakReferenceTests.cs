@@ -11,14 +11,23 @@ namespace JvmBridge.Tests;
 public sealed unsafe class WeakReferenceTests
 {
     [ThreadStatic] private static int s_clearedExceptions;
+
     [ThreadStatic] private static bool s_collected;
+
     [ThreadStatic] private static int s_deletedLocal;
+
     [ThreadStatic] private static int s_deletedWeak;
+
     [ThreadStatic] private static int s_detachCount;
+
     [ThreadStatic] private static bool s_detached;
+
     [ThreadStatic] private static nint s_environment;
+
     [ThreadStatic] private static bool s_failCreation;
+
     [ThreadStatic] private static nint s_machine;
+
     [ThreadStatic] private static bool s_pendingException;
 
     /// <summary>A missing referent does not produce a local owner, unlike a pending exception.</summary>
@@ -29,6 +38,7 @@ public sealed unsafe class WeakReferenceTests
         JNINativeInterface_* nativePointer = &native;
         JNIInvokeInterface_ invocation = InvocationTable();
         JNIInvokeInterface_* invocationPointer = &invocation;
+
         Initialize((nint)(&nativePointer), (nint)(&invocationPointer));
 
         using JavaEnvironment environment = new(s_environment);
@@ -36,9 +46,13 @@ public sealed unsafe class WeakReferenceTests
         using JavaWeakGlobalReference weak = environment.NewWeakGlobalReference(value: 123);
 
         s_collected = true;
+
         Assert.Null(weak.TryPromote(environment));
+
         s_pendingException = true;
+
         JavaException failure = Assert.Throws<JavaException>(() => weak.TryPromote(environment));
+
         Assert.Equal(expected: "TryPromoteWeak", failure.Operation);
         Assert.Equal(expected: 1, s_clearedExceptions);
         Assert.Null(weak.TryPromote(environment));
@@ -52,20 +66,25 @@ public sealed unsafe class WeakReferenceTests
         JNINativeInterface_* nativePointer = &native;
         JNIInvokeInterface_ invocation = InvocationTable();
         JNIInvokeInterface_* invocationPointer = &invocation;
+
         Initialize((nint)(&nativePointer), (nint)(&invocationPointer));
 
         using JavaEnvironment environment = new(s_environment);
 
         ArgumentOutOfRangeException invalid = Assert.Throws<ArgumentOutOfRangeException>(() => environment.NewWeakGlobalReference(value: 0));
+
         Assert.Equal(expected: "value", invalid.ParamName);
+
         s_failCreation = true;
-        Assert.Contains(
-            expectedSubstring: "NewWeakGlobalRef",
+
+        Assert.Contains(expectedSubstring: "NewWeakGlobalRef",
             Assert.Throws<InvalidOperationException>(() => environment.NewWeakGlobalReference(value: 123)).Message,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         s_pendingException = true;
+
         JavaException failure = Assert.Throws<JavaException>(() => environment.NewWeakGlobalReference(value: 123));
+
         Assert.Equal(nameof(JavaEnvironment.NewWeakGlobalReference), failure.Operation);
         Assert.Equal(expected: 1, s_clearedExceptions);
     }
@@ -78,18 +97,22 @@ public sealed unsafe class WeakReferenceTests
         JNINativeInterface_* nativePointer = &native;
         JNIInvokeInterface_ invocation = InvocationTable();
         JNIInvokeInterface_* invocationPointer = &invocation;
+
         Initialize((nint)(&nativePointer), (nint)(&invocationPointer));
 
         using JavaEnvironment environment = new(s_environment);
 
         s_pendingException = true;
+
         void Compare()
         {
             bool same = environment.IsSameObject(first: 123, second: 123);
+
             Assert.True(same);
         }
 
         JavaException failure = Assert.Throws<JavaException>(Compare);
+
         Assert.Equal(nameof(JavaEnvironment.IsSameObject), failure.Operation);
         Assert.Equal(expected: 1, s_clearedExceptions);
     }
@@ -102,19 +125,26 @@ public sealed unsafe class WeakReferenceTests
         JNINativeInterface_* nativePointer = &native;
         JNIInvokeInterface_ invocation = InvocationTable();
         JNIInvokeInterface_* invocationPointer = &invocation;
+
         Initialize((nint)(&nativePointer), (nint)(&invocationPointer));
 
         using JavaEnvironment environment = new(s_environment);
 
         JavaWeakGlobalReference weak = environment.NewWeakGlobalReference(value: 123);
+
         Assert.Equal(expected: 456, weak.Handle);
 
         using (JavaLocalReference? local = weak.TryPromote(environment))
         {
+            // The promotion gives a local reference with a handle of its own.
             Assert.NotNull(local);
             Assert.Equal(expected: 789, local.Handle);
+
+            // The local is the referent and no other object.
             Assert.True(environment.IsSameObject(local.Handle, second: 123));
             Assert.False(environment.IsSameObject(local.Handle, second: 999));
+
+            // A null reference is the same object as a null reference only.
             Assert.True(environment.IsSameObject(first: 0, second: 0));
             Assert.False(environment.IsSameObject(first: 0, local.Handle));
         }
@@ -122,20 +152,22 @@ public sealed unsafe class WeakReferenceTests
         Assert.Equal(expected: 1, s_deletedLocal);
 
         s_detached = true;
+
         weak.Dispose();
         weak.Dispose();
         Assert.Equal(expected: 1, s_deletedWeak);
         Assert.Equal(expected: 1, s_detachCount);
+
         ObjectDisposedException disposedPromotion = Assert.Throws<ObjectDisposedException>(() => weak.TryPromote(environment));
+
         Assert.Equal(typeof(JavaWeakGlobalReference).FullName, disposedPromotion.ObjectName);
 
-        ObjectDisposedException disposedHandle = Assert.Throws<ObjectDisposedException>(
-            () =>
-            {
-                nint handle = weak.Handle;
-                Assert.Equal(expected: 456, handle);
-            }
-        );
+        ObjectDisposedException disposedHandle = Assert.Throws<ObjectDisposedException>(() =>
+        {
+            nint handle = weak.Handle;
+
+            Assert.Equal(expected: 456, handle);
+        });
 
         Assert.Equal(nameof(JavaWeakGlobalReference), disposedHandle.ObjectName);
     }
@@ -148,6 +180,7 @@ public sealed unsafe class WeakReferenceTests
         JNINativeInterface_* nativePointer = &native;
         JNIInvokeInterface_ invocation = InvocationTable();
         JNIInvokeInterface_* invocationPointer = &invocation;
+
         Initialize((nint)(&nativePointer), (nint)(&invocationPointer));
 
         using JavaEnvironment environment = new(s_environment);
@@ -155,19 +188,26 @@ public sealed unsafe class WeakReferenceTests
         using JavaWeakGlobalReference weak = environment.NewWeakGlobalReference(value: 123);
 
         s_machine = 1;
+
         InvalidOperationException wrongMachine = Assert.Throws<InvalidOperationException>(() => weak.TryPromote(environment));
+
         Assert.Contains(expectedSubstring: "different JVM", wrongMachine.Message, StringComparison.Ordinal);
+
         s_machine = (nint)(&invocationPointer);
 
         Exception? wrongThread = null;
         Thread worker = new(() => wrongThread = Record.Exception(() => weak.TryPromote(environment)));
+
         worker.Start();
         worker.Join();
-        InvalidOperationException threadException = Assert.IsType<InvalidOperationException>(wrongThread);
-        Assert.Contains(expectedSubstring: "threads", threadException.Message, StringComparison.Ordinal);
 
+        InvalidOperationException threadException = Assert.IsType<InvalidOperationException>(wrongThread);
+
+        Assert.Contains(expectedSubstring: "threads", threadException.Message, StringComparison.Ordinal);
         environment.Dispose();
+
         ObjectDisposedException disposedEnvironment = Assert.Throws<ObjectDisposedException>(() => weak.TryPromote(environment));
+
         Assert.Equal(typeof(JavaEnvironment).FullName, disposedEnvironment.ObjectName);
     }
 
@@ -233,12 +273,17 @@ public sealed unsafe class WeakReferenceTests
 
     private static void Initialize(nint environment, nint machine)
     {
+        // The handles the fake functions hand out for the environment and the JVM.
         s_environment = environment;
         s_machine = machine;
+
+        // Nothing is collected, pending, failing or detached until a test says so.
         s_collected = false;
         s_pendingException = false;
         s_failCreation = false;
         s_detached = false;
+
+        // The counts of what the fake functions were asked to do start again.
         s_deletedWeak = 0;
         s_deletedLocal = 0;
         s_clearedExceptions = 0;

@@ -7,13 +7,13 @@ namespace FootprintAgent;
 public sealed class MinimalAgent : JavaAgent
 {
     private const string Helper = "jvmbridge/footprint/Helpers";
-
     private const string Target = "jvmbridge/footprint/Target";
 
     /// <inheritdoc/>
     public override void Configure(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         context.DefineClass(CreateHelper(), ClassLoaderTarget.Bootstrap);
         context.Patch(ClassPatch.For(Target).ReplaceConstant(oldValue: "footprint-before", newValue: "footprint-after"));
     }
@@ -21,6 +21,7 @@ public sealed class MinimalAgent : JavaAgent
     // static int one() { return 1; }
     private static JavaClassDefinition CreateHelper()
     {
-        return JavaClassDefinition.FromBytes(new ClassFileWriter(Helper).AddMethod(name: "one", descriptor: "()I", static code => code.IConst(value: 1).IReturn()).ToArray());
+        return JavaClassDefinition.FromBytes(new ClassFileWriter(Helper).AddMethod(name: "one", descriptor: "()I", static code => code.IConst(value: 1).IReturn())
+            .ToArray());
     }
 }

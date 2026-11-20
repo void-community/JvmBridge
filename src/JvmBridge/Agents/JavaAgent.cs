@@ -27,6 +27,7 @@ public abstract class JavaAgent
     public virtual void OnCommand(AgentContext context, string command)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         context.Log("ignored a command because the agent does not handle commands: " + command);
     }
 

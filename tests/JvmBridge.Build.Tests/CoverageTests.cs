@@ -15,9 +15,10 @@ public sealed class CoverageTests
     public void ExactPinnedResultIsAccepted()
     {
         JdkEntry entry = Entry();
-        JsonObject result = JsonFile.ToObject(entry);
-        result.SetProperty(propertyName: "status", value: "passed");
-        CoverageValidator.Validate([entry], [result]);
+        JsonObject evidence = JsonFile.ToObject(entry);
+
+        evidence.SetProperty(propertyName: "status", value: "passed");
+        CoverageValidator.Validate(inventory: [entry], results: [evidence]);
     }
 
     /// <summary>Missing cells, failed cells, and different archive digests cannot satisfy coverage.</summary>
@@ -30,10 +31,13 @@ public sealed class CoverageTests
     public void InvalidEvidenceIsRejected(string status, string checksum)
     {
         JdkEntry entry = Entry();
-        JsonObject result = JsonFile.ToObject(entry);
-        result.SetProperty(propertyName: "status", status);
-        result.SetProperty(propertyName: "sha256", checksum);
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => CoverageValidator.Validate([entry], [result]));
+        JsonObject evidence = JsonFile.ToObject(entry);
+
+        evidence.SetProperty(propertyName: "status", status);
+        evidence.SetProperty(propertyName: "sha256", checksum);
+
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => CoverageValidator.Validate(inventory: [entry], results: [evidence]));
+
         Assert.Contains(expectedSubstring: "JVM cell", failure.Message, StringComparison.Ordinal);
     }
 
@@ -41,7 +45,8 @@ public sealed class CoverageTests
     [Fact]
     public void MissingResultIsRejected()
     {
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(static () => CoverageValidator.Validate([Entry()], []));
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(static () => CoverageValidator.Validate(inventory: [Entry()], results: []));
+
         Assert.Contains(expectedSubstring: "Unverified", failure.Message, StringComparison.Ordinal);
     }
 

@@ -24,14 +24,15 @@ internal sealed class FootprintReporter(RepositoryContext repository)
             "Each CI run reports the same figures in its job summary; none of them fails a build. Shared runners are noisy: a start-up difference of a few milliseconds is within that noise, and a negative figure means exactly that. Regenerate this page with `dotnet run --project src/JvmBridge.Maintenance -- footprint <directory with the footprint-* artifacts>`.",
             string.Empty,
             "| Target | Java | Library (MiB) | Start-up without (ms) | Start-up with (ms) | Added (ms) | Peak memory added (MiB) |",
-            "|---|---|---|---|---|---|---|"
+            "|---|---|---|---|---|---|---|",
         ];
 
         foreach ((string rid, SortedDictionary<int, JsonObject> byMajor) in measurements)
         {
             foreach ((int major, JsonObject entry) in byMajor)
             {
-                long size = (long)Number(entry, name: "librarySizeBytes");
+                long size = long.CreateChecked(Number(entry, name: "librarySizeBytes"));
+
                 lines.Add(Row(rid, major, entry, size));
             }
         }
@@ -46,24 +47,31 @@ internal sealed class FootprintReporter(RepositoryContext repository)
 
     private static SortedDictionary<string, SortedDictionary<int, JsonObject>> Read(string directory)
     {
-        SortedDictionary<string, SortedDictionary<int, JsonObject>> result = [];
+        SortedDictionary<string, SortedDictionary<int, JsonObject>> byRid = [];
 
-        foreach (string file in Directory.EnumerateFiles(directory, searchPattern: "hotspot-*.json", SearchOption.AllDirectories))
+        foreach (string file in Directory.EnumerateFiles(directory,
+            searchPattern: "hotspot-*.json",
+            SearchOption.AllDirectories))
         {
-            JsonObject entry = JsonNode.Parse(File.ReadAllText(file))?.AsObject() ?? throw new InvalidOperationException(file + " is empty.");
-            string rid = entry.TryGetPropertyValue(propertyName: "rid", out JsonNode? ridNode) && ridNode is not null ? ridNode.GetValue<string>() : throw new InvalidOperationException(file + " has no rid.");
-            int major = (int)Number(entry, name: "java");
+            JsonObject entry = JsonNode.Parse(File.ReadAllText(file))?.AsObject()
+                ?? throw new InvalidOperationException(file + " is empty.");
 
-            if (!result.TryGetValue(rid, out SortedDictionary<int, JsonObject>? byMajor))
+            string rid = entry.TryGetPropertyValue(propertyName: "rid", out JsonNode? ridNode) && ridNode is not null
+                ? ridNode.GetValue<string>()
+                : throw new InvalidOperationException(file + " has no rid.");
+
+            int major = int.CreateChecked(Number(entry, name: "java"));
+
+            if (!byRid.TryGetValue(rid, out SortedDictionary<int, JsonObject>? byMajor))
             {
                 byMajor = [];
-                result[rid] = byMajor;
+                byRid[rid] = byMajor;
             }
 
             byMajor[major] = entry;
         }
 
-        return result;
+        return byRid;
     }
 
     private static string Row(string rid, int major, JsonObject entry, long size)
@@ -80,7 +88,7 @@ internal sealed class FootprintReporter(RepositoryContext repository)
             Number(entry, name: "startupWithoutAgentMs").ToString(format: "0.0", CultureInfo.InvariantCulture),
             Number(entry, name: "startupWithAgentMs").ToString(format: "0.0", CultureInfo.InvariantCulture),
             Number(entry, name: "startupAddedMs").ToString(format: "0.0", CultureInfo.InvariantCulture),
-            memory
+            memory,
         ];
 
         return "| " + string.Join(separator: " | ", cells) + " |";

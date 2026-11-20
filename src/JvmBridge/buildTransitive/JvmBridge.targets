@@ -156,7 +156,7 @@
       <_JvmBridgeProxyFile>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'jvmbridge-java', 'JavaProxies.g.cs'))</_JvmBridgeProxyFile>
     </PropertyGroup>
     <Error Condition="'$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JavaReference reads jars with a task that only runs under dotnet build. Build with the dotnet CLI." />
-    <GenerateJavaProxies References="@(JavaReference)" GeneratorAssembly="$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'analyzers', 'dotnet', 'cs', 'JvmBridge.Generator.dll'))" OutputFile="$(_JvmBridgeProxyFile)" />
+    <GenerateJavaProxies References="@(JavaReference->'%(FullPath)%09%(Identity)%09%(Types)', '%0A')" GeneratorAssembly="$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'analyzers', 'dotnet', 'cs', 'JvmBridge.Generator.dll'))" OutputFile="$(_JvmBridgeProxyFile)" />
     <ItemGroup>
       <Compile Include="$(_JvmBridgeProxyFile)" />
       <FileWrites Include="$(_JvmBridgeProxyFile)" />
@@ -172,7 +172,7 @@
     <ItemGroup>
       <_JvmBridgeAgentJarLibrary Include="$(_JvmBridgeAgentLibrary)" Rid="$(RuntimeIdentifier)" />
     </ItemGroup>
-    <PackAgentJar Libraries="@(_JvmBridgeAgentJarLibrary)" OutputFile="$(_JvmBridgeAgentJar)" />
+    <PackAgentJar Libraries="@(_JvmBridgeAgentJarLibrary->'%(FullPath)%09%(Rid)', '%0A')" OutputFile="$(_JvmBridgeAgentJar)" />
   </Target>
   <!--
     Combines the jars that the publish of each platform wrote into one jar, after a CI matrix has published every platform on a runner of its own:
@@ -188,6 +188,6 @@
     </PropertyGroup>
     <Error Condition="'$(MSBuildRuntimeType)' != 'Core'" Code="JVMB009" Text="JvmBridgeMergeAgentJars writes the jar with a task that only runs under the dotnet CLI. Run it with dotnet msbuild." />
     <Error Condition="'@(_JvmBridgeMergedJar)' == ''" Code="JVMB015" Text="JvmBridgeMergeAgentJars found no jar to combine. Name them with JvmBridgeAgentJars, for example -p:JvmBridgeAgentJars=&quot;agents/**/*.jar&quot;; a pattern is relative to the project." />
-    <PackAgentJar Jars="@(_JvmBridgeMergedJar)" OutputFile="$(_JvmBridgeMergedJarOutput)" />
+    <PackAgentJar Jars="@(_JvmBridgeMergedJar->'%(FullPath)', '%0A')" OutputFile="$(_JvmBridgeMergedJarOutput)" />
   </Target>
 </Project>

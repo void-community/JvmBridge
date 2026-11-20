@@ -13,10 +13,13 @@ namespace JvmBridge.Tests;
 /// </summary>
 public sealed unsafe class RuntimeTests
 {
-    private static int s_clearedExceptions;
+    // What the fake DefineClass was called with.
     private static byte[]? s_definedBytes;
     private static nint s_definedLoader;
     private static byte[]? s_definedName;
+
+    // The exception a definition leaves pending, how often one was cleared, and the local reference that was deleted.
+    private static int s_clearedExceptions;
     private static nint s_deletedReference;
     private static bool s_pendingDefinitionException;
 
@@ -24,9 +27,14 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void DefineClassClearsPendingJavaException()
     {
-        JNINativeInterface_ table = new() { DefineClass = &FakeDefineClass, ExceptionCheck = &FakeExceptionCheck, ExceptionClear = &FakeExceptionClear };
-        JNINativeInterface_* functions = &table;
+        JNINativeInterface_ table = new()
+        {
+            DefineClass = &FakeDefineClass,
+            ExceptionCheck = &FakeExceptionCheck,
+            ExceptionClear = &FakeExceptionClear
+        };
 
+        JNINativeInterface_* functions = &table;
         nint environmentHandle = (nint)(&functions);
 
         using JavaEnvironment environment = new(environmentHandle);
@@ -34,12 +42,17 @@ public sealed unsafe class RuntimeTests
         s_pendingDefinitionException = true;
         s_clearedExceptions = 0;
 
-        JavaException exception = Assert.Throws<JavaException>(() => environment.DefineClass(name: "example/Agent", loader: 0, [1]));
+        JavaException exception = Assert.Throws<JavaException>(() => environment.DefineClass(name: "example/Agent",
+            loader: 0,
+            bytes: [1]));
 
+        // The managed error names the operation and has no Java details, because the fake JVM describes no exception.
         Assert.Equal(nameof(JavaEnvironment.DefineClass), exception.Operation);
         Assert.Null(exception.JavaTypeName);
         Assert.Null(exception.JavaMessage);
         Assert.Null(exception.JavaStackTrace);
+
+        // The pending Java exception was cleared once, after the definition reached the JVM with the loader it was given.
         Assert.Equal(expected: 1, s_clearedExceptions);
         Assert.False(s_pendingDefinitionException);
         Assert.Equal(expected: 0, s_definedLoader);
@@ -49,9 +62,15 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void DefineClassOwnsTheReturnedLocalReference()
     {
-        JNINativeInterface_ table = new() { DefineClass = &FakeDefineClass, ExceptionCheck = &FakeExceptionCheck, ExceptionClear = &FakeExceptionClear, DeleteLocalRef = &FakeDeleteLocal };
-        JNINativeInterface_* functions = &table;
+        JNINativeInterface_ table = new()
+        {
+            DefineClass = &FakeDefineClass,
+            ExceptionCheck = &FakeExceptionCheck,
+            ExceptionClear = &FakeExceptionClear,
+            DeleteLocalRef = &FakeDeleteLocal
+        };
 
+        JNINativeInterface_* functions = &table;
         nint environmentHandle = (nint)(&functions);
 
         using JavaEnvironment environment = new(environmentHandle);
@@ -59,7 +78,9 @@ public sealed unsafe class RuntimeTests
         s_pendingDefinitionException = false;
         s_deletedReference = 0;
 
-        using (JavaLocalReference type = environment.DefineClass(name: "example/Agent", loader: 123, [0xca, 0xfe, 0xba, 0xbe]))
+        using (JavaLocalReference type = environment.DefineClass(name: "example/Agent",
+            loader: 123,
+            bytes: [0xca, 0xfe, 0xba, 0xbe]))
             Assert.Equal(expected: 456, type.Handle);
 
         Assert.Equal(ModifiedUtf8.Encode(value: "example/Agent"), s_definedName);
@@ -74,11 +95,14 @@ public sealed unsafe class RuntimeTests
     {
         ClassTransformContext callback = default;
 
+        // Without an environment JNI cannot be used through the context.
         Assert.Null(callback.Environment);
+        Assert.False(callback.CanUseJni);
+
+        // Every reference the JVM may leave out is absent.
         Assert.Equal(expected: 0, callback.Loader);
         Assert.Equal(expected: 0, callback.ProtectionDomain);
         Assert.Equal(expected: 0, callback.ClassBeingRedefined);
-        Assert.False(callback.CanUseJni);
     }
 
     /// <summary>
@@ -92,13 +116,17 @@ public sealed unsafe class RuntimeTests
         InvalidOperationException? observedException = null;
         nint? unexpectedHandle = null;
 
-        Thread worker = new(
-            () =>
+        Thread worker = new(() =>
         {
-            try { unexpectedHandle = environment.Handle; }
-            catch (InvalidOperationException exception) { observedException = exception; }
-        }
-        );
+            try
+            {
+                unexpectedHandle = environment.Handle;
+            }
+            catch (InvalidOperationException exception)
+            {
+                observedException = exception;
+            }
+        });
 
         worker.Start();
         worker.Join();
@@ -113,6 +141,7 @@ public sealed unsafe class RuntimeTests
     public void EnvironmentRejectsDisposedAccess()
     {
         JavaEnvironment environment = new(environment: 1);
+
         environment.Dispose();
 
         void AccessEnvironment()
@@ -136,6 +165,7 @@ public sealed unsafe class RuntimeTests
         jvmtiHeapCallbacks callbacks = default;
         delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long, long, long*, long*, int, void*, int> reference = callbacks.heap_reference_callback;
         delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long*, jvalue, jvmtiPrimitiveType, void*, int> primitive = callbacks.primitive_field_callback;
+
         Assert.True(reference == null && primitive == null);
     }
 
@@ -145,8 +175,11 @@ public sealed unsafe class RuntimeTests
     {
         JavaException exception = new(nameof(JavaEnvironment.FindClass));
 
+        // The operation is kept and is part of the message.
         Assert.Equal(nameof(JavaEnvironment.FindClass), exception.Operation);
         Assert.Contains(nameof(JavaEnvironment.FindClass), exception.Message, StringComparison.Ordinal);
+
+        // An exception made from the operation alone has no Java details.
         Assert.Null(exception.JavaTypeName);
         Assert.Null(exception.JavaMessage);
         Assert.Null(exception.JavaStackTrace);
@@ -158,9 +191,16 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void JavaInterfacesPreserveEstablishedSlots()
     {
-        Assert.Equal(171 * IntPtr.Size, Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt32());
+        // A function is at the slot the JNI specification numbers it with.
+        Assert.Equal(171 * IntPtr.Size,
+            Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt32());
+
         Assert.Equal(219 * IntPtr.Size, Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetJavaVM)).ToInt32());
-        Assert.Equal(235 * IntPtr.Size, Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetStringUTFLengthAsLong)).ToInt32());
+
+        Assert.Equal(235 * IntPtr.Size,
+            Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetStringUTFLengthAsLong)).ToInt32());
+
+        // The native values have the sizes the JVM reads and writes.
         Assert.Equal(expected: 16, sizeof(jvmtiCapabilities));
         Assert.Equal(expected: 8, sizeof(jvalue));
     }
@@ -171,8 +211,9 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void ModifiedUtf8PreservesUnpairedSurrogates()
     {
-        string value = new(['\ud800', 'x', '\udfff']);
+        string value = new(value: ['\ud800', 'x', '\udfff']);
         byte[] encoded = ModifiedUtf8.Encode(value);
+
         Assert.Equal(value, ModifiedUtf8.Decode(encoded.AsSpan(start: 0, encoded.Length - 1)));
     }
 
@@ -188,6 +229,7 @@ public sealed unsafe class RuntimeTests
     public void ModifiedUtf8PreservesUtf16CodeUnits(string value)
     {
         byte[] encoded = ModifiedUtf8.Encode(value);
+
         Assert.Equal(expected: 0, encoded[^1]);
         Assert.DoesNotContain((byte)0, encoded[..^1]);
         Assert.Equal(value, ModifiedUtf8.Decode(encoded.AsSpan(start: 0, encoded.Length - 1)));
@@ -199,13 +241,12 @@ public sealed unsafe class RuntimeTests
     [Fact]
     public void ModifiedUtf8RejectsStandardFourByteEncoding()
     {
-        FormatException exception = Assert.Throws<FormatException>(
-            static () =>
-            {
-                string unexpectedValue = ModifiedUtf8.Decode([0xf0, 0x9f, 0x98, 0x80]);
-                GC.KeepAlive(unexpectedValue);
-            }
-        );
+        FormatException exception = Assert.Throws<FormatException>(static () =>
+        {
+            string unexpectedValue = ModifiedUtf8.Decode(value: [0xf0, 0x9f, 0x98, 0x80]);
+
+            GC.KeepAlive(unexpectedValue);
+        });
 
         Assert.NotEmpty(exception.Message);
     }

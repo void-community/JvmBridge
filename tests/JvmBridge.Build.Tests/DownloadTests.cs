@@ -15,9 +15,16 @@ public sealed class DownloadTests
 {
     private const string Address = "https://example.invalid/app.jar";
 
-    private static readonly byte[] Payload = [.. Enumerable.Range(start: 0, count: 300_000).Select(static index => (byte)(index % 251))];
+    private static readonly byte[] Payload = [.. Enumerable.Range(start: 0, count: 300_000)
+        .Select(static index => byte.CreateTruncating(index % 251))];
 
-    private static readonly TimeSpan[] Pauses = [TimeSpan.FromSeconds(seconds: 2), TimeSpan.FromSeconds(seconds: 4), TimeSpan.FromSeconds(seconds: 8), TimeSpan.FromSeconds(seconds: 16)];
+    private static readonly TimeSpan[] Pauses =
+    [
+        TimeSpan.FromSeconds(seconds: 2),
+        TimeSpan.FromSeconds(seconds: 4),
+        TimeSpan.FromSeconds(seconds: 8),
+        TimeSpan.FromSeconds(seconds: 16),
+    ];
 
     /// <summary>Requests that get no answer, as when a name does not resolve, and a transient status are asked again through all four pauses, half a minute in all.</summary>
     [Fact]
@@ -63,7 +70,7 @@ public sealed class DownloadTests
 
         Assert.Equal(SHA256.HashData(Payload), SHA256.HashData(await File.ReadAllBytesAsync(path, CancellationToken.None)));
         Assert.Equal(expected: 2, handler.Requests);
-        Assert.Equal([Pauses[0]], pauses);
+        Assert.Equal(expected: [Pauses[0]], pauses);
     }
 
     /// <summary>A connection reset on every attempt fails after the fifth with the address and the reset in the message, and deletes the part that was written.</summary>
@@ -82,13 +89,18 @@ public sealed class DownloadTests
 
         string path = Path.Combine(temporary.Path, path2: "app.jar");
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => http.DownloadFileAsync(Address, path, CancellationToken.None));
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => http.DownloadFileAsync(Address,
+            path,
+            CancellationToken.None));
 
         IOException reset = Assert.IsType<IOException>(failure.InnerException);
 
+        // The message names the address and the attempts, and ends with the reset that failed the last of them.
         Assert.StartsWith("Could not download " + Address + " in 5 attempts: ", failure.Message, StringComparison.Ordinal);
         Assert.EndsWith(reset.Message, failure.Message, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Connection reset by peer", reset.Message, StringComparison.Ordinal);
+
+        // Every attempt was made, with each pause between them, and the part that was written is gone.
         Assert.Equal(expected: 5, handler.Requests);
         Assert.Equal(Pauses, pauses);
         Assert.Empty(Directory.EnumerateFileSystemEntries(temporary.Path));
@@ -110,7 +122,7 @@ public sealed class DownloadTests
 
         Assert.Equal(expected: "pinned", text);
         Assert.Equal(expected: 2, handler.Requests);
-        Assert.Equal([Pauses[0]], pauses);
+        Assert.Equal(expected: [Pauses[0]], pauses);
     }
 
     /// <summary>A status that is not transient, such as 404, fails at once, names the address and leaves no file; a text that may be missing is read as none.</summary>
@@ -129,11 +141,17 @@ public sealed class DownloadTests
 
         string path = Path.Combine(temporary.Path, path2: "app.jar");
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => http.DownloadFileAsync(Address, path, CancellationToken.None));
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => http.DownloadFileAsync(Address,
+            path,
+            CancellationToken.None));
+
         string? text = await http.GetStringAsync(Address, missing: true, CancellationToken.None);
 
+        // The download fails with the status and the address, while the text that may be missing reads as none.
         Assert.Equal("Download failed HTTP 404: " + Address, failure.Message);
         Assert.Null(text);
+
+        // Neither request was repeated or waited for, and the failed download left no file.
         Assert.Equal(expected: 2, handler.Requests);
         Assert.Empty(pauses);
         Assert.False(File.Exists(path));
@@ -157,12 +175,18 @@ public sealed class DownloadTests
     // The server sends a third of the file, then the connection is reset.
     private static HttpResponseMessage Reset()
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new ResetStream(Payload[..100_000])) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new ResetStream(Payload[..100_000]))
+        };
     }
 
     private static HttpResponseMessage Text()
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(content: "pinned", Encoding.UTF8) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content: "pinned", Encoding.UTF8)
+        };
     }
 
     private static HttpResponseMessage Unavailable()
@@ -177,7 +201,10 @@ public sealed class DownloadTests
 
     private static HttpResponseMessage Whole()
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Payload) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Payload)
+        };
     }
 
     // Fails as a connection reset by the peer does, once the part it was given has been read.
@@ -187,7 +214,9 @@ public sealed class DownloadTests
         {
             int read = await base.ReadAsync(buffer, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-            return read > 0 ? read : throw new IOException(message: "Unable to read data from the transport connection: Connection reset by peer.");
+            return read > 0
+                ? read
+                : throw new IOException(message: "Unable to read data from the transport connection: Connection reset by peer.");
         }
     }
 
@@ -195,6 +224,7 @@ public sealed class DownloadTests
     private sealed class ScriptedHandler(params Func<HttpResponseMessage>[] answers) : HttpMessageHandler
     {
         private readonly Func<HttpResponseMessage>[] _answers = answers;
+
         private int _requests;
 
         internal int Requests => Volatile.Read(ref _requests);

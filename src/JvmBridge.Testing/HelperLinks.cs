@@ -12,6 +12,9 @@ namespace JvmBridge.Testing;
 /// </summary>
 internal static class HelperLinks
 {
+    private const int PrivateFlag = 0x0002;
+    private const int PublicFlag = 0x0001;
+
     private const string CheckerSource = """
         import java.io.BufferedReader;
         import java.io.FileInputStream;
@@ -131,23 +134,20 @@ internal static class HelperLinks
             }
         }
         """;
-    private const int PrivateFlag = 0x0002;
-
-    private const int PublicFlag = 0x0001;
 
     /// <summary>Lists what a helper refers to and cannot link to, one line each; empty when everything resolves and is accessible. The exported packages are those the agent exports or opens to the helper, as <c>module/package</c>.</summary>
-    internal static async Task<IReadOnlyList<string>> FindProblemsAsync(
-        Jdk jdk,
+    internal static async Task<IReadOnlyList<string>> FindProblemsAsync(Jdk jdk,
         JavaClassDefinition helper,
         IEnumerable<string> classPath,
         IEnumerable<ClassPatch> patches,
         IEnumerable<string> exportedPackages,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         HashSet<string> exported = [.. exportedPackages.Select(ParseExport)];
-        Dictionary<string, JavaClassFile> application = ReadClassPath(classPath, [.. patches]);
+        Dictionary<string, JavaClassFile> application = ReadClasses(classPath, patches: [.. patches]);
         List<JavaClassFile> helpers = [.. Flatten(helper).Select(static definition => JavaClassFile.Read(definition.Bytes.Span))];
+
+        // The helper's own classes, which need no lookup, and what is found wrong.
         HashSet<string> own = [.. helpers.Select(static file => file.Name)];
         List<string> problems = [];
 
@@ -158,7 +158,8 @@ internal static class HelperLinks
         // The JDK classes a helper names directly, whose packages their modules must export to it.
         List<ClassUse> jdkUses = [];
 
-        foreach (MemberUse use in helpers.SelectMany(static file => MemberReferences(file).Select(reference => new MemberUse(file.Name, reference))).Distinct())
+        foreach (MemberUse use in helpers.SelectMany(static file => MemberReferences(file).Select(reference => new MemberUse(file.Name, reference)))
+            .Distinct())
         {
             MemberReference reference = use.Reference;
 
@@ -185,18 +186,25 @@ internal static class HelperLinks
             {
                 // The member may come from the JDK: from the class itself, or from a JDK class that an application class extends.
                 string missing = $"{use.From} uses {member}, which neither the class path nor the JDK declares";
-                string noClass = resolution.Outside.Contains(reference.Owner) ? $"{use.From} uses {member}, but {reference.Owner} is neither on the class path nor in the JDK" : missing;
+
+                string noClass = resolution.Outside.Contains(reference.Owner)
+                    ? $"{use.From} uses {member}, but {reference.Owner} is neither on the class path nor in the JDK"
+                    : missing;
+
                 string kind = isField ? "F" : "M";
 
                 lookups.Add(new Lookup(missing, noClass));
-                questions.AddRange(resolution.Outside.Select(type => new Question($"{kind} {type} {reference.Name} {reference.Descriptor}", lookups.Count - 1)));
+
+                questions.AddRange(resolution.Outside
+                    .Select(type => new Question($"{kind} {type} {reference.Name} {reference.Descriptor}", lookups.Count - 1)));
             }
         }
 
         // A class that a member reference names is checked with the member, so only the other classes are looked up on their own.
         HashSet<string> owners = [.. helpers.SelectMany(MemberReferences).Select(static reference => reference.Owner)];
 
-        foreach (ClassUse use in helpers.SelectMany(static file => ClassReferences(file).Select(type => new ClassUse(file.Name, type))).Distinct())
+        foreach (ClassUse use in helpers.SelectMany(static file => ClassReferences(file).Select(type => new ClassUse(file.Name, type)))
+            .Distinct())
         {
             if (own.Contains(use.Type) || owners.Contains(use.Type))
                 continue;
@@ -204,8 +212,8 @@ internal static class HelperLinks
             if (!application.TryGetValue(use.Type, out JavaClassFile? file))
             {
                 string absent = $"{use.From} uses the class {use.Type}, which is neither on the class path nor in the JDK";
-                jdkUses.Add(use);
 
+                jdkUses.Add(use);
                 lookups.Add(new Lookup(absent, absent));
                 questions.Add(new Question($"C {use.Type}", lookups.Count - 1));
             }
@@ -220,11 +228,9 @@ internal static class HelperLinks
         if (questions.Count == 0 && exportQueries.Length == 0)
             return problems;
 
-        string[] all = await AskJdkAsync(
-            jdk,
-            [.. questions.Select(static question => question.Query), .. exportQueries.Select(static type => "E " + type)],
-            cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        string[] all = await AskAsync(jdk,
+            queries: [.. questions.Select(static question => question.Query), .. exportQueries.Select(static type => "E " + type)],
+            cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         string[] answers = all[..questions.Count];
         Dictionary<string, string> modules = new(StringComparer.Ordinal);
@@ -252,11 +258,7 @@ internal static class HelperLinks
         foreach (ClassUse use in jdkUses.Distinct())
         {
             if (modules.TryGetValue(use.Type, out string? module) && !exported.Contains(module + "/" + Package(use.Type)))
-            {
-                problems.Add(
-                    $"{use.From} uses {use.Type}, but {module} does not export {Package(use.Type)}: export it to the helper with ExportPackage(module: \"{module}\", package: \"{Package(use.Type)}\", ...) and pass {module}/{Package(use.Type)} as an exported package here"
-                );
-            }
+                problems.Add($"{use.From} uses {use.Type}, but {module} does not export {Package(use.Type)}: export it to the helper with ExportPackage(module: \"{module}\", package: \"{Package(use.Type)}\", ...) and pass {module}/{Package(use.Type)} as an exported package here");
         }
 
         return problems;
@@ -270,7 +272,7 @@ internal static class HelperLinks
             classes.Add(file.Name, bytes);
     }
 
-    private static async Task<string[]> AskJdkAsync(Jdk jdk, string[] queries, CancellationToken cancellationToken)
+    private static async Task<string[]> AskAsync(Jdk jdk, string[] queries, CancellationToken cancellationToken)
     {
         string work = Directory.CreateTempSubdirectory(prefix: "jvmbridge-links-").FullName;
 
@@ -278,24 +280,37 @@ internal static class HelperLinks
         {
             string source = Path.Combine(work, path2: "JvmBridgeLinkCheck.java");
             string questions = Path.Combine(work, path2: "questions.txt");
-            await File.WriteAllTextAsync(source, CheckerSource, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            await File.WriteAllLinesAsync(questions, queries, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-            string classes = await jdk.CompileAsync(source, Math.Min(jdk.Major, val2: 8), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await File.WriteAllTextAsync(source, CheckerSource, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            await File.WriteAllLinesAsync(questions, queries, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            string classes = await jdk.CompileAsync(source, Math.Min(jdk.Major, val2: 8), cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             try
             {
-                JavaRunOptions options = new() { PreloadSignalChaining = false };
+                JavaRunOptions options = new()
+                {
+                    PreloadSignalChaining = false
+                };
+
                 options.Arguments.Add(questions);
 
-                JavaRun run = await jdk.RunAsync(mainClass: "JvmBridgeLinkCheck", classes, options: options, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-                string[] answers = [.. run.Output.Split(separator: '\n').Select(static line => line.Trim()).Where(static line => line.StartsWith(value: "LINK ", StringComparison.Ordinal)).Select(static line => line[5..])];
+                JavaRun run = await jdk.RunAsync(mainClass: "JvmBridgeLinkCheck", classes, options: options, cancellationToken: cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
+
+                string[] answers = [.. run.Output
+                    .Split(separator: '\n')
+                    .Select(static line => line.Trim())
+                    .Where(static line => line.StartsWith(value: "LINK ", StringComparison.Ordinal))
+                    .Select(static line => line[5..])];
 
                 return run.ExitCode == 0 && answers.Length == queries.Length
                     ? answers
-                    : throw new InvalidOperationException(
-                        $"The link check on {jdk} answered {answers.Length.ToString(CultureInfo.InvariantCulture)} of {queries.Length.ToString(CultureInfo.InvariantCulture)} questions:" + Environment.NewLine + run.Output
-                    );
+                    : throw new InvalidOperationException($"The link check on {jdk} answered {answers.Length.ToString(CultureInfo.InvariantCulture)} of {queries.Length.ToString(CultureInfo.InvariantCulture)} questions:" + Environment.NewLine + run.Output);
             }
             finally
             {
@@ -337,7 +352,9 @@ internal static class HelperLinks
 
         bool samePackage = Package(declarer) == Package(from);
 
-        return (member.AccessFlags & PublicFlag) != 0 || samePackage ? null : $"not public in {declarer}, in another package than {from}";
+        return (member.AccessFlags & PublicFlag) != 0 || samePackage
+            ? null
+            : $"not public in {declarer}, in another package than {from}";
     }
 
     private static IEnumerable<MemberReference> MemberReferences(JavaClassFile file)
@@ -367,7 +384,7 @@ internal static class HelperLinks
     }
 
     // The application's classes from jars and class directories, the first of a name winning as on a class path, each with the patches applied that target it.
-    private static Dictionary<string, JavaClassFile> ReadClassPath(IEnumerable<string> classPath, ClassPatch[] patches)
+    private static Dictionary<string, JavaClassFile> ReadClasses(IEnumerable<string> classPath, ClassPatch[] patches)
     {
         Dictionary<string, byte[]> classes = new(StringComparer.Ordinal);
 
@@ -383,9 +400,8 @@ internal static class HelperLinks
 
             using ZipArchive jar = ZipFile.OpenRead(entry);
 
-            foreach (ZipArchiveEntry file in jar.Entries.Where(
-                static file => file.FullName.EndsWith(value: ".class", StringComparison.Ordinal) && !file.FullName.StartsWith(value: "META-INF/", StringComparison.Ordinal)
-            ))
+            foreach (ZipArchiveEntry file in jar.Entries
+                .Where(static file => file.FullName.EndsWith(value: ".class", StringComparison.Ordinal) && !file.FullName.StartsWith(value: "META-INF/", StringComparison.Ordinal)))
             {
                 using Stream stream = file.Open();
 
@@ -419,7 +435,7 @@ internal static class HelperLinks
     // Walks the class and its supertypes on the class path; a supertype that is not there is a JDK class, which the JDK is asked about.
     private static Resolution Resolve(Dictionary<string, JavaClassFile> application, MemberReference reference, bool isField)
     {
-        Queue<string> pending = new([reference.Owner]);
+        Queue<string> pending = new(collection: [reference.Owner]);
         HashSet<string> seen = new(StringComparer.Ordinal);
         List<string> outside = [];
 

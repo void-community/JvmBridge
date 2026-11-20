@@ -13,10 +13,14 @@ public sealed class ClassFileDisassemblerTests
     {
         byte[] code = [0x03, 0x3c, 0x84, 0x01, 0x05, 0x10, 0xfb, 0x11, 0x01, 0x00, 0x57, 0xbc, 0x0a, 0xb1];
 
-        string text = ClassFileDisassembler.Disassemble(new ClassFileWriter(name: "pkg/Mixed").AddMethod(name: "run", descriptor: "()V", maxStack: 2, maxLocals: 2, code).ToArray());
+        string text = ClassFileDisassembler.Disassemble(new ClassFileWriter(name: "pkg/Mixed").AddMethod(name: "run", descriptor: "()V", maxStack: 2, maxLocals: 2, code)
+            .ToArray());
 
+        // An instruction without an operand prints its name alone.
         Assert.Contains(expectedSubstring: "iconst_0", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "istore_1", text, StringComparison.Ordinal);
+
+        // An operand that follows the opcode is read with its own size and sign, and an array type code prints as the type.
         Assert.Contains(expectedSubstring: "iinc 1, 5", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "bipush -5", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "sipush 256", text, StringComparison.Ordinal);
@@ -30,9 +34,12 @@ public sealed class ClassFileDisassemblerTests
         string length = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample, method: "length");
         string greeting = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample, method: "greeting");
 
+        // A call is printed at its offset with the method it names.
         Assert.Contains(expectedSubstring: "0: aload_0", length, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "// Method java/lang/String.length:()I", length, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "ireturn", length, StringComparison.Ordinal);
+
+        // A load of a string constant is printed with the text.
         Assert.Contains(expectedSubstring: "// String \"hello\"", greeting, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "areturn", greeting, StringComparison.Ordinal);
     }
@@ -42,7 +49,10 @@ public sealed class ClassFileDisassemblerTests
     public void FiltersMethods()
     {
         string byName = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample, method: "greeting");
-        string byDescriptor = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample, method: "greeting()Ljava/lang/String;");
+
+        string byDescriptor = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample,
+            method: "greeting()Ljava/lang/String;");
+
         string missing = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample, method: "absent");
 
         Assert.Equal(byName, byDescriptor);
@@ -55,7 +65,8 @@ public sealed class ClassFileDisassemblerTests
     [Fact]
     public void IsDeterministic()
     {
-        Assert.Equal(ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample), ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample));
+        Assert.Equal(ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample),
+            ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample));
     }
 
     /// <summary>A forward branch shows its absolute target and a switch lists its cases.</summary>
@@ -66,13 +77,39 @@ public sealed class ClassFileDisassemblerTests
 
         byte[] table =
         [
-            0x1a, 0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-            0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x19, 0x04, 0xac, 0x05, 0xac
+            0x1a,
+            0xaa,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x19,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x17,
+            0x00,
+            0x00,
+            0x00,
+            0x19,
+            0x04,
+            0xac,
+            0x05,
+            0xac,
         ];
 
-        string text = ClassFileDisassembler.Disassemble(
-            new ClassFileWriter(name: "pkg/Flow").AddMethod(name: "pick", descriptor: "(I)I", maxStack: 1, maxLocals: 1, branch).AddMethod(name: "route", descriptor: "(I)I", maxStack: 1, maxLocals: 1, table).ToArray()
-        );
+        string text = ClassFileDisassembler.Disassemble(new ClassFileWriter(name: "pkg/Flow").AddMethod(name: "pick", descriptor: "(I)I", maxStack: 1, maxLocals: 1, branch)
+            .AddMethod(name: "route", descriptor: "(I)I", maxStack: 1, maxLocals: 1, table)
+            .ToArray());
 
         Assert.Contains(expectedSubstring: "1: ifeq 6", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "6: iconst_0", text, StringComparison.Ordinal);
@@ -85,8 +122,11 @@ public sealed class ClassFileDisassemblerTests
     {
         string text = ClassFileDisassembler.Disassemble(ClassFileFixtures.Sample);
 
+        // The header names the class with its supertype, version and flags.
         Assert.Contains(expectedSubstring: "class fixture/Sample extends java/lang/Object", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "version 52.0, flags public", text, StringComparison.Ordinal);
+
+        // Every member has a line of its own with its flags and descriptor.
         Assert.Contains(expectedSubstring: "field public static final I LIMIT", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "field private I count", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "method public static length(Ljava/lang/String;)I", text, StringComparison.Ordinal);

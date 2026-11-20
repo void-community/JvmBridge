@@ -22,7 +22,10 @@ public sealed class DumpCommandTests
         int status = DumpCommand.Run(ToolFixtures.Sample, className: null, method: "greeting", output, error);
 
         Assert.Equal(expected: 0, status);
-        Assert.Equal(ClassFileDisassembler.Disassemble(File.ReadAllBytes(ToolFixtures.Sample), method: "greeting"), output.ToString());
+
+        Assert.Equal(ClassFileDisassembler.Disassemble(File.ReadAllBytes(ToolFixtures.Sample), method: "greeting"),
+            output.ToString());
+
         Assert.Contains(expectedSubstring: "greeting()Ljava/lang/String;", output.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(expectedSubstring: "limit()I", output.ToString(), StringComparison.Ordinal);
     }
@@ -68,7 +71,6 @@ public sealed class DumpCommandTests
         try
         {
             string jar = Path.Combine(folder, path2: "empty.jar");
-
             string content = Path.Combine(folder, path2: "content");
 
             new DirectoryInfo(content).Create();
@@ -81,11 +83,19 @@ public sealed class DumpCommandTests
 
             using StringWriter missingClass = new();
 
-            int first = DumpCommand.Run(Path.Combine(folder, path2: "nothing.class"), className: null, method: null, output, missingFile);
+            int first = DumpCommand.Run(Path.Combine(folder, path2: "nothing.class"),
+                className: null,
+                method: null,
+                output,
+                missingFile);
+
             int second = DumpCommand.Run(jar, className: "fixture/Sample", method: null, output, missingClass);
 
+            // Both lookups end with the exit code of a failure.
             Assert.Equal(expected: 1, first);
             Assert.Equal(expected: 1, second);
+
+            // Each failure names what is missing on its own error writer, and nothing was dumped.
             Assert.Contains(expectedSubstring: "does not exist", missingFile.ToString(), StringComparison.Ordinal);
             Assert.Contains(expectedSubstring: "has no class fixture/Sample", missingClass.ToString(), StringComparison.Ordinal);
             Assert.Empty(output.ToString());

@@ -16,14 +16,17 @@ public sealed unsafe class AgentCommandTests
     {
         using FakeJvm jvm = new();
 
-        RecordingAgent agent = new() { FailCommands = true };
-        int loaded = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
+        RecordingAgent agent = new()
+        {
+            FailCommands = true
+        };
 
-        int result = Attach(jvm, static () => new RecordingAgent(), command: "boom");
+        int loaded = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
+        int attached = Attach(jvm, static () => new RecordingAgent(), command: "boom");
 
         Assert.Equal(Methods.JNI_OK, loaded);
-        Assert.Equal(Methods.JNI_ERR, result);
-        Assert.Equal(["boom"], agent.Commands);
+        Assert.Equal(Methods.JNI_ERR, attached);
+        Assert.Equal(expected: ["boom"], agent.Commands);
     }
 
     /// <summary>A second attach calls the running agent with the option text and starts no second agent.</summary>
@@ -35,11 +38,13 @@ public sealed unsafe class AgentCommandTests
         RecordingAgent agent = new();
         int loaded = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
 
-        int result = Attach(jvm, static () => throw new InvalidOperationException(message: "A second agent must not be created."), command: "unpatch=all");
+        int attached = Attach(jvm,
+            static () => throw new InvalidOperationException(message: "A second agent must not be created."),
+            command: "unpatch=all");
 
         Assert.Equal(Methods.JNI_OK, loaded);
-        Assert.Equal(Methods.JNI_OK, result);
-        Assert.Equal(["unpatch=all"], agent.Commands);
+        Assert.Equal(Methods.JNI_OK, attached);
+        Assert.Equal(expected: ["unpatch=all"], agent.Commands);
         Assert.Equal(expected: 0, agent.Attaches);
     }
 
@@ -50,10 +55,9 @@ public sealed unsafe class AgentCommandTests
         using FakeJvm jvm = new();
 
         RecordingAgent agent = new();
+        int attached = Attach(jvm, () => agent, command: "start");
 
-        int result = Attach(jvm, () => agent, command: "start");
-
-        Assert.Equal(Methods.JNI_OK, result);
+        Assert.Equal(Methods.JNI_OK, attached);
         Assert.Equal(expected: 1, agent.Attaches);
         Assert.Empty(agent.Commands);
     }
@@ -65,11 +69,10 @@ public sealed unsafe class AgentCommandTests
         using FakeJvm jvm = new();
 
         int loaded = AgentRuntime.Start(static () => new PlainAgent(), jvm.Machine, options: 0, attached: false);
-
-        int result = Attach(jvm, static () => new PlainAgent(), command: "anything");
+        int attached = Attach(jvm, static () => new PlainAgent(), command: "anything");
 
         Assert.Equal(Methods.JNI_OK, loaded);
-        Assert.Equal(Methods.JNI_OK, result);
+        Assert.Equal(Methods.JNI_OK, attached);
     }
 
     private static int Attach(FakeJvm jvm, Func<JavaAgent> factory, string command)
@@ -82,11 +85,10 @@ public sealed unsafe class AgentCommandTests
 
     private sealed class RecordingAgent : JavaAgent
     {
-        internal int Attaches { get; private set; }
-
         internal List<string> Commands { get; } = [];
-
         internal bool FailCommands { get; init; }
+
+        internal int Attaches { get; private set; }
 
         public override void OnAttach(AgentContext context)
         {

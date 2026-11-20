@@ -7,43 +7,73 @@ namespace JvmBridge.Build;
 
 internal sealed class FixtureCompiler(RepositoryContext repository, JdkArchiveManager archives, ProcessRunner processRunner)
 {
-    private readonly RepositoryContext _repository = repository;
     private readonly JdkArchiveManager _archives = archives;
     private readonly ProcessRunner _processRunner = processRunner;
+    private readonly RepositoryContext _repository = repository;
 
     public async Task CompileAllAsync(CancellationToken cancellationToken)
     {
         string runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
-        JdkEntry compiler = PinnedJdks.Jdks.FirstOrDefault(entry => entry.Rid == runtimeIdentifier && entry.Java == 17 && entry.Implementation == "hotspot" && entry.Status == "available") ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
+
+        JdkEntry compiler = PinnedJdks.Jdks
+            .FirstOrDefault(entry => entry.Rid == runtimeIdentifier && entry.Java == 17 && entry.Implementation == "hotspot" && entry.Status == "available")
+            ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
 
         using TemporaryDirectory temporary = new(prefix: "jvmbridge-compiler-");
 
-        string home = await _archives.UnpackAsync(ToArchive(compiler), temporary.Path, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string home = await _archives.UnpackAsync(ToArchive(compiler), temporary.Path, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
         string output = Path.Combine(_repository.Artifacts, path2: "fixtures");
+
         await CompileAsync(home, output, major: 17, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         JsonFile.Write(Path.Combine(output, path2: "compiler.json"), compiler);
     }
 
     public async Task CompileAsync(string home, string output, int major, CancellationToken cancellationToken)
     {
         string compiler = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
-        FileSystem.EnsureDirectory(output);
-        // The fixtures are UTF-8, which javac only assumes where the machine does: not on Windows, nor in a container without a locale.
-        List<string> arguments = major == 8 ? ["-encoding", "UTF-8", "-source", "8", "-target", "8", "-Xlint:-options"] : ["-encoding", "UTF-8", "--release", "8"];
-        await _processRunner.RunCheckedAsync(
-            [compiler, .. arguments, "-cp", output, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "BridgeFixture.java"])],
-            Path.Combine(output, path2: "javac.log"),
-            workingDirectory: output,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
 
-        string classpath = major == 8 ? Path.Combine(home, path2: "lib", path3: "tools.jar") + Path.PathSeparator.ToString() + output : output;
-        await _processRunner.RunCheckedAsync(
-            [compiler, "-encoding", "UTF-8", "-source", "8", "-target", "8", "-Xlint:-options", "-cp", classpath, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "AttachFixture.java"])],
-            Path.Combine(output, path2: "javac-attach.log"),
-            workingDirectory: output,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        FileSystem.EnsureDirectory(output);
+
+        // The fixtures are UTF-8, which javac only assumes where the machine does: not on Windows, nor in a container without a locale.
+        List<string> arguments = major == 8
+            ? ["-encoding", "UTF-8", "-source", "8", "-target", "8", "-Xlint:-options"]
+            : ["-encoding", "UTF-8", "--release", "8"];
+
+        await _processRunner
+            .RunCheckedAsync(command: [compiler, .. arguments, "-cp", output, "-d", output, _repository.PathFromRoot(parts: ["tests", "Fixtures", "BridgeFixture.java"])],
+                Path.Combine(output, path2: "javac.log"),
+                workingDirectory: output,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        string classpath = major == 8
+            ? Path.Combine(home, path2: "lib", path3: "tools.jar") + Path.PathSeparator.ToString() + output
+            : output;
+
+        await _processRunner
+            .RunCheckedAsync(command:
+        [
+            compiler,
+            "-encoding",
+            "UTF-8",
+            "-source",
+            "8",
+            "-target",
+            "8",
+            "-Xlint:-options",
+            "-cp",
+            classpath,
+            "-d",
+            output,
+            _repository.PathFromRoot(parts: ["tests", "Fixtures", "AttachFixture.java"]),
+        ],
+                Path.Combine(output, path2: "javac-attach.log"),
+                workingDirectory: output,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
     }
 
     internal static JdkArchive ToArchive(JdkEntry entry)

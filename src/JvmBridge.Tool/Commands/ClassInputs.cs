@@ -51,7 +51,8 @@ internal static class ClassInputs
 
             using ZipArchive archive = ZipFile.OpenRead(path);
 
-            foreach (ZipArchiveEntry entry in archive.Entries.Where(static candidate => candidate.FullName.EndsWith(ClassExtension, StringComparison.Ordinal)))
+            foreach (ZipArchiveEntry entry in archive.Entries
+                .Where(static candidate => candidate.FullName.EndsWith(ClassExtension, StringComparison.Ordinal)))
             {
                 using MemoryStream bytes = new();
 

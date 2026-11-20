@@ -10,13 +10,26 @@ internal static unsafe class LoadedMarker
     {
         using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
 
-        nint method = environment.GetMethod(system.Handle, name: "setProperty", signature: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", isStatic: true);
+        nint method = environment.GetMethod(system.Handle,
+            name: "setProperty",
+            signature: "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+            isStatic: true);
 
         using JavaLocalReference name = environment.NewString(value: "jvmbridge.loaded");
 
         using JavaLocalReference value = environment.NewString(value: "true");
 
-        jvalue[] arguments = [new() { l = (_jobject*)name.Handle }, new() { l = (_jobject*)value.Handle }];
+        jvalue[] arguments =
+        [
+            new()
+            {
+                l = (_jobject*)name.Handle
+            },
+            new()
+            {
+                l = (_jobject*)value.Handle
+            },
+        ];
 
         using JavaLocalReference previous = environment.CallObject(system.Handle, method, arguments, isStatic: true);
     }

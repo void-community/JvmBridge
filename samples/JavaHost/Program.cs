@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Runtime.InteropServices;
+
 using JvmBridge.Native;
 using JvmBridge.Runtime;
 
@@ -12,8 +15,7 @@ if (args.Length is < 1 or > 2)
     throw new ArgumentException(message: "Pass the absolute path to the JVM's native library.");
 
 JavaVirtualMachine machine = JavaVirtualMachine.Create(args[0], options: ["-Xcheck:jni"]);
-int expectedDestroyResult = args.Length == 2 ? int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : 0;
-
+int expectedDestroyResult = args.Length == 2 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 0;
 int destroyResult = 0;
 
 try
@@ -24,23 +26,25 @@ try
 
     using JavaLocalReference system = environment.FindClass(name: "java/lang/System");
 
-    nint method = environment.GetMethod(system.Handle, name: "getProperty", signature: "(Ljava/lang/String;)Ljava/lang/String;", isStatic: true);
+    nint method = environment.GetMethod(system.Handle,
+        name: "getProperty",
+        signature: "(Ljava/lang/String;)Ljava/lang/String;",
+        isStatic: true);
 
     using JavaLocalReference key = environment.NewString(value: "java.version");
 
     unsafe
     {
-        jvalue[] arguments = [new() { l = (_jobject*)key.Handle }];
+        jvalue[] arguments = [new()
+        {
+            l = (_jobject*)key.Handle
+        }];
 
         using JavaLocalReference value = environment.CallObject(system.Handle, method, arguments, isStatic: true);
 
         Console.WriteLine($"Java version: {environment.GetString(value.Handle)}");
-        Console.WriteLine(
-            $"ABI JNI={sizeof(JNINativeInterface_)} JVMTI={sizeof(jvmtiInterface_1_)} capabilities={sizeof(jvmtiCapabilities)} value={sizeof(jvalue)}"
-        );
-        Console.WriteLine(
-            $"SLOTS GetArrayLength={System.Runtime.InteropServices.Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt64() / IntPtr.Size} GetJavaVM={System.Runtime.InteropServices.Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetJavaVM)).ToInt64() / IntPtr.Size}"
-        );
+        Console.WriteLine($"ABI JNI={sizeof(JNINativeInterface_)} JVMTI={sizeof(jvmtiInterface_1_)} capabilities={sizeof(jvmtiCapabilities)} value={sizeof(jvalue)}");
+        Console.WriteLine($"SLOTS GetArrayLength={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt64() / IntPtr.Size} GetJavaVM={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetJavaVM)).ToInt64() / IntPtr.Size}");
     }
 
     foreach (string text in new[] { "A\0B", "\uD83D\uDE00", "\uD800", "" })

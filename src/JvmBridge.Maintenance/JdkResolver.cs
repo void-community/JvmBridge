@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -11,8 +12,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     // Java 6 and 7 are only run by tests of agents that support them, from Azul's community builds; they stay out of the compatibility grid.
     private static readonly int[] LegacyMajors = [6, 7];
 
-    private readonly RepositoryContext _repository = repository;
     private readonly HttpService _http = http;
+    private readonly RepositoryContext _repository = repository;
 
     /// <summary>Resolves the archive of every cell of the grid, Java 8 to the newest major, and of Java 6 and 7, and rewrites <see cref="PinnedJdks"/>.</summary>
     public async Task ResolveAsync(int newestJava, CancellationToken cancellationToken)
@@ -30,8 +31,13 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
 
         foreach (IEnumerable<JdkResolutionRequest> batch in cells.Chunk(size: 8))
         {
-            Task<JdkEntry>[] tasks = [.. batch.Select(cell => ResolveCellAsync(cell.Target, cell.Major, cell.Implementation, cancellationToken))];
+            Task<JdkEntry>[] tasks = [.. batch.Select(cell => ResolveCellAsync(cell.Target,
+                cell.Major,
+                cell.Implementation,
+                cancellationToken))];
+
             JdkEntry[] resolved = await Task.WhenAll(tasks).ConfigureAwait(continueOnCapturedContext: false);
+
             entries.AddRange(resolved);
         }
 
@@ -41,23 +47,22 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         {
             foreach (int major in LegacyMajors)
             {
-                legacy.Add(
-                    ToEntry(
-                        target,
-                        major,
-                        implementation: "hotspot",
-                        await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
-                    )
-                );
+                legacy.Add(ToEntry(target,
+                    major,
+                    implementation: "hotspot",
+                    await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)));
             }
         }
 
         RequireCoverage(PinnedJdks.Jdks, entries);
         RequireCoverage(PinnedJdks.LegacyJdks, legacy);
-        PinnedJdkWriter.Write(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "PinnedJdks.g.cs"]), newestJava, entries, legacy);
-        ConsoleOutput.WriteLine(
-            $"Pinned {entries.Concat(legacy).Count(entry => entry.Status == "available")} JVM archives; {entries.Count + legacy.Count} cells accounted for."
-        );
+
+        PinnedJdkWriter.Write(_repository.PathFromRoot(parts: ["src", "JvmBridge.Build", "PinnedJdks.g.cs"]),
+            newestJava,
+            entries,
+            legacy);
+
+        ConsoleOutput.WriteLine($"Pinned {entries.Concat(legacy).Count(entry => entry.Status == "available")} JVM archives; {entries.Count + legacy.Count} cells accounted for.");
     }
 
     public async Task<JdkArchive?> ResolveSemeruAsync(TargetConfiguration target, int major, CancellationToken cancellationToken)
@@ -67,7 +72,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         if (target.Musl || arch is "arm" or "x86")
             return null;
 
-        JsonNode? releaseNode = await _http.GetJsonAsync($"https://api.github.com/repos/ibmruntimes/semeru{major}-binaries/releases/latest", missing: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        JsonNode? releaseNode = await _http.GetJsonAsync($"https://api.github.com/repos/ibmruntimes/semeru{major}-binaries/releases/latest", missing: true, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (releaseNode is null)
             return null;
@@ -75,6 +81,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         JsonObject release = releaseNode.RequireObject(description: "Semeru release");
         string os = Require(target.Os, target.Rid + " OS");
         string system = os == "mac" ? "mac" : os;
+
+        // Semeru names an archive after the architecture and the system, and packs the one for Windows as a zip.
         string marker = $"jdk_{arch}_{system}_";
         string extension = system == "windows" ? ".zip" : ".tar.gz";
         JsonArray assets = release.Property(propertyName: "assets").RequireArray(description: "Semeru assets");
@@ -87,12 +95,18 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             if (!name.Contains(marker, StringComparison.Ordinal) || !name.EndsWith(extension, StringComparison.Ordinal))
                 continue;
 
-            JsonObject? checksum = assets
-                .Select((value, index) => value.RequireObject($"Semeru checksum asset {index}"))
-                .FirstOrDefault(value => value.Property(propertyName: "name").RequireString(description: "Semeru checksum name") == name + ".sha256.txt") ?? throw new InvalidOperationException("Missing Semeru SHA256: " + name);
+            JsonObject? checksum = assets.Select((value, index) => value.RequireObject($"Semeru checksum asset {index}"))
+                .FirstOrDefault(value => value.Property(propertyName: "name").RequireString(description: "Semeru checksum name") == name + ".sha256.txt")
+                ?? throw new InvalidOperationException("Missing Semeru SHA256: " + name);
 
-            string checksumUrl = checksum.Property(propertyName: "browser_download_url").RequireString(description: "Semeru checksum URL");
-            string digest = (await _http.GetStringAsync(checksumUrl, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false) ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+            string checksumUrl = checksum.Property(propertyName: "browser_download_url")
+                .RequireString(description: "Semeru checksum URL");
+
+            string digest = (await _http.GetStringAsync(checksumUrl, cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false)
+                ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault()
+                ?? string.Empty;
 
             return new JdkArchive
             {
@@ -109,28 +123,33 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     public async Task<JdkArchive?> ResolveTemurinAsync(TargetConfiguration target, int major, CancellationToken cancellationToken)
     {
         string system = target.Musl ? "alpine-linux" : Require(target.Os, target.Rid + " OS");
+        string query = Query(values: [("architecture", Require(target.Arch, target.Rid + " architecture")), ("image_type", "jdk"), ("os", system)]);
 
-        string query = Query([("architecture", Require(target.Arch, target.Rid + " architecture")), ("image_type", "jdk"), ("os", system)]);
+        JsonNode? assets = await _http.GetJsonAsync($"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?{query}", missing: true, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        JsonArray entries = (await _http.GetJsonAsync($"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?{query}", missing: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))?.RequireArray(description: "Temurin assets") ?? [];
+        JsonArray entries = assets?.RequireArray(description: "Temurin assets") ?? [];
 
-        JsonObject? selected = entries
-            .Select(static (entry, index) => entry.RequireObject($"Temurin asset {index}"))
-            .OrderByDescending(
-                static entry => entry.Property(propertyName: "version").Property(propertyName: "semver").RequireString(description: "Temurin version"),
-                StringComparer.Ordinal
-            )
+        JsonObject? selected = entries.Select(static (entry, index) => entry.RequireObject($"Temurin asset {index}"))
+            .OrderByDescending(static entry => entry.Property(propertyName: "version")
+                .Property(propertyName: "semver")
+                .RequireString(description: "Temurin version"),
+                StringComparer.Ordinal)
             .FirstOrDefault();
 
         if (selected is null)
             return null;
 
-        JsonObject package = selected.Property(propertyName: "binary").Property(propertyName: "package").RequireObject(description: "Temurin package");
+        JsonObject package = selected.Property(propertyName: "binary")
+            .Property(propertyName: "package")
+            .RequireObject(description: "Temurin package");
 
         return new JdkArchive
         {
             Distribution = "temurin",
-            Version = selected.Property(propertyName: "version").Property(propertyName: "semver").RequireString(description: "Temurin version"),
+            Version = selected.Property(propertyName: "version")
+                .Property(propertyName: "semver")
+                .RequireString(description: "Temurin version"),
             Url = package.Property(propertyName: "link").RequireString(description: "Temurin link"),
             Sha256 = package.Property(propertyName: "checksum").RequireString(description: "Temurin checksum")
         };
@@ -150,20 +169,22 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             _ => throw new InvalidOperationException("Unsupported Zulu architecture: " + arch)
         };
 
-        string query = Query(
-            [
-            ("java_version", major.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        string query = Query(values:
+        [
+            ("java_version", major.ToString(CultureInfo.InvariantCulture)),
             ("os", os == "mac" ? "macos" : os),
             ("arch", vendorArchitecture),
             ("archive_type", os == "windows" ? "zip" : "tar.gz"),
             ("java_package_type", "jdk"),
             ("release_status", "ga"),
             ("availability_types", "CA"),
-            ("latest", "true")
-        ]
-        );
+            ("latest", "true"),
+        ]);
 
-        JsonArray entries = (await _http.GetJsonAsync("https://api.azul.com/metadata/v1/zulu/packages/?" + query, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).RequireArray(description: "Zulu packages");
+        JsonNode? packages = await _http.GetJsonAsync("https://api.azul.com/metadata/v1/zulu/packages/?" + query, cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        JsonArray entries = packages.RequireArray(description: "Zulu packages");
 
         string[] architectureMarkers = arch switch
         {
@@ -181,7 +202,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             JsonObject entry = node.RequireObject(description: "Zulu package");
             string name = entry.Property(propertyName: "name").RequireString(description: "Zulu package name");
 
-            bool excludedVariant = name.Contains(value: "-fx-", StringComparison.Ordinal) || name.Contains(value: "-crac-", StringComparison.Ordinal);
+            bool excludedVariant = name.Contains(value: "-fx-", StringComparison.Ordinal)
+                || name.Contains(value: "-crac-", StringComparison.Ordinal);
 
             if (!architectureMarkers.Any(name.Contains) || excludedVariant)
                 continue;
@@ -198,12 +220,17 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             return null;
 
         string uuid = selected.Property(propertyName: "package_uuid").RequireString(description: "Zulu package UUID");
-        JsonObject details = (await _http.GetJsonAsync("https://api.azul.com/metadata/v1/zulu/packages/" + uuid, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).RequireObject(description: "Zulu package details");
+
+        JsonNode? package = await _http.GetJsonAsync("https://api.azul.com/metadata/v1/zulu/packages/" + uuid, cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        JsonObject details = package.RequireObject(description: "Zulu package details");
 
         return new JdkArchive
         {
             Distribution = "zulu",
-            Version = string.Join(separator: '.', ReadVersion(selected.Property(propertyName: "java_version"), description: "Zulu Java version")),
+            Version = string.Join(separator: '.',
+                ReadVersion(selected.Property(propertyName: "java_version"), description: "Zulu Java version")),
             Url = selected.Property(propertyName: "download_url").RequireString(description: "Zulu download URL"),
             Sha256 = details.Property(propertyName: "sha256_hash").RequireString(description: "Zulu checksum")
         };
@@ -211,7 +238,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
 
     private static string Query(IEnumerable<(string Name, string Value)> values)
     {
-        return string.Join(separator: '&', values.Select(static value => Uri.EscapeDataString(value.Name) + "=" + Uri.EscapeDataString(value.Value)));
+        return string.Join(separator: '&',
+            values.Select(static value => Uri.EscapeDataString(value.Name) + "=" + Uri.EscapeDataString(value.Value)));
     }
 
     private static List<int> ReadVersion(JsonNode? node, string description)
@@ -227,8 +255,7 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     // A vendor that stops listing an archive must not silently shrink the grid that CI requires.
     private static void RequireCoverage(IReadOnlyList<JdkEntry> previous, List<JdkEntry> entries)
     {
-        HashSet<JvmMatrixCell> available = [.. entries
-            .Where(entry => entry.Status == "available")
+        HashSet<JvmMatrixCell> available = [.. entries.Where(entry => entry.Status == "available")
             .Select(entry => new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation))];
 
         bool lost = previous.Any(entry => entry.Status == "available" && !available.Contains(new JvmMatrixCell(entry.Rid, entry.Java, entry.Implementation)));
@@ -249,33 +276,31 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
                 Reason = "No matching GA JDK archive in the configured vendor inventories."
             }
             : !Regex.IsMatch(archive.Sha256, pattern: "^[a-fA-F0-9]{64}$", RegexOptions.CultureInvariant)
-            ? throw new InvalidOperationException("Invalid SHA256 for " + archive.Url)
-            : new JdkEntry
-            {
-                Rid = target.Rid,
-                Java = major,
-                Implementation = implementation,
-                Distribution = archive.Distribution,
-                Version = archive.Version,
-                Url = archive.Url,
-                Sha256 = archive.Sha256,
-                Status = "available"
-            };
+                ? throw new InvalidOperationException("Invalid SHA256 for " + archive.Url)
+                : new JdkEntry
+                {
+                    Rid = target.Rid,
+                    Java = major,
+                    Implementation = implementation,
+                    Distribution = archive.Distribution,
+                    Version = archive.Version,
+                    Url = archive.Url,
+                    Sha256 = archive.Sha256,
+                    Status = "available"
+                };
     }
 
     private static string VersionKey(JsonObject entry)
     {
-        string java = string.Join(
-            separator: '.',
-            ReadVersion(entry.Property(propertyName: "java_version"), description: "Zulu Java version").Select(static value => value.ToString(format: "D8", System.Globalization.CultureInfo.InvariantCulture))
-        );
+        string java = string.Join(separator: '.',
+            ReadVersion(entry.Property(propertyName: "java_version"), description: "Zulu Java version").Select(static value => value.ToString(format: "D8", CultureInfo.InvariantCulture)));
 
         JsonNode? distro = entry.Property(propertyName: "distro_version");
 
-        string distroValue = distro is JsonArray ? string.Join(
-            separator: '.',
-            ReadVersion(distro, description: "Zulu distribution version").Select(static value => value.ToString(format: "D8", System.Globalization.CultureInfo.InvariantCulture))
-        ) : distro?.ToJsonString() ?? string.Empty;
+        string distroValue = distro is JsonArray
+            ? string.Join(separator: '.',
+                ReadVersion(distro, description: "Zulu distribution version").Select(static value => value.ToString(format: "D8", CultureInfo.InvariantCulture)))
+            : distro?.ToJsonString() ?? string.Empty;
 
         return java + "|" + distroValue;
     }
@@ -284,7 +309,8 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
     {
         JdkArchive? archive = implementation == "openj9"
             ? await ResolveSemeruAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
-            : await ResolveTemurinAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false) ?? await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            : await ResolveTemurinAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
+                ?? await ResolveZuluAsync(target, major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return ToEntry(target, major, implementation, archive);
     }

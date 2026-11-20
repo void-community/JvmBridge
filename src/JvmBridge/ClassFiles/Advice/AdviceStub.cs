@@ -27,6 +27,7 @@ internal static class AdviceStub
             LoadReceiver(code, isStatic);
             LoadArguments(code, method, receiverSlots);
             Invoke(code, Opcodes.InvokeStatic, before);
+
             stack = Math.Max(stack, 1 + method.ParameterSlots);
         }
 
@@ -35,6 +36,7 @@ internal static class AdviceStub
 
         LoadArguments(code, method, receiverSlots);
         Invoke(code, isStatic ? Opcodes.InvokeStatic : Opcodes.InvokeSpecial, bodyReference);
+
         stack = Math.Max(stack, method.ReturnSlots);
 
         int locals = temporary;
@@ -53,6 +55,7 @@ internal static class AdviceStub
                 Load(code, method.ReturnType, temporary);
 
             Invoke(code, Opcodes.InvokeStatic, after);
+
             stack = Math.Max(stack, 1 + (includeArguments ? method.ParameterSlots : 0) + method.ReturnSlots);
             locals += method.ReturnSlots;
         }
@@ -71,10 +74,13 @@ internal static class AdviceStub
         int length = 12 + stub.Code.Length;
         List<byte> attribute = [];
 
+        // The attribute's name and length, then the sizes of the operand stack and the locals.
         AddUInt16(attribute, nameIndex);
         AddUInt32(attribute, length);
         AddUInt16(attribute, stub.MaxStack);
         AddUInt16(attribute, stub.MaxLocals);
+
+        // The bytecode, followed by an empty exception table and no attributes of its own.
         AddUInt32(attribute, stub.Code.Length);
         attribute.AddRange(stub.Code);
         AddUInt16(attribute, value: 0);
@@ -149,6 +155,7 @@ internal static class AdviceStub
         foreach (string parameter in method.Parameters)
         {
             Load(code, parameter, slot);
+
             slot += MethodDescriptor.Slots(parameter);
         }
     }

@@ -10,7 +10,12 @@ public sealed class JavaThreadAttachment : IDisposable
 
     /// <summary>Gets the JNI environment borrowed for the current thread and attachment scope.</summary>
     public JavaEnvironment Environment { get; }
-    internal JavaThreadAttachment(JavaVirtualMachine machine, JavaEnvironment environment, bool attached) { _machine = machine; Environment = environment; _attached = attached; }
+    internal JavaThreadAttachment(JavaVirtualMachine machine, JavaEnvironment environment, bool attached)
+    {
+        _machine = machine;
+        Environment = environment;
+        _attached = attached;
+    }
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -21,6 +26,7 @@ public sealed class JavaThreadAttachment : IDisposable
         if (_attached)
             _machine.DetachCurrentThread();
         Environment.Dispose();
+
         _disposed = true;
     }
 }

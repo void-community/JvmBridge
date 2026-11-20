@@ -133,6 +133,7 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
             return null;
 
         jvalue emptyArgument = default;
+
         fixed (jvalue* pinnedValues = arguments)
         {
             jvalue* values = arguments.IsEmpty ? &emptyArgument : pinnedValues;
@@ -164,6 +165,7 @@ internal sealed unsafe class JavaExceptionDiagnostics(JNINativeInterface_** envi
                 return false;
 
             jvalue value = new() { l = argument };
+
             _functions->CallVoidMethodA(_environment, receiver, method, &value);
             return !ClearSecondary();
         }

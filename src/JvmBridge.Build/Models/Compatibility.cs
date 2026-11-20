@@ -173,8 +173,7 @@ internal static class Compatibility
                 Options = ["-XX:UseAVX=2"],
                 Reason = "Constrain the obsolete JVM vector instruction set on modern hosted CPUs; baseline and agent processes use identical settings."
             },
-            .. new[] { 18, 19, 20 }.Select(
-                static java => new VmOptionRule
+            .. new[] { 18, 19, 20 }.Select(static java => new VmOptionRule
                 {
                     Java = java,
                     Implementation = "openj9",
@@ -182,8 +181,7 @@ internal static class Compatibility
                     Architecture = "aarch64",
                     Options = ["-Xnoaot"],
                     Reason = "Keep the ahead-of-time code of OpenJ9's shared classes cache out of the JVM: with it, a JVM that a host creates through JNI fails at random while it starts, in a plain C host too; baseline and agent processes use identical settings."
-                }
-            )
+                }),
         ]
     };
 }

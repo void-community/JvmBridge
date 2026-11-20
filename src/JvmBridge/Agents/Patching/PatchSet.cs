@@ -13,6 +13,7 @@ internal sealed class PatchSet
     {
         Entries = entries;
         _exact = new Dictionary<string, Entry[]>(StringComparer.Ordinal);
+
         List<Entry> matching = [];
 
         foreach (Entry entry in entries)

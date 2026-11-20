@@ -21,9 +21,13 @@ public sealed class BindingTests
             }
             """;
 
-        string result = VariadicSlotRewriter.Rewrite(source);
-        Assert.Contains(expectedSubstring: "public nint Call;", result, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "public nint CallV;", result, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "public delegate* unmanaged<void*, void*, int> CallA;", result, StringComparison.Ordinal);
+        string rewritten = VariadicSlotRewriter.Rewrite(source);
+
+        Assert.Contains(expectedSubstring: "public nint Call;", rewritten, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "public nint CallV;", rewritten, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "public delegate* unmanaged<void*, void*, int> CallA;",
+            rewritten,
+            StringComparison.Ordinal);
     }
 }

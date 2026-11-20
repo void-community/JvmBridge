@@ -13,6 +13,7 @@ internal static unsafe class NativeJvmLibrary
         // this dependency relationship on musl and some JVM distributions.
         var open = (delegate* unmanaged<byte*, int, nint>)NativeLibrary.GetExport(NativeLibrary.GetMainProgramHandle(), "dlopen");
         int flags = 2 | (OperatingSystem.IsMacOS() ? 8 : 0x100); // RTLD_NOW | RTLD_GLOBAL
+
         fixed (byte* encoded = Encoding.UTF8.GetBytes(path + '\0'))
         {
             nint handle = open(encoded, flags);

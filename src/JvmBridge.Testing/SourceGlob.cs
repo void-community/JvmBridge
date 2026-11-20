@@ -27,7 +27,9 @@ internal static class SourceGlob
 
         return File.Exists(path)
             ? [path]
-            : Directory.Exists(path) ? [.. Directory.EnumerateFiles(path, searchPattern: "*.java", SearchOption.AllDirectories)] : [];
+            : Directory.Exists(path)
+                ? [.. Directory.EnumerateFiles(path, searchPattern: "*.java", SearchOption.AllDirectories)]
+                : [];
     }
 
     private static string[] ResolveWildcard(string root, string[] segments, int wildcard)

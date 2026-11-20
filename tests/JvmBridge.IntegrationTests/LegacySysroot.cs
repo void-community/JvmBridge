@@ -31,7 +31,7 @@ internal static class LegacySysroot
         ("7f1f3a2cf562465f2c18031e4e76734987ea8489c1202301e019dfb722ff5031", "glibc-headers-2.12-1.212.el6.x86_64"),
         ("93b20d547637e3d25a9604b8034334afa910f61898da0f265a3969a68bf8cc6d", "kernel-headers-2.6.32-754.el6.x86_64"),
         ("e21940ae5910d19e930217e6cc13a91c664c342c27efc045d76ca02792689cfa", "gcc-4.4.7-23.el6.x86_64"),
-        ("5e32d14ebe08101d07aaedacd5a04c8bd911d15b1a368e54fcb8241a1f5aeecb", "libgcc-4.4.7-23.el6.x86_64")
+        ("5e32d14ebe08101d07aaedacd5a04c8bd911d15b1a368e54fcb8241a1f5aeecb", "libgcc-4.4.7-23.el6.x86_64"),
     ];
 
     /// <summary>Unpacks the sysroot into artifacts/legacy-sysroot, once, with rpm2cpio, cpio, clang and ar.</summary>
@@ -56,42 +56,46 @@ internal static class LegacySysroot
         foreach ((string sha256, string name) in Packages)
         {
             string package = Path.Combine(work.Path, name + ".rpm");
-            await http.DownloadFileAsync(Source + name + ".rpm", package, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            await http.DownloadFileAsync(Source + name + ".rpm", package, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             string actual;
             FileStream stream = File.OpenRead(package);
 
             await using (stream.ConfigureAwait(continueOnCapturedContext: false))
-                actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+            {
+                actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false));
+            }
 
             if (!string.Equals(actual, sha256, StringComparison.Ordinal))
                 throw new InvalidOperationException("SHA256 mismatch: " + name);
 
-            await processes.RunCheckedAsync(
-                ["sh", "-c", "rpm2cpio \"$1\" | cpio -idmu --quiet", "sh", package],
-                workingDirectory: sysroot,
-                cancellationToken: cancellationToken
-            )
+            await processes
+                .RunCheckedAsync(command: ["sh", "-c", "rpm2cpio \"$1\" | cpio -idmu --quiet", "sh", package],
+                    workingDirectory: sysroot,
+                    cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
 
         List<string> links = [];
+
         MakeLinksRelative(sysroot, sysroot, links);
-        await File.WriteAllLinesAsync(Path.Combine(sysroot, path2: ".links"), links, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        await File.WriteAllLinesAsync(Path.Combine(sysroot, path2: ".links"), links, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         string source = Path.Combine(work.Path, path2: "aligned_alloc.c");
         string compiled = Path.Combine(work.Path, path2: "aligned_alloc.o");
-        await File.WriteAllTextAsync(source, AlignedAllocation, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        await processes.RunCheckedAsync(
-            ["clang", "--target=x86_64-linux-gnu", "--sysroot=" + sysroot, "-fPIC", "-O2", "-c", source, "-o", compiled],
-            cancellationToken: cancellationToken
-        )
+        await File.WriteAllTextAsync(source, AlignedAllocation, cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
-        await processes.RunCheckedAsync(
-            ["ar", "rs", Path.Combine(sysroot, path2: "usr", path3: "lib64", path4: "libc_nonshared.a"), compiled],
-            cancellationToken: cancellationToken
-        )
+        await processes.RunCheckedAsync(command: ["clang", "--target=x86_64-linux-gnu", "--sysroot=" + sysroot, "-fPIC", "-O2", "-c", source, "-o", compiled], cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        await processes.RunCheckedAsync(command: ["ar", "rs", Path.Combine(sysroot, path2: "usr", path3: "lib64", path4: "libc_nonshared.a"), compiled], cancellationToken: cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
         await File.WriteAllTextAsync(complete, string.Empty, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
@@ -110,7 +114,9 @@ internal static class LegacySysroot
                     continue;
 
                 File.Delete(path);
+
                 FileSystemInfo link = File.CreateSymbolicLink(path, Path.GetRelativePath(directory, root + target));
+
                 links.Add(link.FullName + " -> " + link.LinkTarget);
             }
             else if (Directory.Exists(path))

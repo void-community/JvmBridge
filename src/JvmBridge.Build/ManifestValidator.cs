@@ -24,7 +24,11 @@ internal static class ManifestValidator
                 throw new InvalidOperationException("Unknown JDK availability status: " + entry.Status);
 
             bool validDigest = entry.Sha256 is { Length: 64 } && entry.Sha256.All(Uri.IsHexDigit);
-            bool validUrl = Uri.TryCreate(entry.Url, UriKind.Absolute, out Uri? address) && address.Scheme == Uri.UriSchemeHttps && !string.IsNullOrEmpty(address.Host);
+
+            bool validUrl = Uri.TryCreate(entry.Url, UriKind.Absolute, out Uri? address)
+                && address.Scheme == Uri.UriSchemeHttps
+                && !string.IsNullOrEmpty(address.Host);
+
             bool unpinned = !validDigest || !validUrl;
 
             if (entry.Status == "available" && unpinned)

@@ -17,8 +17,10 @@ internal static class TestTarget
     public static bool PublishedByCi => Directory.Exists(Path.Combine(RepositoryContext.Discover().Artifacts, "publish-" + RuntimeInformation.RuntimeIdentifier));
 
     /// <summary>Gets the runtime identifier of the target.</summary>
-    public static string Rid => Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? RuntimeInformation.RuntimeIdentifier;
+    public static string Rid => Environment.GetEnvironmentVariable(variable: "TARGET_RID")
+        ?? RuntimeInformation.RuntimeIdentifier;
 
     /// <summary>Gets whether a target is named or CI published the samples for this one.</summary>
-    public static bool Selected => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID")) || PublishedByCi;
+    public static bool Selected => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable: "TARGET_RID"))
+        || PublishedByCi;
 }

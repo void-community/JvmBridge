@@ -7,10 +7,22 @@ public sealed class JavaLocalReference : IDisposable
     private nint _handle;
     private bool _disposed;
 
-    internal JavaLocalReference(JavaEnvironment environment, nint handle) { _environment = environment; _handle = handle; }
+    internal JavaLocalReference(JavaEnvironment environment, nint handle)
+    {
+        _environment = environment;
+        _handle = handle;
+    }
 
     /// <summary>Gets the raw local-reference handle after validating its thread and scope.</summary>
-    public nint Handle { get { ObjectDisposedException.ThrowIf(_disposed, this); _environment.EnsureAccessible(); return _handle; } }
+    public nint Handle
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _environment.EnsureAccessible();
+            return _handle;
+        }
+    }
 
     /// <summary>Gives up ownership without deleting the reference, so a native method can return it: the JVM takes over the local reference when the method returns.</summary>
     /// <returns>The raw handle. This object can no longer be used, and the caller must return the handle to the JVM or delete it.</returns>
@@ -18,7 +30,9 @@ public sealed class JavaLocalReference : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _environment.EnsureAccessible();
+
         nint handle = _handle;
+
         _handle = 0;
         _disposed = true;
 

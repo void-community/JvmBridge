@@ -11,8 +11,11 @@ public static unsafe class JavaLocalFrames
     public static void EnsureLocalCapacity(this JavaEnvironment environment, int capacity)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         int result = environment.Functions->EnsureLocalCapacity((JNINativeInterface_**)environment.Handle, capacity);
+
         environment.ThrowIfException(nameof(EnsureLocalCapacity));
 
         if (result != 0)
@@ -26,8 +29,11 @@ public static unsafe class JavaLocalFrames
     public static JavaLocalFrame PushLocalFrame(this JavaEnvironment environment, int capacity)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         int result = environment.Functions->PushLocalFrame((JNINativeInterface_**)environment.Handle, capacity);
+
         environment.ThrowIfException(nameof(PushLocalFrame));
 
         if (result != 0)

@@ -10,10 +10,11 @@ namespace HelloAgent;
 internal static class ModuleDemo
 {
     private const string BootstrapHelper = "jvmbridge/sample/BootstrapModuleHelpers";
-
     private const string LoaderHelper = "jvmbridge/sample/LoaderModuleHelpers";
 
-    private static readonly JavaMethod GetBoolean = JavaMethod.Static(owner: "java/lang/Boolean", name: "getBoolean", descriptor: "(Ljava/lang/String;)Z");
+    private static readonly JavaMethod GetBoolean = JavaMethod.Static(owner: "java/lang/Boolean",
+        name: "getBoolean",
+        descriptor: "(Ljava/lang/String;)Z");
 
     private static readonly ClassPatch Target = ClassPatch.For(className: "BridgeFixture$ModuleTarget")
         .Method(name: "bootstrap")
@@ -47,8 +48,7 @@ internal static class ModuleDemo
     {
         JavaMethod isBooted = JavaMethod.Static(owner: "jdk/internal/misc/VM", name: "isBooted", descriptor: "()Z");
 
-        return JavaClassDefinition.FromBytes(
-            new ClassFileWriter(name).AddMethod(name: "getBoolean", descriptor: "(Ljava/lang/String;)Z", code => code.Invoke(isBooted).IReturn()).ToArray()
-        );
+        return JavaClassDefinition.FromBytes(new ClassFileWriter(name).AddMethod(name: "getBoolean", descriptor: "(Ljava/lang/String;)Z", code => code.Invoke(isBooted).IReturn())
+            .ToArray());
     }
 }

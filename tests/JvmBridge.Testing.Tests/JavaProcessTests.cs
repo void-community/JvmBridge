@@ -12,31 +12,40 @@ public sealed class JavaProcessTests
 
     /// <summary>Disposing a program that still runs ends it and the JVM it started.</summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it; Process.pid(), which the fixture prints its child's id with, is Java 9 and later.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task DisposingEndsTheProgramAndItsChildrenAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classes = await jdk.CompileAsync(sources: "ProcessFixtures/fixture/*.java", cancellationToken: cancellationToken);
 
         try
         {
             JavaProcess process = await jdk.StartAsync(Main, classes, cancellationToken: cancellationToken);
+
             int parent;
             int child;
 
             await using (process)
             {
                 parent = int.Parse(Line(await process.WaitForOutputAsync(text: "ready", cancellationToken), prefix: "PID="), CultureInfo.InvariantCulture);
-                await process.WriteLineAsync(line: "child", cancellationToken);
+
+                await process.WriteAsync(line: "child", cancellationToken);
+
                 child = int.Parse(Line(await process.WaitForOutputAsync(text: "CHILD=", cancellationToken), prefix: "CHILD="), CultureInfo.InvariantCulture);
 
-                Assert.False(await EndsAsync(child, TimeSpan.FromSeconds(seconds: 1)), userMessage: "The child JVM did not start.");
+                Assert.False(await EndsAsync(child, TimeSpan.FromSeconds(seconds: 1)),
+                    userMessage: "The child JVM did not start.");
             }
 
             Assert.True(await EndsAsync(parent, TimeSpan.FromSeconds(seconds: 30)), userMessage: "The program still runs.");
-            Assert.True(await EndsAsync(child, TimeSpan.FromSeconds(seconds: 30)), userMessage: "The JVM the program started still runs.");
+
+            Assert.True(await EndsAsync(child, TimeSpan.FromSeconds(seconds: 30)),
+                userMessage: "The JVM the program started still runs.");
         }
         finally
         {
@@ -49,12 +58,15 @@ public sealed class JavaProcessTests
     /// program has ended. Disposing an ended program does nothing.
     /// </summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task DrivesAProgramThroughItsInputAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classes = await jdk.CompileAsync(sources: "ProcessFixtures/fixture/*.java", cancellationToken: cancellationToken);
 
         try
@@ -65,17 +77,26 @@ public sealed class JavaProcessTests
             {
                 string ready = await process.WaitForOutputAsync(text: "ready", cancellationToken);
                 string earlier = await process.WaitForOutputAsync(text: "first", cancellationToken);
-                await process.WriteLineAsync(line: "hello", cancellationToken);
+
+                await process.WriteAsync(line: "hello", cancellationToken);
+
                 string echoed = await process.WaitForOutputAsync(text: "echo: hello", cancellationToken);
-                await process.WriteLineAsync(line: "stop", cancellationToken);
+
+                await process.WriteAsync(line: "stop", cancellationToken);
+
                 JavaRun run = await process.WaitForExitAsync(cancellationToken);
                 InvalidOperationException never = await Assert.ThrowsAsync<InvalidOperationException>(() => process.WaitForOutputAsync(text: "never", cancellationToken));
 
+                // Each wait returned the line it asked for, whether the line was written before the wait or after it.
                 Assert.EndsWith(expectedEndString: "ready", ready, StringComparison.Ordinal);
                 Assert.EndsWith(expectedEndString: "first", earlier, StringComparison.Ordinal);
                 Assert.EndsWith(expectedEndString: "echo: hello", echoed, StringComparison.Ordinal);
+
+                // The program read the stop line from its input and ended by itself.
                 Assert.Equal(expected: 0, run.ExitCode);
                 Assert.Contains(expectedSubstring: "stopping", run.Output, StringComparison.Ordinal);
+
+                // The wait that came after the end says the text was never written and shows what was.
                 Assert.Contains(expectedSubstring: "ended without writing \"never\"", never.Message, StringComparison.Ordinal);
                 Assert.Contains(expectedSubstring: "stopping", never.Message, StringComparison.Ordinal);
             }
@@ -90,12 +111,15 @@ public sealed class JavaProcessTests
 
     /// <summary>A cancelled wait fails with the output so far and leaves the program running; when the time limit runs out, the program is ended and its waits fail with the output.</summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task EndsAWaitOnCancellationAndTheTimeLimitAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classes = await jdk.CompileAsync(sources: "ProcessFixtures/fixture/*.java", cancellationToken: cancellationToken);
 
         try
@@ -109,18 +133,26 @@ public sealed class JavaProcessTests
                 using (CancellationTokenSource shortly = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
                     shortly.CancelAfter(TimeSpan.FromMilliseconds(milliseconds: 300));
+
                     OperationCanceledException cancelled = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running.WaitForOutputAsync(text: "never", shortly.Token));
 
                     Assert.Contains(ready, cancelled.Message, StringComparison.Ordinal);
                 }
 
-                await running.WriteLineAsync(line: "still", cancellationToken);
+                await running.WriteAsync(line: "still", cancellationToken);
+
                 string still = await running.WaitForOutputAsync(text: "echo: still", cancellationToken);
 
                 Assert.EndsWith(expectedEndString: "echo: still", still, StringComparison.Ordinal);
             }
 
-            JavaProcess limited = await jdk.StartAsync(Main, classes, options: new JavaRunOptions { Timeout = TimeSpan.FromSeconds(seconds: 10) }, cancellationToken: cancellationToken);
+            JavaProcess limited = await jdk.StartAsync(Main,
+                classes,
+                options: new JavaRunOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(seconds: 10)
+                },
+                cancellationToken: cancellationToken);
 
             await using (limited)
             {
@@ -128,7 +160,10 @@ public sealed class JavaProcessTests
                 TimeoutException late = await Assert.ThrowsAsync<TimeoutException>(() => limited.WaitForOutputAsync(text: "never", cancellationToken));
                 TimeoutException ended = await Assert.ThrowsAsync<TimeoutException>(() => limited.WaitForExitAsync(cancellationToken));
 
-                Assert.Contains(expectedSubstring: "did not write \"never\" within 10 seconds", late.Message, StringComparison.Ordinal);
+                Assert.Contains(expectedSubstring: "did not write \"never\" within 10 seconds",
+                    late.Message,
+                    StringComparison.Ordinal);
+
                 Assert.Contains(started, late.Message, StringComparison.Ordinal);
                 Assert.Contains(expectedSubstring: "did not finish within 10 seconds", ended.Message, StringComparison.Ordinal);
             }
@@ -141,30 +176,45 @@ public sealed class JavaProcessTests
 
     /// <summary>Megabytes written to both streams arrive whole, each stream's lines in the order the program wrote them.</summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task KeepsTheOrderOfEachStreamAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classes = await jdk.CompileAsync(sources: "ProcessFixtures/fixture/*.java", cancellationToken: cancellationToken);
 
         try
         {
-            JavaProcess process = await jdk.StartAsync(Main, classes, options: new JavaRunOptions { Arguments = ["flood", "60000"] }, cancellationToken: cancellationToken);
+            JavaProcess process = await jdk.StartAsync(Main,
+                classes,
+                options: new JavaRunOptions
+                {
+                    Arguments = ["flood", "60000"]
+                },
+                cancellationToken: cancellationToken);
+
             JavaRun run;
 
             await using (process)
             {
                 string flooded = await process.WaitForOutputAsync(text: "flood done", cancellationToken);
+
                 run = await process.WaitForExitAsync(cancellationToken);
 
                 Assert.EndsWith(expectedEndString: "flood done", flooded, StringComparison.Ordinal);
             }
 
             string[] lines = [.. run.Output.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r'))];
-            int[] written = [.. lines.Where(static line => line.StartsWith(value: "out ", StringComparison.Ordinal)).Select(static line => Number(line))];
-            int[] errors = [.. lines.Where(static line => line.StartsWith(value: "err ", StringComparison.Ordinal)).Select(static line => Number(line))];
+
+            int[] written = [.. lines.Where(static line => line.StartsWith(value: "out ", StringComparison.Ordinal))
+                .Select(static line => Number(line))];
+
+            int[] errors = [.. lines.Where(static line => line.StartsWith(value: "err ", StringComparison.Ordinal))
+                .Select(static line => Number(line))];
 
             Assert.True(run.Output.Length > 4_000_000, userMessage: "The program wrote less than expected.");
             Assert.Equal(Enumerable.Range(start: 0, count: 30000).Select(static index => index * 2), written);
@@ -178,44 +228,53 @@ public sealed class JavaProcessTests
 
     /// <summary>A program run or started in a working directory sees it as user.dir and reads a file there by a relative path.</summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task RunsInTheWorkingDirectoryAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classes = await jdk.CompileAsync(sources: "ProcessFixtures/fixture/*.java", cancellationToken: cancellationToken);
+
         string directory = Directory.CreateTempSubdirectory(prefix: "jvmbridge-working-").FullName;
 
         try
         {
             await File.WriteAllTextAsync(Path.Combine(directory, path2: "relative.txt"), contents: "here", cancellationToken);
-            JavaRunOptions options = new() { WorkingDirectory = directory, Arguments = ["where"] };
+
+            JavaRunOptions options = new()
+            {
+                WorkingDirectory = directory,
+                Arguments = ["where"]
+            };
 
             JavaRun run = await jdk.RunAsync(Main, classes, options: options, cancellationToken: cancellationToken);
             JavaProcess process = await jdk.StartAsync(Main, classes, options: options, cancellationToken: cancellationToken);
+
             JavaRun started;
 
             await using (process)
                 started = await process.WaitForExitAsync(cancellationToken);
 
-            foreach (JavaRun result in new[] { run, started })
+            foreach (JavaRun finished in new[] { run, started })
             {
-                Assert.Equal(expected: 0, result.ExitCode);
-                Assert.Contains(expectedSubstring: "FILE=here", result.Output, StringComparison.Ordinal);
+                Assert.Equal(expected: 0, finished.ExitCode);
+                Assert.Contains(expectedSubstring: "FILE=here", finished.Output, StringComparison.Ordinal);
 
                 // macOS reports the temporary directory through /private, so only the unique name is compared.
-                Assert.EndsWith(Path.GetFileName(directory), Line(result.Output, prefix: "DIR="), StringComparison.Ordinal);
+                Assert.EndsWith(Path.GetFileName(directory), Line(finished.Output, prefix: "DIR="), StringComparison.Ordinal);
             }
 
-            DirectoryNotFoundException missing = await Assert.ThrowsAsync<DirectoryNotFoundException>(
-                () => jdk.RunAsync(
-                    Main,
-                    classes,
-                    options: options with { WorkingDirectory = Path.Combine(directory, path2: "absent") },
-                    cancellationToken: cancellationToken
-                )
-            );
+            DirectoryNotFoundException missing = await Assert.ThrowsAsync<DirectoryNotFoundException>(() => jdk.RunAsync(Main,
+                classes,
+                options: options with
+                {
+                    WorkingDirectory = Path.Combine(directory, path2: "absent")
+                },
+                cancellationToken: cancellationToken));
 
             Assert.Contains(expectedSubstring: "absent", missing.Message, StringComparison.Ordinal);
         }
@@ -245,7 +304,8 @@ public sealed class JavaProcessTests
                 return true;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(milliseconds: 100), TestContext.Current.CancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.Delay(TimeSpan.FromMilliseconds(milliseconds: 100), TestContext.Current.CancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
 
         return false;
@@ -253,7 +313,9 @@ public sealed class JavaProcessTests
 
     private static string Line(string output, string prefix)
     {
-        string line = output.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r')).First(line => line.StartsWith(prefix, StringComparison.Ordinal));
+        string line = output.Split(separator: '\n')
+            .Select(static line => line.TrimEnd(trimChar: '\r'))
+            .First(line => line.StartsWith(prefix, StringComparison.Ordinal));
 
         return line[prefix.Length..];
     }

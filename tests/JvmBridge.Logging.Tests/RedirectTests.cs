@@ -20,12 +20,12 @@ public sealed class RedirectTests
         try
         {
             AgentLogging.Redirect(logger);
-
             AgentLog.Sink(AgentLogLevel.Error, source: "MyAgent", message: "failed");
             AgentLog.Sink(AgentLogLevel.Information, source: "MyAgent", message: "dropped by the logger");
             AgentLog.Sink(AgentLogLevel.None, source: "MyAgent", message: "never logged");
 
-            Assert.Equal(["Error|MyAgent: failed"], logger.Lines);
+            // The logger's minimum is Warning and None is not a level to log at, so only the error arrives.
+            Assert.Equal(expected: ["Error|MyAgent: failed"], logger.Lines);
         }
         finally
         {
@@ -33,7 +33,7 @@ public sealed class RedirectTests
         }
     }
 
-    /// <summary>Redirecting to null restores the default sink.</summary>
+    /// <summary>Redirecting to <see langword="null"/> restores the default sink.</summary>
     [Fact]
     public void NullRestoresStandardError()
     {
@@ -45,7 +45,6 @@ public sealed class RedirectTests
             AgentLogging.Redirect(logger);
             AgentLogging.Redirect(logger: null);
             AgentLog.Sink(AgentLogLevel.Information, source: "MyAgent", message: "to stderr");
-
             Assert.Empty(logger.Lines);
         }
         finally

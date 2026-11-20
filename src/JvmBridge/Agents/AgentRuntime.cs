@@ -66,14 +66,19 @@ public static unsafe class AgentRuntime
             if (!_contexts.TryAdd(context.RawHandle, context))
                 throw new InvalidOperationException("An agent is already registered for this tooling environment.");
             registeredHandle = context.RawHandle;
+
             context.Agent.Configure(context);
+
             var environment = (jvmtiInterface_1_**)context.RawHandle;
             jvmtiEventCallbacks callbacks = default;
+
             callbacks.VMInit = &VmInit;
             callbacks.VMDeath = &VmDeath;
             callbacks.ClassPrepare = &ClassPrepare;
             callbacks.ClassFileLoadHook = &ClassFileLoad;
+
             EventTable.Compose(ref callbacks);
+
             // SetEventCallbacks accepts a prefix; do not read Java 9+ callback slots on Java 8.
             int size = (int)Marshal.OffsetOf<jvmtiEventCallbacks>(nameof(jvmtiEventCallbacks.SampledObjectAlloc));
             // An agent that attaches later is expected to patch classes that are already loaded, and the capability can only be added before events are enabled.
@@ -83,6 +88,7 @@ public static unsafe class AgentRuntime
             foreach (jvmtiEvent notification in new[] { jvmtiEvent.JVMTI_EVENT_VM_INIT, jvmtiEvent.JVMTI_EVENT_VM_DEATH, jvmtiEvent.JVMTI_EVENT_CLASS_PREPARE, jvmtiEvent.JVMTI_EVENT_CLASS_FILE_LOAD_HOOK })
                 AgentContext.Check(((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, jvmtiEventMode.JVMTI_ENABLE, notification, null), "SetEventNotificationMode");
             context.Events.EnablePending();
+
             context.EventsEnabled = true;
             if (attached)
             {
@@ -113,8 +119,14 @@ public static unsafe class AgentRuntime
     /// <param name="machine">The raw JVM invocation-interface pointer.</param>
     public static void Stop(nint machine)
     {
-        try { StopCore(machine); }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        try
+        {
+            StopCore(machine);
+        }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     /// <summary>Finds the context of a JVMTI environment, for event callbacks.</summary>
@@ -154,14 +166,26 @@ public static unsafe class AgentRuntime
 
     private static void StartPatching(AgentContext context)
     {
-        try { context.Patches.OnAttach(); }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        try
+        {
+            context.Patches.OnAttach();
+        }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     private static void DisposeContext(AgentContext context)
     {
-        try { context.Dispose(); }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        try
+        {
+            context.Dispose();
+        }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     /// <summary>Reports an exception that a native method contained, for use in an exception filter that returns a default value to the JVM.</summary>
@@ -182,9 +206,18 @@ public static unsafe class AgentRuntime
         {
             if (entry.Value.VirtualMachine.Handle != machine || !_contexts.TryRemove(entry.Key, out AgentContext? context))
                 continue;
-            try { context.Agent.OnUnload(context); }
-            catch (Exception exception) when (ReportAndContain(exception)) { continue; }
-            finally { context.Patches.Cleanup(); }
+            try
+            {
+                context.Agent.OnUnload(context);
+            }
+            catch (Exception exception) when (ReportAndContain(exception))
+            {
+                continue;
+            }
+            finally
+            {
+                context.Patches.Cleanup();
+            }
             // JVM shutdown owns native environment disposal. NativeAOT libraries stay loaded until process exit.
         }
     }
@@ -206,7 +239,10 @@ public static unsafe class AgentRuntime
                 context.Agent.OnVmInit(context, environment);
             }
         }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     [UnmanagedCallersOnly]
@@ -222,11 +258,20 @@ public static unsafe class AgentRuntime
                 if ((*nativeEnvironment)->ExceptionCheck(nativeEnvironment) != 0)
                     return;
                 using JavaEnvironment environment = new((nint)nativeEnvironment);
-                try { context.Agent.OnVmDeath(context, environment); }
-                finally { Stop(context.VirtualMachine.Handle); }
+                try
+                {
+                    context.Agent.OnVmDeath(context, environment);
+                }
+                finally
+                {
+                    Stop(context.VirtualMachine.Handle);
+                }
             }
         }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     [UnmanagedCallersOnly]
@@ -245,7 +290,10 @@ public static unsafe class AgentRuntime
                 context.Agent.OnClassPrepare(context, environment, (nint)type);
             }
         }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 
     [UnmanagedCallersOnly]
@@ -256,24 +304,33 @@ public static unsafe class AgentRuntime
             if (!_contexts.TryGetValue((nint)tooling, out AgentContext? context))
                 return;
             jvmtiPhase phase = default;
+
             AgentContext.Check((*tooling)->GetPhase(tooling, &phase), "GetPhase");
+
             bool canUseJni = environment != null && phase is jvmtiPhase.JVMTI_PHASE_START or jvmtiPhase.JVMTI_PHASE_LIVE;
             if (canUseJni && (*environment)->ExceptionCheck(environment) != 0)
                 return;
             using JavaEnvironment? javaEnvironment = environment == null ? null : new JavaEnvironment((nint)environment);
             ClassFile file = new(name == null ? null : ModifiedUtf8.Decode(name), redefined != null, new ReadOnlySpan<byte>(bytes, length));
             ClassTransformContext callback = new(javaEnvironment, (nint)loader, (nint)protectionDomain, (nint)redefined, canUseJni);
+
+            // The registered patches run first, and the agent's own transform sees the class as they leave it.
             byte[]? patched = context.Patches.Transform(file, callback);
             ClassFile effective = patched is null ? file : new ClassFile(file.Name, file.IsRetransformation, patched);
             byte[]? result = context.Agent.TransformClass(context, effective, callback) ?? patched;
             if (result is null)
                 return;
             byte* output = null;
+
             AgentContext.Check((*tooling)->Allocate(tooling, result.Length, &output), "Allocate transformed class");
             result.CopyTo(new Span<byte>(output, result.Length));
+
             *replacementLength = result.Length;
             *replacement = output;
         }
-        catch (Exception exception) when (ReportAndContain(exception)) { return; }
+        catch (Exception exception) when (ReportAndContain(exception))
+        {
+            return;
+        }
     }
 }

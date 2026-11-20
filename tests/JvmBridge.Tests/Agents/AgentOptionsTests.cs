@@ -56,16 +56,21 @@ public sealed class AgentOptionsTests
     {
         AgentOptions options = AgentOptions.Parse(text: "log=debug,trace-classes,filter=a=b");
 
+        // Each comma starts an entry, and an entry with an equals sign has the text after it as its value.
         Assert.Equal(expected: 3, options.Count);
         Assert.True(options.TryGetValue(key: "log", out string? log));
         Assert.Equal(expected: "debug", log);
-        Assert.True(options.TryGetValue(key: "trace-classes", out string? flag));
-        Assert.Equal(string.Empty, flag);
+
+        // An entry without an equals sign is present with an empty value.
+        Assert.True(options.TryGetValue(key: "trace-classes", out string? traceClasses));
+        Assert.Equal(string.Empty, traceClasses);
+
+        // Only the first equals sign splits, so the value keeps the second one.
         Assert.True(options.TryGetValue(key: "filter", out string? filter));
         Assert.Equal(expected: "a=b", filter);
     }
 
-    /// <summary>A bare flag and the values true, on, yes and 1 are on; absent flags and false-like values are off.</summary>
+    /// <summary>A bare flag and the values <see langword="true"/>, <c>on</c>, <c>yes</c> and <c>1</c> are on; absent flags and false-like values are off.</summary>
     [Fact]
     public void ReadsFlags()
     {
@@ -82,8 +87,11 @@ public sealed class AgentOptionsTests
     {
         AgentOptions options = AgentOptions.Parse(text: "limit=-5,bad=x,empty");
 
+        // A value that is an integer is read with its sign.
         Assert.True(options.TryGetInt32(key: "limit", out int limit));
         Assert.Equal(expected: -5, limit);
+
+        // Text that is no integer reports failure and leaves 0; an entry without a value and a missing key report failure too.
         Assert.False(options.TryGetInt32(key: "bad", out int bad));
         Assert.Equal(expected: 0, bad);
         Assert.False(options.TryGetInt32(key: "empty", out _));

@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 using JvmBridge.Agents;
 using JvmBridge.Native;
@@ -15,10 +16,15 @@ internal sealed unsafe class FakeJvm : IDisposable
     /// <summary>The xUnit collection of every test class that uses a fake JVM or replaces the agent log sink.</summary>
     internal const string CollectionName = "Agent tests";
 
+    // What the agent did to the JVM, kept for the assertions of a test.
     private static readonly List<EventToggle> RecordedToggles = [];
     private static readonly List<int> RequestedTooling = [];
+
+    // The tooling interface that GetEnv hands out, and the callbacks the agent installed in it.
     private static nint s_currentTooling;
     private static jvmtiEventCallbacks s_installedCallbacks;
+
+    // What a test told the JVM to offer and to report.
     private static int s_newestTooling;
     private static int s_offeredCapabilities;
     private static int s_reportedThreadState;
@@ -29,26 +35,42 @@ internal sealed unsafe class FakeJvm : IDisposable
 
     internal FakeJvm()
     {
+        // Every test starts with a JVM that offers nothing and has recorded nothing.
         RecordedToggles.Clear();
+
         s_offeredCapabilities = 0;
         s_reportedThreadState = 0;
         s_specificationVersion = null;
         s_newestTooling = int.MaxValue;
+
         RequestedTooling.Clear();
+
         s_installedCallbacks = default;
+
+        // The tooling functions an agent calls while it negotiates the version and its capabilities.
         jvmtiInterface_1_* toolingTable = (jvmtiInterface_1_*)NativeMemory.AllocZeroed((nuint)sizeof(jvmtiInterface_1_));
+
         toolingTable->GetVersionNumber = &Version;
         toolingTable->GetPotentialCapabilities = &PotentialCapabilities;
         toolingTable->AddCapabilities = &AddCapabilities;
+
+        // The functions that report the JVM's state, and the one that frees the text they return.
         toolingTable->GetThreadState = &ThreadState;
-        toolingTable->SetEventCallbacks = &AcceptCallbacks;
         toolingTable->GetSystemProperty = &SystemProperty;
         toolingTable->GetPhase = &Phase;
         toolingTable->Deallocate = &Deallocate;
+
+        // The functions that record which callbacks and events the agent turns on.
+        toolingTable->SetEventCallbacks = &AcceptCallbacks;
         toolingTable->SetEventNotificationMode = (nint)(delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)&AcceptMode;
+
+        // A JVM hands out a pointer to a pointer to its function table, so each table gets a cell that points to it.
         _tooling = (jvmtiInterface_1_**)NativeMemory.AllocZeroed((nuint)sizeof(nint));
         *_tooling = toolingTable;
+
+        // The invocation interface needs GetEnv alone, which is how the agent reaches the tooling interface.
         JNIInvokeInterface_* machineTable = (JNIInvokeInterface_*)NativeMemory.AllocZeroed((nuint)sizeof(JNIInvokeInterface_));
+
         machineTable->GetEnv = &GetEnvironment;
         _machine = (JNIInvokeInterface_**)NativeMemory.AllocZeroed((nuint)sizeof(nint));
         *_machine = machineTable;
@@ -70,7 +92,9 @@ internal sealed unsafe class FakeJvm : IDisposable
     public void Dispose()
     {
         AgentRuntime.Stop(Machine);
+
         s_currentTooling = 0;
+
         NativeMemory.Free(*_tooling);
         NativeMemory.Free(_tooling);
         NativeMemory.Free(*_machine);
@@ -93,13 +117,13 @@ internal sealed unsafe class FakeJvm : IDisposable
     }
 
     /// <summary>Sets the <c>java.vm.specification.version</c> that <c>GetSystemProperty</c> reports, or <see langword="null"/> for none. The fake is never live, so a version older than 6 is not looked up through JNI.</summary>
-    internal static void ReportSpecificationVersion(string? version)
+    internal static void ReportSpecification(string? version)
     {
         s_specificationVersion = version;
     }
 
     /// <summary>Sets the state bits that <c>GetThreadState</c> reports.</summary>
-    internal static void ReportThreadState(JavaThreadState state)
+    internal static void ReportThread(JavaThreadState state)
     {
         s_reportedThreadState = (int)state;
     }
@@ -196,14 +220,17 @@ internal sealed unsafe class FakeJvm : IDisposable
     [UnmanagedCallersOnly]
     private static jvmtiError SystemProperty(jvmtiInterface_1_** environment, byte* property, byte** value)
     {
-        bool known = Marshal.PtrToStringUTF8((nint)property) == "java.vm.specification.version" && s_specificationVersion is not null;
+        bool known = Marshal.PtrToStringUTF8((nint)property) == "java.vm.specification.version"
+            && s_specificationVersion is not null;
 
         if (!known)
             return jvmtiError.JVMTI_ERROR_NOT_AVAILABLE;
 
-        byte[] encoded = [.. System.Text.Encoding.UTF8.GetBytes(s_specificationVersion ?? string.Empty), 0];
-        byte* copy = (byte*)NativeMemory.Alloc((nuint)encoded.Length);
+        byte[] encoded = [.. Encoding.UTF8.GetBytes(s_specificationVersion ?? string.Empty), 0];
+        byte* copy = (byte*)NativeMemory.Alloc(nuint.CreateChecked(encoded.Length));
+
         encoded.CopyTo(new Span<byte>(copy, encoded.Length));
+
         *value = copy;
 
         return jvmtiError.JVMTI_ERROR_NONE;

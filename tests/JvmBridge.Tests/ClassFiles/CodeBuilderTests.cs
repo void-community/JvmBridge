@@ -23,11 +23,17 @@ public sealed class CodeBuilderTests
             return code.Mark(top).Goto(top);
         }
 
-        ArgumentException refused = Assert.Throws<ArgumentException>(static () => new ClassFileWriter(name: "test/Loop").AddMethod(name: "spin", descriptor: "()V", Loop));
-        byte[] accepted = new ClassFileWriter(name: "test/Loop", majorVersion: 50).AddMethod(name: "spin", descriptor: "()V", Loop).ToArray();
+        ArgumentException refused = Assert.Throws<ArgumentException>(static () => new ClassFileWriter(name: "test/Loop").AddMethod(name: "spin",
+            descriptor: "()V",
+            Loop));
+
+        byte[] accepted = new ClassFileWriter(name: "test/Loop", majorVersion: 50).AddMethod(name: "spin", descriptor: "()V", Loop)
+            .ToArray();
 
         Assert.Contains(expectedSubstring: "stack map frames", refused.Message, StringComparison.Ordinal);
-        Assert.Equal([Opcodes.Goto], Method(accepted, name: "spin").Instructions.Select(static instruction => instruction.Opcode));
+
+        Assert.Equal(expected: [Opcodes.Goto],
+            Method(accepted, name: "spin").Instructions.Select(static instruction => instruction.Opcode));
     }
 
     /// <summary>Branches resolve to the offsets of their labels, and the stack depth a branch carries is the one at its label, which the code that follows starts from.</summary>
@@ -36,17 +42,22 @@ public sealed class CodeBuilderTests
     {
         // static int sign(int value) { return value < 0 ? -1 : 1; }
         byte[] bytes = new ClassFileWriter(name: "test/Sign", majorVersion: 50)
-            .AddMethod(
-                name: "sign",
+            .AddMethod(name: "sign",
                 descriptor: "(I)I",
                 static code =>
                 {
                     CodeLabel negative = code.NewLabel();
                     CodeLabel done = code.NewLabel();
 
-                    return code.ILoad(slot: 0).If(Opcodes.IfLt, negative).IConst(value: 1).Goto(done).Mark(negative).IConst(value: -1).Mark(done).IReturn();
-                }
-            )
+                    return code.ILoad(slot: 0)
+                        .If(Opcodes.IfLt, negative)
+                        .IConst(value: 1)
+                        .Goto(done)
+                        .Mark(negative)
+                        .IConst(value: -1)
+                        .Mark(done)
+                        .IReturn();
+                })
             .ToArray();
 
         CodeAttribute code = Method(bytes, name: "sign");
@@ -55,10 +66,10 @@ public sealed class CodeBuilderTests
 
         Assert.Equal(expected: 1, code.MaxStack);
         Assert.Equal(expected: 1, code.MaxLocals);
-        Assert.Equal(
-            [Opcodes.ILoad0, Opcodes.IfLt, Opcodes.IConst1, Opcodes.Goto, Opcodes.IConstM1, Opcodes.IReturn],
-            code.Instructions.Select(static instruction => instruction.Opcode)
-        );
+
+        Assert.Equal(expected: [Opcodes.ILoad0, Opcodes.IfLt, Opcodes.IConst1, Opcodes.Goto, Opcodes.IConstM1, Opcodes.IReturn],
+            code.Instructions.Select(static instruction => instruction.Opcode));
+
         Assert.Equal(expected: 8, branch.Offset + Offset(bytes, code, branch));
         Assert.Equal(expected: 9, jump.Offset + Offset(bytes, code, jump));
     }
@@ -69,9 +80,17 @@ public sealed class CodeBuilderTests
     {
         ClassFileWriter writer = new(name: "test/Broken", majorVersion: 50);
 
-        InvalidOperationException underflow = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "pop", descriptor: "()V", static code => code.Pop().Return()));
-        InvalidOperationException unreachable = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "dead", descriptor: "()V", static code => code.Return().Nop()));
-        InvalidOperationException unplaced = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "lost", descriptor: "()V", static code => code.Goto(code.NewLabel())));
+        InvalidOperationException underflow = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "pop",
+            descriptor: "()V",
+            static code => code.Pop().Return()));
+
+        InvalidOperationException unreachable = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "dead",
+            descriptor: "()V",
+            static code => code.Return().Nop()));
+
+        InvalidOperationException unplaced = Assert.Throws<InvalidOperationException>(() => writer.AddMethod(name: "lost",
+            descriptor: "()V",
+            static code => code.Goto(code.NewLabel())));
 
         Assert.Contains(expectedSubstring: "stack has 0", underflow.Message, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "never run", unreachable.Message, StringComparison.Ordinal);
@@ -83,8 +102,7 @@ public sealed class CodeBuilderTests
     public void ConstantsTakeTheShortestForm()
     {
         byte[] bytes = new ClassFileWriter(name: "test/Constants")
-            .AddMethod(
-                name: "values",
+            .AddMethod(name: "values",
                 descriptor: "()V",
                 static code => code.IConst(value: 5)
                     .IConst(value: 100)
@@ -98,12 +116,27 @@ public sealed class CodeBuilderTests
                     .Pop()
                     .Pop()
                     .Pop()
-                    .Return()
-            )
+                    .Return())
             .ToArray();
 
         CodeAttribute code = Method(bytes, name: "values");
-        byte[] expected = [Opcodes.IConst5, Opcodes.BIPush, Opcodes.SIPush, Opcodes.Ldc, Opcodes.LConst1, Opcodes.Ldc2W, Opcodes.Pop2, Opcodes.Pop2, Opcodes.Pop, Opcodes.Pop, Opcodes.Pop, Opcodes.Pop, Opcodes.Return];
+
+        byte[] expected =
+        [
+            Opcodes.IConst5,
+            Opcodes.BIPush,
+            Opcodes.SIPush,
+            Opcodes.Ldc,
+            Opcodes.LConst1,
+            Opcodes.Ldc2W,
+            Opcodes.Pop2,
+            Opcodes.Pop2,
+            Opcodes.Pop,
+            Opcodes.Pop,
+            Opcodes.Pop,
+            Opcodes.Pop,
+            Opcodes.Return,
+        ];
 
         Assert.Equal(expected, code.Instructions.Select(static instruction => instruction.Opcode));
         Assert.Equal(expected: 8, code.MaxStack);
@@ -114,9 +147,10 @@ public sealed class CodeBuilderTests
     [Fact]
     public void EditorAssemblesAgainstItsPool()
     {
-        byte[] original = new ClassFileWriter(name: "test/Subject").AddMethod(name: "size", descriptor: "(Ljava/lang/String;)I", static code => code.ALoad(slot: 0).Invoke(Length).IReturn()).ToArray();
-        ClassFileEditor editor = new(original);
+        byte[] original = new ClassFileWriter(name: "test/Subject").AddMethod(name: "size", descriptor: "(Ljava/lang/String;)I", static code => code.ALoad(slot: 0).Invoke(Length).IReturn())
+            .ToArray();
 
+        ClassFileEditor editor = new(original);
         byte[] call = editor.AssembleCode(static code => code.Invoke(Length));
         ArgumentException refused = Assert.Throws<ArgumentException>(() => editor.AssembleCode(static code => code.Goto(code.NewLabel())));
 
@@ -130,19 +164,21 @@ public sealed class CodeBuilderTests
     public void LocalsTakeTheirForms()
     {
         byte[] bytes = new ClassFileWriter(name: "test/Locals", majorVersion: 50)
-            .AddMethod(
-                name: "locals",
+            .AddMethod(name: "locals",
                 descriptor: "(J)V",
-                static code => code.LLoad(slot: 0).LStore(slot: 4).IConst(value: 1).IStore(slot: 300).IInc(slot: 300, delta: 2).Return()
-            )
+                static code => code.LLoad(slot: 0)
+                    .LStore(slot: 4)
+                    .IConst(value: 1)
+                    .IStore(slot: 300)
+                    .IInc(slot: 300, delta: 2)
+                    .Return())
             .ToArray();
 
         CodeAttribute code = Method(bytes, name: "locals");
 
-        Assert.Equal(
-            [Opcodes.LLoad0, Opcodes.LStore, Opcodes.IConst1, Opcodes.Wide, Opcodes.Wide, Opcodes.Return],
-            code.Instructions.Select(static instruction => instruction.Opcode)
-        );
+        Assert.Equal(expected: [Opcodes.LLoad0, Opcodes.LStore, Opcodes.IConst1, Opcodes.Wide, Opcodes.Wide, Opcodes.Return],
+            code.Instructions.Select(static instruction => instruction.Opcode));
+
         Assert.Equal(expected: 301, code.MaxLocals);
         Assert.Equal(expected: 2, code.MaxStack);
     }
@@ -153,8 +189,7 @@ public sealed class CodeBuilderTests
     {
         // static int measure(String value) { System.out.getClass(); return new StringBuilder(value).toString().length(); }
         byte[] bytes = new ClassFileWriter(name: "test/Matched")
-            .AddMethod(
-                name: "measure",
+            .AddMethod(name: "measure",
                 descriptor: "(Ljava/lang/String;)I",
                 static code => code.GetStatic(owner: "java/lang/System", name: "out", descriptor: "Ljava/io/PrintStream;")
                     .Pop()
@@ -164,8 +199,7 @@ public sealed class CodeBuilderTests
                     .InvokeSpecial(owner: "java/lang/StringBuilder", name: "<init>", descriptor: "(Ljava/lang/String;)V")
                     .Invoke(JavaMethod.Virtual(owner: "java/lang/StringBuilder", name: "toString", descriptor: "()Ljava/lang/String;"))
                     .Invoke(Length)
-                    .IReturn()
-            )
+                    .IReturn())
             .ToArray();
 
         JavaClassFile file = JavaClassFile.Read(bytes);
@@ -173,12 +207,16 @@ public sealed class CodeBuilderTests
 
         Assert.Equal(expected: 3, code.MaxStack);
         Assert.Equal(expected: 1, code.Instructions.Count(instruction => file.Invokes(instruction, Length)));
-        Assert.Equal(expected: 1, code.Instructions.Count(instruction => file.AccessesField(instruction, owner: "java/lang/System", name: "out")));
-        Assert.Equal(expected: 1, code.Instructions.Count(instruction => file.ReferencesClass(instruction, className: "java/lang/StringBuilder")));
-        Assert.DoesNotContain(
-            code.Instructions,
-            instruction => file.Invokes(instruction, JavaMethod.Interface(owner: "java/lang/String", name: "length", descriptor: "()I"))
-        );
+
+        Assert.Equal(expected: 1,
+            code.Instructions.Count(instruction => file.AccessesField(instruction, owner: "java/lang/System", name: "out")));
+
+        Assert.Equal(expected: 1,
+            code.Instructions.Count(instruction => file.ReferencesClass(instruction, className: "java/lang/StringBuilder")));
+
+        Assert.DoesNotContain(code.Instructions,
+            instruction => file.Invokes(instruction,
+                JavaMethod.Interface(owner: "java/lang/String", name: "length", descriptor: "()I")));
     }
 
     /// <summary>The names cover the 202 opcodes from <c>nop</c> to <c>jsr_w</c>, one constant each, with the values of the JVM specification.</summary>
@@ -187,8 +225,11 @@ public sealed class CodeBuilderTests
     {
         FieldInfo[] fields = typeof(Opcodes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
+        // Every opcode has one constant, and every constant is a byte.
         Assert.Equal(expected: 202, fields.Length);
         Assert.All(fields, static field => Assert.True(field.IsLiteral && field.FieldType == typeof(byte), field.Name));
+
+        // A load, a branch, a call and the last opcode have the values the specification gives them.
         Assert.Equal(expected: 0x2a, Opcodes.ALoad0);
         Assert.Equal(expected: 0x9f, Opcodes.IfICmpEq);
         Assert.Equal(expected: 0xb6, Opcodes.InvokeVirtual);
@@ -197,13 +238,14 @@ public sealed class CodeBuilderTests
 
     private static CodeAttribute Method(byte[] bytes, string name)
     {
-        return JavaClassFile.Read(bytes).FindMethod(name)?.Code ?? throw new InvalidOperationException(message: "The method has no code.");
+        return JavaClassFile.Read(bytes).FindMethod(name)?.Code
+            ?? throw new InvalidOperationException(message: "The method has no code.");
     }
 
     private static short Offset(byte[] bytes, CodeAttribute code, Instruction branch)
     {
         int at = code.CodeOffset + branch.Offset + 1;
 
-        return (short)((bytes[at] << 8) | bytes[at + 1]);
+        return short.CreateTruncating((bytes[at] << 8) | bytes[at + 1]);
     }
 }

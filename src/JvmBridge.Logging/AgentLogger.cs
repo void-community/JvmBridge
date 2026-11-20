@@ -26,19 +26,21 @@ internal sealed class AgentLogger : ILogger
 
     public bool IsEnabled(LogLevel logLevel)
     {
-        return _isEnabled(AgentLogLevels.ToAgentLevel(logLevel));
+        return _isEnabled(AgentLogLevels.Convert(logLevel));
     }
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         ArgumentNullException.ThrowIfNull(formatter);
-        AgentLogLevel level = AgentLogLevels.ToAgentLevel(logLevel);
+
+        AgentLogLevel level = AgentLogLevels.Convert(logLevel);
 
         if (!_isEnabled(level))
             return;
 
         string message = formatter(state, exception);
         string text = exception is null ? message : message + Environment.NewLine + exception;
+
         _write(level, _category.Length == 0 ? text : _category + ": " + text);
     }
 }

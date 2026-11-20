@@ -13,12 +13,17 @@ internal static unsafe class EventTable
     /// <summary>Sets the callbacks of the events an agent can subscribe to. The four callbacks that always run are set by the caller.</summary>
     internal static void Compose(ref jvmtiEventCallbacks callbacks)
     {
+        // The life of threads and classes.
         callbacks.ThreadStart = &ThreadStart;
         callbacks.ThreadEnd = &ThreadEnd;
         callbacks.ClassLoad = &ClassLoad;
+
+        // Exceptions, and the entry and exit of methods.
         callbacks.Exception = &Exception;
         callbacks.MethodEntry = &MethodEntry;
         callbacks.MethodExit = &MethodExit;
+
+        // Garbage collection and contended monitors.
         callbacks.GarbageCollectionStart = &GarbageCollectionStart;
         callbacks.GarbageCollectionFinish = &GarbageCollectionFinish;
         callbacks.MonitorContendedEnter = &MonitorContendedEnter;

@@ -18,9 +18,11 @@ public sealed class GlibcFloorTests
     private const string ImageVariable = "JVMBRIDGE_GLIBC_IMAGE";
 
     /// <summary>Gets whether a container image is named and the target is a glibc platform that the sysroot covers.</summary>
+    /// <value><see langword="true"/> if JVMBRIDGE_GLIBC_IMAGE names an image or CI published the samples for this runtime, and the target is linux-x64 or linux-arm64; otherwise, <see langword="false"/>.</value>
     public static bool Enabled => Image is not null && Rid is "linux-x64" or "linux-arm64";
 
     /// <summary>Gets the Java major versions the agent is run on.</summary>
+    /// <value>One row for each of Java 8, 17 and 21; the set is fixed.</value>
     public static IEnumerable<TheoryDataRow<int>> Majors => [new(p1: 8), new(p1: 17), new(p1: 21)];
 
     /// <summary>Gets the lowest glibc that such an agent supports.</summary>
@@ -28,9 +30,9 @@ public sealed class GlibcFloorTests
 
     // CI links the agents of these platforms against the sysroot itself, so there the image needs no naming.
     private static string? Image =>
-        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named ? named
-        : TestTarget.PublishedByCi ? TestTarget.GlibcImage
-        : null;
+        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named
+            ? named
+            : TestTarget.PublishedByCi ? TestTarget.GlibcImage : null;
 
     private static string Rid => TestTarget.Rid;
 
@@ -38,46 +40,46 @@ public sealed class GlibcFloorTests
     /// The published agent asks for no glibc symbol version newer than the floor, and every global symbol it needs from another library is bound to a version. A symbol that the sysroot lacks is linked unresolved without an error, and
     /// the library then fails to load; linking .NET 10's arm32 runtime against an old arm32 root file system does that with the 64-bit time functions of glibc 2.34.
     /// </summary>
-    [Fact(
-        SkipUnless = nameof(Enabled),
-        Skip = "Set JVMBRIDGE_GLIBC_IMAGE and publish HelloAgent for linux-x64 or linux-arm64 with the glibc-sysroot properties."
-    )]
+    [Fact(SkipUnless = nameof(Enabled),
+        Skip = "Set JVMBRIDGE_GLIBC_IMAGE and publish HelloAgent for linux-x64 or linux-arm64 with the glibc-sysroot properties.")]
     public async Task TheAgentNeedsNoNewerGlibcThanTheFloorAsync()
     {
         RepositoryContext repository = RepositoryContext.Discover();
         string agent = Path.Combine(repository.Artifacts, path2: "agent", Rid, path4: "HelloAgent.so");
 
-        ProcessResult symbols = await new ProcessRunner(repository).RunAsync(["readelf", "-V", agent], cancellationToken: TestContext.Current.CancellationToken);
+        ProcessResult symbols = await new ProcessRunner(repository).RunAsync(command: ["readelf", "-V", agent], cancellationToken: TestContext.Current.CancellationToken);
 
         Version[] versions = [.. RequiredGlibc(symbols.Output)];
         Version newest = versions.Max() ?? new Version(major: 0, minor: 0);
 
-        ProcessResult dynamic = await new ProcessRunner(repository).RunAsync(["readelf", "--dyn-syms", "-W", agent], cancellationToken: TestContext.Current.CancellationToken);
+        ProcessResult dynamic = await new ProcessRunner(repository).RunAsync(command: ["readelf", "--dyn-syms", "-W", agent], cancellationToken: TestContext.Current.CancellationToken);
+
         string[] unbound = [.. UnboundSymbols(dynamic.Output)];
 
         Assert.Empty(unbound);
         Assert.NotEmpty(versions);
-        Assert.True(
-            newest <= Floor,
-            $"HelloAgent.so needs glibc {newest}, newer than the floor {Floor}. Publish it with the properties of the glibc-sysroot action."
-        );
+
+        Assert.True(newest <= Floor,
+            $"HelloAgent.so needs glibc {newest}, newer than the floor {Floor}. Publish it with the properties of the glibc-sysroot action.");
     }
 
     /// <summary>The agent runs the fixture on the old glibc through -agentpath, and through its jar with -javaagent.</summary>
     /// <param name="major">The Java major version.</param>
-    [Theory(
-        SkipUnless = nameof(Enabled),
-        Skip = "Set JVMBRIDGE_GLIBC_IMAGE and publish HelloAgent for linux-x64 or linux-arm64 with the glibc-sysroot properties."
-    )]
+    /// <exception cref="InvalidOperationException">No container image is named: JVMBRIDGE_GLIBC_IMAGE is unset or empty, and CI did not publish the samples for this runtime.</exception>
+    [Theory(SkipUnless = nameof(Enabled),
+        Skip = "Set JVMBRIDGE_GLIBC_IMAGE and publish HelloAgent for linux-x64 or linux-arm64 with the glibc-sysroot properties.")]
     [MemberData(nameof(Majors))]
     public async Task TheAgentRunsOnTheOldGlibcAsync(int major)
     {
         RepositoryContext repository = RepositoryContext.Discover();
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        // The container runs this image with the published agent's directory mounted, on the pinned HotSpot JDK of the requested major.
         string image = Image ?? throw new InvalidOperationException(message: "No image is named.");
         string published = Path.Combine(repository.Artifacts, path2: "agent", Rid);
 
-        JdkEntry entry = PinnedJdks.Jdks.Single(candidate => candidate.Rid == Rid && candidate.Java == major && candidate.Implementation == "hotspot");
+        JdkEntry entry = PinnedJdks.Jdks
+            .Single(candidate => candidate.Rid == Rid && candidate.Java == major && candidate.Implementation == "hotspot");
 
         using HttpService http = new();
 
@@ -85,7 +87,11 @@ public sealed class GlibcFloorTests
 
         ProcessRunner processes = new(repository);
         JdkArchiveManager archives = new(http);
-        string home = await archives.UnpackAsync(FixtureCompiler.ToArchive(entry), Path.Combine(work.Path, path2: "jdk"), cancellationToken);
+
+        string home = await archives.UnpackAsync(FixtureCompiler.ToArchive(entry),
+            Path.Combine(work.Path, path2: "jdk"),
+            cancellationToken);
+
         string fixture = Path.Combine(work.Path, path2: "classes");
         string precompiled = Path.Combine(repository.Artifacts, path2: "fixtures");
         string jar = Path.Combine(work.Path, path2: "agent", path3: "HelloAgent.jar");
@@ -102,38 +108,52 @@ public sealed class GlibcFloorTests
             await new FixtureCompiler(repository, archives, processes).CompileAsync(home, fixture, major, cancellationToken);
         }
 
-        string launcher = LauncherJar.Write(jar, [AgentLibrary.FromFile(Rid, Path.Combine(published, path2: "HelloAgent.so"))]);
-        List<string> container = ["docker", "run", "--rm", "-v", home + ":/jdk:ro", "-v", published + ":/a:ro", "-v", Path.GetDirectoryName(jar) + ":/j:ro", "-v", fixture + ":/f:ro", image];
+        string launcher = LauncherJar.Write(jar,
+            libraries: [AgentLibrary.FromFile(Rid, Path.Combine(published, path2: "HelloAgent.so"))]);
+
+        List<string> container =
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            home + ":/jdk:ro",
+            "-v",
+            published + ":/a:ro",
+            "-v",
+            Path.GetDirectoryName(jar) + ":/j:ro",
+            "-v",
+            fixture + ":/f:ro",
+            image,
+        ];
+
         string identifier = $"glibc-{major.ToString(CultureInfo.InvariantCulture)}";
 
-        ProcessResult library = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-agentpath:/a/HelloAgent.so", "-cp", "/f", "BridgeFixture"],
+        ProcessResult library = await processes.RunAsync(command: [.. container, "/jdk/bin/java", "-agentpath:/a/HelloAgent.so", "-cp", "/f", "BridgeFixture"],
             Path.Combine(repository.Artifacts, path2: "results", Rid, identifier + "-agentpath.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
-        ProcessResult launched = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-javaagent:/j/HelloAgent.jar", "-cp", "/f", "BridgeFixture"],
+        ProcessResult launched = await processes.RunAsync(command: [.. container, "/jdk/bin/java", "-javaagent:/j/HelloAgent.jar", "-cp", "/f", "BridgeFixture"],
             Path.Combine(repository.Artifacts, path2: "results", Rid, identifier + "-javaagent.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
         foreach (string marker in new[] { "AGENT_OK", "PATCH_OK", "MATCHER_PATCH_OK", "JAVA_BASE_PATCH_OK", "ADVICE_OK", "EVENTS_OK", "INTEROP_OK", "UNLOAD" })
-            Assert.True(library.Output.Contains(marker, StringComparison.Ordinal), $"Missing {marker} with -agentpath in {image}:\n{library.Output}");
+        {
+            Assert.True(library.Output.Contains(marker, StringComparison.Ordinal),
+                $"Missing {marker} with -agentpath in {image}:\n{library.Output}");
+        }
 
         foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "ADVICE_OK", "UNLOAD" })
         {
-            Assert.True(
-                launched.Output.Contains(marker, StringComparison.Ordinal),
-                $"Missing {marker} with -javaagent ({launcher}) in {image}:\n{launched.Output}"
-            );
+            Assert.True(launched.Output.Contains(marker, StringComparison.Ordinal),
+                $"Missing {marker} with -javaagent ({launcher}) in {image}:\n{launched.Output}");
         }
     }
 
     /// <summary>Reads the glibc symbol versions that the version-needs section of readelf -V lists.</summary>
     internal static IEnumerable<Version> RequiredGlibc(string readelf)
     {
-        foreach (string token in readelf.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries))
+        foreach (string token in readelf.Split(separator: [' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries))
         {
             if (token.StartsWith(value: "GLIBC_", StringComparison.Ordinal) && Version.TryParse(token["GLIBC_".Length..], out Version? version))
                 yield return version;
@@ -145,7 +165,7 @@ public sealed class GlibcFloorTests
     {
         foreach (string line in readelf.Split(separator: '\n'))
         {
-            string[] columns = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+            string[] columns = line.Split(separator: [' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
             bool undefinedGlobal = columns.Length >= 8 && columns[4] == "GLOBAL" && columns[6] == "UND";
 
             if (undefinedGlobal && !columns[7].Contains(value: '@', StringComparison.Ordinal))

@@ -18,12 +18,12 @@ public static class AgentLogging
             return;
         }
 
-        AgentLog.Sink = (level, source, message) => ForwardToLogger(logger, level, source, message);
+        AgentLog.Sink = (level, source, message) => Forward(logger, level, source, message);
     }
 
-    private static void ForwardToLogger(ILogger logger, AgentLogLevel level, string source, string message)
+    private static void Forward(ILogger logger, AgentLogLevel level, string source, string message)
     {
-        LogLevel target = AgentLogLevels.ToLogLevel(level);
+        LogLevel target = AgentLogLevels.Convert(level);
 
         if (target != LogLevel.None && logger.IsEnabled(target))
             logger.Log(target, eventId: default, source + ": " + message, exception: null, static (state, exception) => state);

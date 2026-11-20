@@ -8,6 +8,7 @@ namespace JvmBridge.Build.Infrastructure;
 internal sealed class ProcessRunner(RepositoryContext repository)
 {
     private const int FirstIndex = 0;
+
     private readonly RepositoryContext _repository = repository;
 
     public static string? FindExecutable(string name)
@@ -25,7 +26,8 @@ internal sealed class ProcessRunner(RepositoryContext repository)
         {
             foreach (string extension in extensions)
             {
-                string candidate = Path.Combine(directory.Trim(trimChar: '"'), name.EndsWith(extension, StringComparison.OrdinalIgnoreCase) ? name : name + extension);
+                string candidate = Path.Combine(directory.Trim(trimChar: '"'),
+                    name.EndsWith(extension, StringComparison.OrdinalIgnoreCase) ? name : name + extension);
 
                 if (File.Exists(candidate))
                     return candidate;
@@ -35,16 +37,14 @@ internal sealed class ProcessRunner(RepositoryContext repository)
         return null;
     }
 
-    public async Task<ProcessResult> RunAsync(
-        IReadOnlyList<string> command,
+    public async Task<ProcessResult> RunAsync(IReadOnlyList<string> command,
         string? logPath = null,
         TimeSpan? timeout = null,
         IReadOnlyDictionary<string, string?>? environment = null,
         int? expectedExitCode = 0,
         string? workingDirectory = null,
         bool echo = false,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         if (command.Count == 0)
             throw new ArgumentException(message: "A process command is required.", nameof(command));
@@ -81,7 +81,10 @@ internal sealed class ProcessRunner(RepositoryContext repository)
 
         ConcurrentQueue<string> output = new();
 
-        using Process process = new() { StartInfo = processStartInformation };
+        using Process process = new()
+        {
+            StartInfo = processStartInformation
+        };
 
         try
         {
@@ -104,14 +107,19 @@ internal sealed class ProcessRunner(RepositoryContext repository)
 
         try
         {
-            await Task.WhenAll(wait, standardOutput, standardError).WaitAsync(effectiveTimeout, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.WhenAll(wait, standardOutput, standardError)
+                .WaitAsync(effectiveTimeout, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
         catch (TimeoutException)
         {
             Terminate(process);
+
             await captureCancellation.CancelAsync().ConfigureAwait(continueOnCapturedContext: false);
             await DrainAsync(wait, standardOutput, standardError).ConfigureAwait(continueOnCapturedContext: false);
-            string timedOutput = ReadOutput(output);
+
+            string timedOutput = Join(output);
+
             WriteLog(logPath, timedOutput);
 
             throw new TimeoutException($"Timed out after {effectiveTimeout.TotalSeconds:0.###}s: {logPath ?? executable}");
@@ -119,20 +127,26 @@ internal sealed class ProcessRunner(RepositoryContext repository)
         catch (OperationCanceledException)
         {
             Terminate(process);
+
             await captureCancellation.CancelAsync().ConfigureAwait(continueOnCapturedContext: false);
             await DrainAsync(wait, standardOutput, standardError).ConfigureAwait(continueOnCapturedContext: false);
-            WriteLog(logPath, ReadOutput(output));
+
+            WriteLog(logPath, Join(output));
 
             throw;
         }
 
         await Task.WhenAll(standardOutput, standardError).ConfigureAwait(continueOnCapturedContext: false);
-        string resultOutput = ReadOutput(output);
+
+        string resultOutput = Join(output);
+
         WriteLog(logPath, resultOutput);
 
         if (expectedExitCode is not null && process.ExitCode != expectedExitCode)
         {
-            string tail = resultOutput.Length <= 3000 ? resultOutput : resultOutput.Substring(resultOutput.Length - 3000, length: 3000);
+            string tail = resultOutput.Length <= 3000
+                ? resultOutput
+                : resultOutput.Substring(resultOutput.Length - 3000, length: 3000);
 
             throw new InvalidOperationException($"Exit {process.ExitCode}: {logPath ?? executable}\n{tail}");
         }
@@ -140,19 +154,24 @@ internal sealed class ProcessRunner(RepositoryContext repository)
         return new ProcessResult(process.ExitCode, resultOutput);
     }
 
-    public async Task RunCheckedAsync(
-        IReadOnlyList<string> command,
+    public async Task RunCheckedAsync(IReadOnlyList<string> command,
         string? logPath = null,
         TimeSpan? timeout = null,
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null,
         bool echo = false,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
-        ProcessResult result = await RunAsync(command, logPath, timeout, environment, expectedExitCode: 0, workingDirectory, echo, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult finished = await RunAsync(command,
+            logPath,
+            timeout,
+            environment,
+            expectedExitCode: 0,
+            workingDirectory,
+            echo,
+            cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        if (result.ExitCode != 0)
+        if (finished.ExitCode != 0)
             throw new InvalidOperationException(message: "A checked process returned a nonzero exit code.");
     }
 
@@ -180,18 +199,24 @@ internal sealed class ProcessRunner(RepositoryContext repository)
                 if (echo)
                 {
                     TextWriter writer = error ? Console.Error : Console.Out;
+
                     await writer.WriteLineAsync(line).ConfigureAwait(continueOnCapturedContext: false);
                 }
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
     }
 
     private static async Task DrainAsync(Task wait, Task standardOutput, Task standardError)
     {
         try
         {
-            await Task.WhenAll(wait, standardOutput, standardError).WaitAsync(TimeSpan.FromSeconds(seconds: 10)).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.WhenAll(wait, standardOutput, standardError)
+                .WaitAsync(TimeSpan.FromSeconds(seconds: 10))
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
         catch (TimeoutException)
         {
@@ -199,7 +224,7 @@ internal sealed class ProcessRunner(RepositoryContext repository)
         }
     }
 
-    private static string ReadOutput(ConcurrentQueue<string> output)
+    private static string Join(ConcurrentQueue<string> output)
     {
         string[] lines = [.. output];
 

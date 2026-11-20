@@ -14,11 +14,13 @@ public sealed class JdkProvisioningTests
     {
         using TemporaryDirectory project = JavaSourceTests.CreateProject(JavaSourceTests.PackedVersion());
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null, ["JvmBridgeProvisionJdk=true", "JvmBridgeJdkMajor=7"]);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path,
+            jdk: null,
+            properties: ["JvmBridgeProvisionJdk=true", "JvmBridgeJdkMajor=7"]);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB007", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "JvmBridgeJdkHome", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB007", build.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JvmBridgeJdkHome", build.Output, StringComparison.Ordinal);
     }
 
     /// <summary>With JvmBridgeProvisionJdk, a machine that has no JDK downloads the pinned one and compiles the Java sources.</summary>
@@ -27,14 +29,13 @@ public sealed class JdkProvisioningTests
     {
         using TemporaryDirectory project = JavaSourceTests.CreateProject(JavaSourceTests.PackedVersion());
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null, ["JvmBridgeProvisionJdk=true"]);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path,
+            jdk: null,
+            properties: ["JvmBridgeProvisionJdk=true"]);
 
-        Assert.True(result.ExitCode == 0, result.Output);
-        Assert.Contains(expectedSubstring: "providing the pinned Java 17", result.Output, StringComparison.Ordinal);
-        Assert.True(
-            File.Exists(Path.Combine(paths: [project.Path, "obj", "Release", "net10.0", "jvmbridge-java", "classes", "pkg", "Helper.class"])),
-            result.Output
-        );
+        Assert.True(build.ExitCode == 0, build.Output);
+        Assert.Contains(expectedSubstring: "providing the pinned Java 17", build.Output, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(paths: [project.Path, "obj", "Release", "net10.0", "jvmbridge-java", "classes", "pkg", "Helper.class"])), build.Output);
     }
 
     /// <summary>A JDK directory named by the project is never replaced by a download, even when it is unusable.</summary>
@@ -44,13 +45,16 @@ public sealed class JdkProvisioningTests
         using TemporaryDirectory project = JavaSourceTests.CreateProject(JavaSourceTests.PackedVersion());
 
         string emptyJdk = Path.Combine(project.Path, path2: "not-a-jdk");
+
         FileSystem.EnsureDirectory(emptyJdk);
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, emptyJdk, ["JvmBridgeProvisionJdk=true"]);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path,
+            emptyJdk,
+            properties: ["JvmBridgeProvisionJdk=true"]);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB005", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(expectedSubstring: "providing the pinned", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB005", build.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(expectedSubstring: "providing the pinned", build.Output, StringComparison.Ordinal);
     }
 
     /// <summary>Without the opt-in, nothing is downloaded and the missing JDK is reported with the opt-in as one remedy.</summary>
@@ -59,11 +63,11 @@ public sealed class JdkProvisioningTests
     {
         using TemporaryDirectory project = JavaSourceTests.CreateProject(JavaSourceTests.PackedVersion());
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB004", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "JvmBridgeProvisionJdk", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(expectedSubstring: "providing the pinned", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB004", build.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JvmBridgeProvisionJdk", build.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(expectedSubstring: "providing the pinned", build.Output, StringComparison.Ordinal);
     }
 }

@@ -11,6 +11,8 @@ public sealed class JavaClassFile
     private JavaClassFile(ConstantPoolEntry?[] constants)
     {
         _constants = constants;
+
+        // The reader fills these in once it is past the constant pool.
         Name = string.Empty;
         Interfaces = [];
         Fields = [];
@@ -79,6 +81,7 @@ public sealed class JavaClassFile
         {
             int offset = reader.Position;
             ConstantPoolEntry entry = ReadConstant(ref reader, offset);
+
             constants[index] = entry with { Index = index, Offset = offset, Length = reader.Position - offset };
             if (entry.Tag is ConstantTag.Long or ConstantTag.Double)
             {
@@ -88,10 +91,14 @@ public sealed class JavaClassFile
             }
         }
         JavaClassFile file = new(constants) { MinorVersion = minor, MajorVersion = major, ConstantPoolEnd = reader.Position, AccessFlagsOffset = reader.Position };
+
         file.AccessFlags = reader.ReadUInt16();
         file.Name = file.GetClassName(reader.ReadUInt16());
+
         int superIndex = reader.ReadUInt16();
+
         file.SuperName = superIndex == 0 ? null : file.GetClassName(superIndex);
+
         string[] interfaces = new string[reader.ReadUInt16()];
         for (int index = 0; index < interfaces.Length; index++)
             interfaces[index] = file.GetClassName(reader.ReadUInt16());
@@ -186,8 +193,14 @@ public sealed class JavaClassFile
         {
             case ConstantTag.Utf8:
                 ReadOnlySpan<byte> payload = reader.ReadBytes(reader.ReadUInt16());
-                try { return new Utf8Entry(ModifiedUtf8.Decode(payload)); }
-                catch (FormatException exception) { throw new ClassFormatException($"The Utf8 constant at offset {offset} is not valid modified UTF-8.", exception); }
+                try
+                {
+                    return new Utf8Entry(ModifiedUtf8.Decode(payload));
+                }
+                catch (FormatException exception)
+                {
+                    throw new ClassFormatException($"The Utf8 constant at offset {offset} is not valid modified UTF-8.", exception);
+                }
             case ConstantTag.Integer:
                 return new IntegerEntry(reader.ReadInt32());
             case ConstantTag.Float:
@@ -229,9 +242,13 @@ public sealed class JavaClassFile
             int accessOffset = reader.Position;
             int codeStart = -1;
             int codeEnd = -1;
+
+            // The member's fixed fields, in the order the class file stores them.
             int access = reader.ReadUInt16();
             string name = GetUtf8(reader.ReadUInt16());
             string descriptor = GetUtf8(reader.ReadUInt16());
+
+            // Its attributes follow; Code is the one that is kept.
             CodeAttribute? code = null;
             int attributes = reader.ReadUInt16();
             for (int attribute = 0; attribute < attributes; attribute++)
@@ -244,6 +261,7 @@ public sealed class JavaClassFile
                 if (isMethod && attributeName == "Code")
                 {
                     int end = reader.Position + length;
+
                     code = ReadCode(ref reader, name, end);
                     if (reader.Position != end)
                         throw new ClassFormatException($"The Code attribute of {name}{descriptor} has a wrong length.");
@@ -273,7 +291,9 @@ public sealed class JavaClassFile
         for (int offset = 0; offset < code.Length;)
         {
             int size = Opcodes.GetLength(code, offset);
+
             instructions.Add(new Instruction(offset, code[offset], size, Opcodes.GetConstantIndex(code, offset)));
+
             offset += size;
         }
         reader.Skip(reader.ReadUInt16() * 8);
@@ -297,6 +317,7 @@ public sealed class JavaClassFile
                 throw new ClassFormatException($"The class attribute {name} has a negative length.");
 
             reader.Skip(length);
+
             attributes[attribute] = new ClassAttributeRange(name, start, reader.Position);
         }
 
@@ -309,6 +330,7 @@ public sealed class JavaClassFile
         for (int attribute = 0; attribute < attributes; attribute++)
         {
             _ = GetUtf8(reader.ReadUInt16());
+
             int length = reader.ReadInt32();
             if (length < 0)
                 throw new ClassFormatException($"An attribute at offset {reader.Position} has a negative length.");

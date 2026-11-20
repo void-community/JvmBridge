@@ -14,7 +14,6 @@ internal static partial class Interop
     private static readonly ConcurrentQueue<byte> ThreadStarts = [];
 
     internal static string Attached { get; set; } = "not run";
-
     internal static string Subscription { get; set; } = string.Empty;
 
     internal static void ClassLoaded()
@@ -26,13 +25,11 @@ internal static partial class Interop
     [JavaMethod]
     internal static string Events()
     {
-        return string.Join(
-            separator: ";",
+        return string.Join(separator: ";",
             "subscription=" + Subscription,
             "threadStart=" + ThreadStarts.Count.ToString(CultureInfo.InvariantCulture),
             "classLoad=" + ClassLoads.Count.ToString(CultureInfo.InvariantCulture),
-            "attach=" + Attached
-        );
+            "attach=" + Attached);
     }
 
     /// <summary>Replaces <c>String.length()</c> in <c>LegacyFixture.length</c>.</summary>

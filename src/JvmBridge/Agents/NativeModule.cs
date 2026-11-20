@@ -22,13 +22,16 @@ internal static unsafe partial class NativeModule
         }
         else
         {
-            delegate* unmanaged<nint, ModuleInformation*, int> resolve = (delegate* unmanaged<nint, ModuleInformation*, int>)NativeLibrary.GetExport(NativeLibrary.GetMainProgramHandle(), name: "dladdr");
+            delegate* unmanaged<nint, ModuleInformation*, int> resolve = (delegate* unmanaged<nint, ModuleInformation*, int>)NativeLibrary.GetExport(NativeLibrary.GetMainProgramHandle(),
+                name: "dladdr");
             ModuleInformation information = default;
 
             if (resolve(entryPoint, &information) == 0 || information.FileName == 0)
                 throw new InvalidOperationException(message: "Unable to identify the native agent module.");
 
-            string path = Marshal.PtrToStringUTF8(information.FileName) ?? throw new InvalidOperationException(message: "Native module path is unavailable.");
+            string path = Marshal.PtrToStringUTF8(information.FileName)
+                ?? throw new InvalidOperationException(message: "Native module path is unavailable.");
+
             // Retain an independent dlopen reference for process lifetime.
             // OpenJ9 may dlclose its own handle during DestroyJavaVM.
             moduleHandle = NativeLibrary.Load(path);

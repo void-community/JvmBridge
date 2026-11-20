@@ -35,7 +35,9 @@ public sealed class ArchiveTests
         JdkArchive archive = Archive(new string(c: '0', count: 64));
         JdkArchiveManager manager = new(httpService);
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UnpackAsync(archive, temporary.Path, CancellationToken.None));
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UnpackAsync(archive,
+            temporary.Path,
+            CancellationToken.None));
 
         Assert.Contains(expectedSubstring: "SHA256 mismatch", failure.Message, StringComparison.Ordinal);
     }
@@ -48,11 +50,15 @@ public sealed class ArchiveTests
 
         using (GZipStream compression = new(buffer, CompressionLevel.SmallestSize, leaveOpen: true))
         {
-            using (TarWriter writer = new(compression, leaveOpen: true))
+            using TarWriter writer = new(compression, leaveOpen: true);
+
+            await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.SymbolicLink, entryName: "escape")
             {
-                await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.SymbolicLink, entryName: "escape") { LinkName = ".." }, CancellationToken.None);
-                await writer.WriteEntryAsync(FileEntry(name: "escape/escaped.txt", contents: "unsafe"), CancellationToken.None);
-            }
+                LinkName = ".."
+            },
+                CancellationToken.None);
+
+            await writer.WriteEntryAsync(FileEntry(name: "escape/escaped.txt", contents: "unsafe"), CancellationToken.None);
         }
 
         byte[] payload = buffer.ToArray();
@@ -67,9 +73,10 @@ public sealed class ArchiveTests
 
         JdkArchiveManager manager = new(service);
 
-        IOException failure = await Assert.ThrowsAnyAsync<IOException>(
-            () => manager.UnpackAsync(Archive(Convert.ToHexStringLower(SHA256.HashData(payload)), extension: ".tar.gz"), temporary.Path, CancellationToken.None)
-        );
+        IOException failure = await Assert.ThrowsAnyAsync<IOException>(() => manager.UnpackAsync(Archive(Convert.ToHexStringLower(SHA256.HashData(payload)),
+                extension: ".tar.gz"),
+            temporary.Path,
+            CancellationToken.None));
 
         Assert.False(string.IsNullOrWhiteSpace(failure.Message));
         Assert.False(File.Exists(Path.Combine(temporary.Path, path2: "escaped.txt")));
@@ -94,11 +101,15 @@ public sealed class ArchiveTests
 
         JdkArchive archive = Archive(Convert.ToHexStringLower(SHA256.HashData(payload)), extension: ".tar.gz");
         JdkArchiveManager manager = new(httpService);
+
         string home = await manager.UnpackAsync(archive, temporary.Path, CancellationToken.None);
+
         string java = Path.Combine(home, path2: "bin", executableName);
 
         Assert.Equal(expected: "java", await File.ReadAllTextAsync(java, CancellationToken.None));
-        Assert.Equal(expected: "java", await File.ReadAllTextAsync(Path.Combine(home, path2: "bin", path3: "java-copy"), CancellationToken.None));
+
+        Assert.Equal(expected: "java",
+            await File.ReadAllTextAsync(Path.Combine(home, path2: "bin", path3: "java-copy"), CancellationToken.None));
 
         if (!OperatingSystem.IsWindows())
         {
@@ -126,7 +137,9 @@ public sealed class ArchiveTests
         JdkArchive archive = Archive(Convert.ToHexStringLower(SHA256.HashData(payload)));
         JdkArchiveManager manager = new(httpService);
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UnpackAsync(archive, temporary.Path, CancellationToken.None));
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => manager.UnpackAsync(archive,
+            temporary.Path,
+            CancellationToken.None));
 
         Assert.Contains(expectedSubstring: "Unsafe archive path", failure.Message, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(temporary.Path, path2: "escaped.txt")));
@@ -149,19 +162,29 @@ public sealed class ArchiveTests
 
         using (GZipStream compression = new(buffer, CompressionLevel.SmallestSize, leaveOpen: true))
         {
-            using (TarWriter writer = new(compression, leaveOpen: true))
+            using TarWriter writer = new(compression, leaveOpen: true);
+
+            foreach (string directory in new[] { "jdk/", "jdk/bin/", "jdk/include/" })
+                writer.WriteEntry(new PaxTarEntry(TarEntryType.Directory, directory));
+
+            PaxTarEntry java = FileEntry("jdk/bin/" + executableName, contents: "java");
+
+            java.Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+
+            writer.WriteEntry(java);
+            writer.WriteEntry(FileEntry(name: "jdk/include/jni.h", contents: "header"));
+
+            writer.WriteEntry(new PaxTarEntry(TarEntryType.HardLink, entryName: "jdk/bin/java-copy")
             {
-                foreach (string directory in new[] { "jdk/", "jdk/bin/", "jdk/include/" })
-                    writer.WriteEntry(new PaxTarEntry(TarEntryType.Directory, directory));
+                LinkName = "jdk/bin/" + executableName
+            });
 
-                PaxTarEntry java = FileEntry("jdk/bin/" + executableName, contents: "java");
-                java.Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-                writer.WriteEntry(java);
-                writer.WriteEntry(FileEntry(name: "jdk/include/jni.h", contents: "header"));
-                writer.WriteEntry(new PaxTarEntry(TarEntryType.HardLink, entryName: "jdk/bin/java-copy") { LinkName = "jdk/bin/" + executableName });
-
-                if (!OperatingSystem.IsWindows())
-                    writer.WriteEntry(new PaxTarEntry(TarEntryType.SymbolicLink, entryName: "jdk/bin/javac") { LinkName = executableName });
+            if (!OperatingSystem.IsWindows())
+            {
+                writer.WriteEntry(new PaxTarEntry(TarEntryType.SymbolicLink, entryName: "jdk/bin/javac")
+                {
+                    LinkName = executableName
+                });
             }
         }
 
@@ -186,7 +209,10 @@ public sealed class ArchiveTests
 
     private static PaxTarEntry FileEntry(string name, string contents)
     {
-        return new PaxTarEntry(TarEntryType.RegularFile, name) { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(contents)) };
+        return new PaxTarEntry(TarEntryType.RegularFile, name)
+        {
+            DataStream = new MemoryStream(Encoding.UTF8.GetBytes(contents))
+        };
     }
 
     private sealed class PayloadHandler(byte[] payload) : HttpMessageHandler
@@ -197,7 +223,11 @@ public sealed class ArchiveTests
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            HttpResponseMessage response = new(HttpStatusCode.OK) { Content = new ByteArrayContent(_payload), RequestMessage = request };
+            HttpResponseMessage response = new(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(_payload),
+                RequestMessage = request
+            };
 
             return Task.FromResult(response);
         }

@@ -14,9 +14,7 @@ public sealed class RetransformBatchesTests
     public void IsolatesTheFailingClass()
     {
         RecordingJvm jvm = new(failing: 37);
-
         List<PatchClassReport> reports = RetransformBatches.Run(Candidates(count: 120), jvm.Retransform);
-
         PatchClassReport failure = Assert.Single(reports, static report => !report.Succeeded);
 
         Assert.Equal(expected: "pkg/C37", failure.ClassName);
@@ -30,8 +28,7 @@ public sealed class RetransformBatchesTests
     public void MakesNoCallWithoutCandidates()
     {
         RecordingJvm jvm = new(failing: 0);
-
-        List<PatchClassReport> reports = RetransformBatches.Run([], jvm.Retransform);
+        List<PatchClassReport> reports = RetransformBatches.Run(candidates: [], jvm.Retransform);
 
         Assert.Empty(reports);
         Assert.Empty(jvm.BatchSizes);
@@ -52,17 +49,17 @@ public sealed class RetransformBatchesTests
     public void RetransformsEverythingInChunks()
     {
         RecordingJvm jvm = new(failing: 0);
-
         List<PatchClassReport> reports = RetransformBatches.Run(Candidates(count: 250), jvm.Retransform);
 
-        Assert.Equal([100, 100, 50], jvm.BatchSizes);
+        Assert.Equal(expected: [100, 100, 50], jvm.BatchSizes);
         Assert.Equal(expected: 250, reports.Count);
         Assert.All(reports, static report => Assert.True(report.Succeeded));
     }
 
     private static List<RetransformCandidate> Candidates(int count)
     {
-        return [.. Enumerable.Range(start: 1, count).Select(static index => new RetransformCandidate("pkg/C" + index.ToString(CultureInfo.InvariantCulture), index))];
+        return [.. Enumerable.Range(start: 1, count)
+            .Select(static index => new RetransformCandidate("pkg/C" + index.ToString(CultureInfo.InvariantCulture), index))];
     }
 
     private static string? RefuseEverything(nint[] types)

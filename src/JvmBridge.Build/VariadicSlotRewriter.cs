@@ -26,7 +26,10 @@ internal sealed class VariadicSlotRewriter : CSharpSyntaxRewriter
                     string nativeType = literal.Token.ValueText;
 
                     if (nativeType.Contains(value: "va_list", StringComparison.Ordinal) || nativeType.Contains(value: "...", StringComparison.Ordinal))
-                        return node.WithDeclaration(node.Declaration.WithType(SyntaxFactory.ParseTypeName(text: "nint").WithTriviaFrom(node.Declaration.Type)));
+                    {
+                        return node.WithDeclaration(node.Declaration
+                            .WithType(SyntaxFactory.ParseTypeName(text: "nint").WithTriviaFrom(node.Declaration.Type)));
+                    }
                 }
             }
         }
@@ -38,6 +41,7 @@ internal sealed class VariadicSlotRewriter : CSharpSyntaxRewriter
     {
         SyntaxNode root = CSharpSyntaxTree.ParseText(source).GetRoot();
 
-        return new VariadicSlotRewriter().Visit(root)?.ToFullString() ?? throw new InvalidOperationException(message: "Binding syntax rewriting produced no output.");
+        return new VariadicSlotRewriter().Visit(root)?.ToFullString()
+            ?? throw new InvalidOperationException(message: "Binding syntax rewriting produced no output.");
     }
 }

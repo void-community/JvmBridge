@@ -30,8 +30,10 @@ internal static class PinnedJdk
 
         if (File.Exists(marker))
         {
-            string relativeHome = (await File.ReadAllTextAsync(marker, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Trim();
-            string cached = Path.Combine(cache, relativeHome);
+            string recordedHome = await File.ReadAllTextAsync(marker, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            string cached = Path.Combine(cache, recordedHome.Trim());
 
             if (Directory.Exists(cached))
                 return cached;
@@ -41,9 +43,13 @@ internal static class PinnedJdk
 
         using HttpService http = new();
 
-        string home = await new JdkArchiveManager(http).UnpackAsync(ToArchive(entry), staging, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string home = await new JdkArchiveManager(http).UnpackAsync(ToArchive(entry), staging, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
         string relative = Path.GetRelativePath(staging, home);
-        await File.WriteAllTextAsync(Path.Combine(staging, path2: "home.txt"), relative, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        await File.WriteAllTextAsync(Path.Combine(staging, path2: "home.txt"), relative, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         try
         {

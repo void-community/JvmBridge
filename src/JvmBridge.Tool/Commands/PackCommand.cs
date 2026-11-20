@@ -9,17 +9,36 @@ internal static class PackCommand
 {
     internal static Command Create()
     {
-        Option<string[]> agents = new(name: "--agent") { Description = "A native agent library for one platform as <rid>=<path>, for example linux-x64=bin/linux-x64/MyAgent.so. Repeat it for every platform.", AllowMultipleArgumentsPerToken = true };
-        Option<string[]> jars = new(name: "--jar") { Description = "A jar that jvmbridge pack or a publish with JvmBridgeAgentJar wrote, whose libraries go into the new jar. Repeat it to combine the jars of several platforms.", AllowMultipleArgumentsPerToken = true };
-        Option<string> output = new(name: "--output", aliases: ["-o"]) { Description = "The jar to write.", Required = true };
-        Command command = new(name: "pack", description: "Pack native agent libraries, or the jars of single platforms, into one jar for java -javaagent.");
+        Option<string[]> agents = new(name: "--agent")
+        {
+            Description = "A native agent library for one platform as <rid>=<path>, for example linux-x64=bin/linux-x64/MyAgent.so. Repeat it for every platform.",
+            AllowMultipleArgumentsPerToken = true
+        };
+
+        Option<string[]> jars = new(name: "--jar")
+        {
+            Description = "A jar that jvmbridge pack or a publish with JvmBridgeAgentJar wrote, whose libraries go into the new jar. Repeat it to combine the jars of several platforms.",
+            AllowMultipleArgumentsPerToken = true
+        };
+
+        Option<string> output = new(name: "--output", aliases: ["-o"])
+        {
+            Description = "The jar to write.",
+            Required = true
+        };
+
+        Command command = new(name: "pack",
+            description: "Pack native agent libraries, or the jars of single platforms, into one jar for java -javaagent.");
 
         command.Options.Add(agents);
         command.Options.Add(jars);
         command.Options.Add(output);
-        command.SetAction(
-            result => Run(result.GetValue(agents) ?? [], result.GetValue(jars) ?? [], result.GetValue(output) ?? string.Empty, Console.Out, Console.Error)
-        );
+
+        command.SetAction(result => Run(result.GetValue(agents) ?? [],
+            result.GetValue(jars) ?? [],
+            result.GetValue(output) ?? string.Empty,
+            Console.Out,
+            Console.Error));
 
         return command;
     }
@@ -36,9 +55,7 @@ internal static class PackCommand
 
             if (!LauncherJar.KnownRids.Contains(rid))
             {
-                error.WriteLine(
-                    $"jvmbridge: '{agent}' is not <rid>=<path> with a known runtime identifier. Known: {string.Join(separator: ", ", LauncherJar.KnownRids)}."
-                );
+                error.WriteLine($"jvmbridge: '{agent}' is not <rid>=<path> with a known runtime identifier. Known: {string.Join(separator: ", ", LauncherJar.KnownRids)}.");
 
                 return 1;
             }
@@ -95,7 +112,9 @@ internal static class PackCommand
         }
 
         string launcher = LauncherJar.Write(output, combined);
-        string platforms = string.Join(separator: ", ", combined.Select(static library => library.Rid).Order(StringComparer.Ordinal));
+
+        string platforms = string.Join(separator: ", ",
+            combined.Select(static library => library.Rid).Order(StringComparer.Ordinal));
 
         writer.WriteLine($"Wrote {output} (launcher {launcher}) with {platforms}. Start it with: java -javaagent:{output}=<options> -jar app.jar");
 

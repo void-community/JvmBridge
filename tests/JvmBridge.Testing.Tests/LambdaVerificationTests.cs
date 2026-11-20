@@ -17,22 +17,30 @@ public sealed class LambdaVerificationTests
 
     /// <summary>The lambda javac wrote for <c>this::flush</c> is the one the builder writes for it: the same call site, bootstrap method and handle, so nothing is added to the class.</summary>
     /// <param name="jdk">The JDK whose javac writes the method reference.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The <c>flusher</c> method of the compiled <c>Channels</c> fixture has no code.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AJavacMethodReferenceIsReusedAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         string classes = await jdk.CompileAsync(sources: "LambdaFixtures/fixture/*.java", cancellationToken: TestContext.Current.CancellationToken);
 
         try
         {
             byte[] original = await File.ReadAllBytesAsync(Path.Combine(classes, path2: "fixture", path3: "Channels.class"), TestContext.Current.CancellationToken);
+
             JavaClassFile file = JavaClassFile.Read(original);
-            CodeAttribute flusher = file.FindMethod(name: "flusher")?.Code ?? throw new InvalidOperationException(message: "Channels.flusher has no code.");
+
+            CodeAttribute flusher = file.FindMethod(name: "flusher")?.Code
+                ?? throw new InvalidOperationException(message: "Channels.flusher has no code.");
+
             Instruction call = flusher.Instructions.Single(static instruction => instruction.Opcode == Opcodes.InvokeDynamic);
             ClassFileEditor editor = new(original);
 
-            byte[] assembled = editor.AssembleCode(static code => code.Lambda(Run, JavaMethod.Virtual(Channels, name: "flush", descriptor: "()V")));
+            byte[] assembled = editor.AssembleCode(static code => code.Lambda(Run,
+                JavaMethod.Virtual(Channels, name: "flush", descriptor: "()V")));
 
             Assert.Equal(original.AsSpan(flusher.CodeOffset + call.Offset, call.Length).ToArray(), assembled);
             Assert.Equal(original, editor.ToArray());
@@ -48,11 +56,13 @@ public sealed class LambdaVerificationTests
     /// string and lets LambdaMetafactory unbox the integer it is given. Both pass the verifier and run where they should.
     /// </summary>
     /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task LambdasVerifyAndRunAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         string classes = await jdk.CompileAsync(sources: "LambdaFixtures/fixture/*.java", cancellationToken: TestContext.Current.CancellationToken);
 
         try
@@ -61,7 +71,11 @@ public sealed class LambdaVerificationTests
             ClassFileEditor editor = new(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
 
             editor.ReplaceMethodBody(name: "clear", descriptor: "()V", movedBodyName: "agent$clear", ClearOnExecutor);
-            editor.ReplaceMethodBody(name: "describer", descriptor: "()Ljava/util/function/Function;", movedBodyName: "agent$describer", Describer);
+
+            editor.ReplaceMethodBody(name: "describer",
+                descriptor: "()Ljava/util/function/Function;",
+                movedBodyName: "agent$describer",
+                Describer);
 
             bool IsMetafactory(MethodHandleEntry entry)
             {
@@ -73,9 +87,13 @@ public sealed class LambdaVerificationTests
             await File.WriteAllBytesAsync(path, editor.ToArray(), TestContext.Current.CancellationToken);
 
             JavaRunOptions options = new();
+
             options.JvmArguments.Add(item: "-Xverify:all");
 
-            JavaRun run = await jdk.RunAsync(mainClass: "fixture.Channels", classPath: classes, options: options, cancellationToken: TestContext.Current.CancellationToken);
+            JavaRun run = await jdk.RunAsync(mainClass: "fixture.Channels",
+                classPath: classes,
+                options: options,
+                cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(expected: 0, run.ExitCode);
             Assert.Contains(expectedSubstring: "clear on Sound engine", run.Output, StringComparison.Ordinal);
@@ -96,13 +114,9 @@ public sealed class LambdaVerificationTests
             .Lambda(Run, JavaMethod.Virtual(Channels, name: "agent$clear", descriptor: "()V"))
             .ALoad(slot: 0)
             .GetField(Channels, name: "executor", descriptor: "Ljava/util/concurrent/ExecutorService;")
-            .Invoke(
-                JavaMethod.Static(
-                    futures,
-                    name: "runAsync",
-                    descriptor: "(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"
-                )
-            )
+            .Invoke(JavaMethod.Static(futures,
+                name: "runAsync",
+                descriptor: "(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
             .Invoke(JavaMethod.Virtual(futures, name: "join", descriptor: "()Ljava/lang/Object;"))
             .Pop()
             .Return();
@@ -110,8 +124,12 @@ public sealed class LambdaVerificationTests
 
     private static CodeBuilder Describer(CodeBuilder code)
     {
-        JavaMethod apply = JavaMethod.Interface(owner: "java/util/function/Function", name: "apply", descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
+        JavaMethod apply = JavaMethod.Interface(owner: "java/util/function/Function",
+            name: "apply",
+            descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
 
-        return code.Ldc(value: "count ").Lambda(apply, JavaMethod.Static(Channels, name: "describe", descriptor: "(Ljava/lang/String;I)Ljava/lang/String;")).AReturn();
+        return code.Ldc(value: "count ")
+            .Lambda(apply, JavaMethod.Static(Channels, name: "describe", descriptor: "(Ljava/lang/String;I)Ljava/lang/String;"))
+            .AReturn();
     }
 }

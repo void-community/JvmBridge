@@ -57,6 +57,7 @@ internal static class RetransformBatches
         int half = group.Length / 2;
         RetransformCandidate[] first = new RetransformCandidate[half];
         RetransformCandidate[] second = new RetransformCandidate[group.Length - half];
+
         Array.Copy(group, sourceIndex: 0, first, destinationIndex: 0, half);
         Array.Copy(group, half, second, destinationIndex: 0, second.Length);
         Attempt(first, retransform, reports);

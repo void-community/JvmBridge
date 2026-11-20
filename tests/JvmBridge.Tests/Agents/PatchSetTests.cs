@@ -16,8 +16,8 @@ public sealed class PatchSetTests
         ClassPatch second = ClassPatch.For(className: "a/B");
         PatchSet set = PatchSet.Empty.With(first, sequence: 1).With(package, sequence: 2).With(second, sequence: 3);
 
-        Assert.Equal([first, package, second], set.Candidates(className: "a/B"));
-        Assert.Equal([package], set.Candidates(className: "a/C"));
+        Assert.Equal(expected: [first, package, second], set.Candidates(className: "a/B"));
+        Assert.Equal(expected: [package], set.Candidates(className: "a/C"));
         Assert.Empty(set.Candidates(className: "x/Y"));
     }
 
@@ -28,13 +28,15 @@ public sealed class PatchSetTests
         ClassPatch keep = ClassPatch.For(className: "a/B");
         ClassPatch drop = ClassPatch.For(className: "a/C");
         PatchSet both = PatchSet.Empty.With(keep, sequence: 1).With(drop, sequence: 2);
-
         PatchSet without = both.Without(drop);
 
+        // The set a patch was removed from still has it, and only the new set lacks it.
         Assert.Equal(expected: 2, both.Count);
         Assert.Equal(expected: 1, without.Count);
         Assert.True(both.Contains(drop));
         Assert.False(without.Contains(drop));
+
+        // The shared empty set was never written to.
         Assert.Equal(expected: 0, PatchSet.Empty.Count);
     }
 
@@ -46,8 +48,11 @@ public sealed class PatchSetTests
         PatchSet hierarchy = names.With(ClassPatch.ForSubclassesOf(superType: "a/Base"), sequence: 2);
         PatchSet annotations = hierarchy.With(ClassPatch.ForAnnotatedWith(annotationType: "a/Marker"), sequence: 3);
 
+        // Patches that name their class need nothing beyond the name.
         Assert.False(names.NeedsHierarchy);
         Assert.False(names.NeedsAnnotations);
+
+        // Each need appears with the first patch that has it, and stays when further patches are added.
         Assert.True(hierarchy.NeedsHierarchy);
         Assert.False(hierarchy.NeedsAnnotations);
         Assert.True(annotations.NeedsAnnotations);

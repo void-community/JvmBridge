@@ -18,12 +18,19 @@ public sealed unsafe class ThreadAttachmentTests
     public void BorrowedThreadIsNotDetached()
     {
         s_detachCount = 0;
-        JNIInvokeInterface_ table = new() { GetEnv = &AlreadyAttached, DetachCurrentThread = &Detach };
+
+        JNIInvokeInterface_ table = new()
+        {
+            GetEnv = &AlreadyAttached,
+            DetachCurrentThread = &Detach
+        };
+
         JNIInvokeInterface_* pointer = &table;
 
         using JavaVirtualMachine machine = JavaVirtualMachine.Borrow((nint)(&pointer));
 
         JavaThreadAttachment attachment = machine.AttachCurrentThread();
+
         attachment.Dispose();
         Assert.Equal(expected: 0, s_detachCount);
     }
@@ -33,12 +40,20 @@ public sealed unsafe class ThreadAttachmentTests
     public void DisposedEnvironmentStillAllowsOwnedThreadDetachment()
     {
         s_detachCount = 0;
-        JNIInvokeInterface_ table = new() { GetEnv = &Detached, AttachCurrentThreadAsDaemon = &Attach, DetachCurrentThread = &Detach };
+
+        JNIInvokeInterface_ table = new()
+        {
+            GetEnv = &Detached,
+            AttachCurrentThreadAsDaemon = &Attach,
+            DetachCurrentThread = &Detach
+        };
+
         JNIInvokeInterface_* pointer = &table;
 
         using JavaVirtualMachine machine = JavaVirtualMachine.Borrow((nint)(&pointer));
 
         JavaThreadAttachment attachment = machine.AttachCurrentThread();
+
         attachment.Environment.Dispose();
         attachment.Dispose();
         attachment.Dispose();

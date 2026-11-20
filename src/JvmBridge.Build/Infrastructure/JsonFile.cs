@@ -18,7 +18,8 @@ internal static class JsonFile
 
     public static TValue Read<TValue>(string path)
     {
-        TValue? value = JsonSerializer.Deserialize<TValue>(File.ReadAllText(path), Options) ?? throw new InvalidOperationException($"Could not deserialize {path}.");
+        TValue? value = JsonSerializer.Deserialize<TValue>(File.ReadAllText(path), Options)
+            ?? throw new InvalidOperationException($"Could not deserialize {path}.");
 
         return value;
     }
@@ -27,9 +28,9 @@ internal static class JsonFile
     {
         JsonNode? node = JsonSerializer.SerializeToNode(value, Options);
 
-        return node is not JsonObject result
+        return node is not JsonObject serialized
             ? throw new InvalidOperationException($"Could not serialize {typeof(TValue).Name} as a JSON object.")
-            : result;
+            : serialized;
     }
 
     public static void Write<TValue>(string path, TValue value)

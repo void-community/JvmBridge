@@ -10,10 +10,23 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     private readonly JNIInvokeInterface_** _machine;
     private readonly bool _owned;
     private bool _disposed;
-    private JavaVirtualMachine(nint machine, bool owned) { ArgumentOutOfRangeException.ThrowIfZero(machine); _machine = (JNIInvokeInterface_**)machine; _owned = owned; }
+    private JavaVirtualMachine(nint machine, bool owned)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(machine);
+
+        _machine = (JNIInvokeInterface_**)machine;
+        _owned = owned;
+    }
 
     /// <summary>Gets the raw JVM invocation-interface pointer while this wrapper remains active.</summary>
-    public nint Handle { get { EnsureAccessible(); return (nint)_machine; } }
+    public nint Handle
+    {
+        get
+        {
+            EnsureAccessible();
+            return (nint)_machine;
+        }
+    }
 
     /// <summary>Creates a wrapper that does not own or destroy an existing JVM.</summary>
     /// <param name="machine">The nonzero raw JVM invocation-interface pointer.</param>
@@ -27,8 +40,10 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     public static JavaVirtualMachine Create(string libraryPath, params string[] options)
     {
         nint library = NativeJvmLibrary.Load(Path.GetFullPath(libraryPath));
+
         // A JVM library stays loaded for process lifetime; unloading it is not supported here.
         WindowsX86JvmCompatibility.Install(library);
+
         var create = (delegate* unmanaged<JNIInvokeInterface_***, void**, JavaVMInitArgs*, int>)NativeLibrary.GetExport(library, "JNI_CreateJavaVM");
         List<nint> strings = new();
         try
@@ -38,8 +53,10 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
             {
                 byte[] bytes = ModifiedUtf8.Encode(options[index]);
                 nint address = Marshal.AllocHGlobal(bytes.Length);
+
                 strings.Add(address);
                 Marshal.Copy(bytes, 0, address, bytes.Length);
+
                 nativeOptions[index].optionString = (byte*)address;
             }
             fixed (JavaVMOption* arguments = nativeOptions)
@@ -48,6 +65,7 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
                 JavaVMInitArgs configuration = new() { version = Methods.JNI_VERSION_1_6, nOptions = nativeOptions.Length, options = arguments };
                 JNIInvokeInterface_** machine = null;
                 void* environment = null;
+
                 Check(create(&machine, &environment, &configuration), nameof(Create));
                 return new JavaVirtualMachine((nint)machine, true);
             }
@@ -64,7 +82,9 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     public JavaThreadAttachment AttachCurrentThread()
     {
         EnsureAccessible();
+
         void* environment = null;
+
         // JNI 1.6 is what Java 6 and 7 accept; a newer JVM gives the same environment for it.
         int result = (*_machine)->GetEnv(_machine, &environment, Methods.JNI_VERSION_1_6);
         bool attached = result == Methods.JNI_EDETACHED;
@@ -80,7 +100,9 @@ public sealed unsafe class JavaVirtualMachine : IDisposable
     public nint GetToolingEnvironment(int version = (int)Methods.JVMTI_VERSION_1_2)
     {
         EnsureAccessible();
+
         void* environment = null;
+
         Check((*_machine)->GetEnv(_machine, &environment, version), nameof(GetToolingEnvironment));
         return (nint)environment;
     }

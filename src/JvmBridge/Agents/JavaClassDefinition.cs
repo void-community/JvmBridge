@@ -17,18 +17,28 @@ public sealed class JavaClassDefinition
     public JavaClassDefinition(string name, ReadOnlySpan<byte> bytes, IReadOnlyList<JavaClassDefinition>? nestedClasses = null, Action<JavaEnvironment, nint>? registerNatives = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
+
         JavaClassFile file;
 
-        try { file = JavaClassFile.Read(bytes); }
-        catch (ClassFormatException exception) { throw new ArgumentException($"The bytes for {name} are not a valid class file: {exception.Message}", nameof(bytes), exception); }
+        try
+        {
+            file = JavaClassFile.Read(bytes);
+        }
+        catch (ClassFormatException exception)
+        {
+            throw new ArgumentException($"The bytes for {name} are not a valid class file: {exception.Message}", nameof(bytes), exception);
+        }
 
         if (file.Name != name)
             throw new ArgumentException($"The bytes describe {file.Name}, not {name}.", nameof(bytes));
 
+        // What the caller gave, with the bytes copied so that later changes to them do not reach the definition.
         Name = name;
         _bytes = bytes.ToArray();
         NestedClasses = nestedClasses ?? [];
         RegisterNatives = registerNatives;
+
+        // The supertypes come from the class file itself.
         SuperName = file.SuperName;
         Interfaces = file.Interfaces;
     }
@@ -57,7 +67,9 @@ public sealed class JavaClassDefinition
     internal List<JavaClassDefinition> GetDefinitionOrder()
     {
         List<JavaClassDefinition> remaining = [];
+
         Collect(this, remaining);
+
         HashSet<string> names = [.. remaining.Select(definition => definition.Name)];
         HashSet<string> defined = [];
         List<JavaClassDefinition> ordered = [];
@@ -70,8 +82,11 @@ public sealed class JavaClassDefinition
                 throw new InvalidOperationException($"The classes of {Name} depend on each other in a cycle.");
 
             JavaClassDefinition next = remaining[ready];
+
             remaining.RemoveAt(ready);
+
             _ = defined.Add(next.Name);
+
             ordered.Add(next);
         }
 

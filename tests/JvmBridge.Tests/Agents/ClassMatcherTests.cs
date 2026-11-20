@@ -18,8 +18,14 @@ public sealed class ClassMatcherTests
         get
         {
             ClassHierarchy hierarchy = new();
-            hierarchy.Add(className: "java/util/AbstractList", superName: "java/util/AbstractCollection", ["java/util/List"]);
-            hierarchy.Add(className: "java/util/AbstractCollection", superName: "java/lang/Object", ["java/util/Collection"]);
+
+            hierarchy.Add(className: "java/util/AbstractList",
+                superName: "java/util/AbstractCollection",
+                interfaces: ["java/util/List"]);
+
+            hierarchy.Add(className: "java/util/AbstractCollection",
+                superName: "java/lang/Object",
+                interfaces: ["java/util/Collection"]);
 
             return hierarchy;
         }
@@ -40,13 +46,19 @@ public sealed class ClassMatcherTests
     public void CombinesTheNameTestWithSupertypeAndAnnotationTests()
     {
         ClassPatch annotatedInPackage = ClassPatch.ForPackage(package: "fixture").WhereAnnotatedWith(Deprecated);
-        ClassPatch runnableInPackage = ClassPatch.ForPackage(package: "fixture").WhereSubclassOf(superType: "java/lang/Runnable");
+
+        ClassPatch runnableInPackage = ClassPatch.ForPackage(package: "fixture")
+            .WhereSubclassOf(superType: "java/lang/Runnable");
+
         ClassPatch wrongPackage = ClassPatch.ForPackage(package: "other").WhereAnnotatedWith(Deprecated);
 
+        // A class in the package matches only when it also passes the narrowing test.
         Assert.True(annotatedInPackage.Matches(Annotated));
         Assert.False(annotatedInPackage.Matches(ClassFileFixtures.Sample));
         Assert.True(runnableInPackage.Matches(Annotated));
         Assert.False(runnableInPackage.Matches(ClassFileFixtures.Sample));
+
+        // Passing the narrowing test does not make up for a package that is the wrong one.
         Assert.False(wrongPackage.Matches(Annotated));
     }
 
@@ -64,16 +76,22 @@ public sealed class ClassMatcherTests
     [Fact]
     public void PackageTestsRespectNestedPackages()
     {
+        // One class directly in the package, one in a nested package, and one in a package whose name only starts the same.
         byte[] direct = new ClassFileWriter(name: "fixture/Direct").ToArray();
         byte[] deep = new ClassFileWriter(name: "fixture/inner/Deep").ToArray();
         byte[] neighbour = new ClassFileWriter(name: "fixtureother/Class").ToArray();
+
+        // The package is named once without and once with a trailing slash, which must mean the same.
         ClassPatch flat = ClassPatch.ForPackage(package: "fixture");
         ClassPatch recursive = ClassPatch.ForPackage(package: "fixture/", includeSubpackages: true);
 
+        // Nested packages are included only on request.
         Assert.True(flat.Matches(direct));
         Assert.False(flat.Matches(deep));
         Assert.True(recursive.Matches(direct));
         Assert.True(recursive.Matches(deep));
+
+        // A shared prefix is not a shared package.
         Assert.False(flat.Matches(neighbour));
         Assert.False(recursive.Matches(neighbour));
     }
@@ -82,7 +100,8 @@ public sealed class ClassMatcherTests
     [Fact]
     public void PredicateTestsSeeTheInternalName()
     {
-        ClassPatch endsWithSample = ClassPatch.ForMatching(static name => name.EndsWith(value: "/Sample", StringComparison.Ordinal), description: "sample classes");
+        ClassPatch endsWithSample = ClassPatch.ForMatching(static name => name.EndsWith(value: "/Sample", StringComparison.Ordinal),
+            description: "sample classes");
 
         Assert.True(endsWithSample.Matches(ClassFileFixtures.Sample));
         Assert.False(endsWithSample.Matches(Annotated));
@@ -107,23 +126,24 @@ public sealed class ClassMatcherTests
     public void ResultsNameThePatchedClass()
     {
         ClassPatch patch = ClassPatch.ForPackage(package: "fixture").ReplaceConstant(oldValue: "hello", newValue: "goodbye");
-
-        ClassPatchResult result = patch.Apply(ClassFileFixtures.Sample);
+        ClassPatchResult patched = patch.Apply(ClassFileFixtures.Sample);
 
         Assert.Equal(expected: "package fixture", patch.ClassName);
-        Assert.True(result.Changed);
-        Assert.Equal(expected: "fixture/Sample", result.ClassName);
-        Assert.StartsWith(expectedStartString: "patched fixture/Sample", result.ToString(), StringComparison.Ordinal);
+        Assert.True(patched.Changed);
+        Assert.Equal(expected: "fixture/Sample", patched.ClassName);
+        Assert.StartsWith(expectedStartString: "patched fixture/Sample", patched.ToString(), StringComparison.Ordinal);
     }
 
     /// <summary>A class that does not pass the name test is left alone, with a reason that names the matcher.</summary>
     [Fact]
     public void SkipsClassesTheNameTestRejects()
     {
-        ClassPatchResult result = ClassPatch.ForPackage(package: "other").ReplaceConstant(oldValue: "hello", newValue: "goodbye").Apply(ClassFileFixtures.Sample);
+        ClassPatchResult skipped = ClassPatch.ForPackage(package: "other")
+            .ReplaceConstant(oldValue: "hello", newValue: "goodbye")
+            .Apply(ClassFileFixtures.Sample);
 
-        Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "package other", result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains(expectedSubstring: "package other", skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary>A subtype test follows the recorded hierarchy through other types, and a direct interface needs no record.</summary>
@@ -146,11 +166,15 @@ public sealed class ClassMatcherTests
     {
         ClassPatch collection = ClassPatch.ForSubclassesOf(superType: "java/util/Collection");
         ClassHierarchy partial = new();
-        partial.Add(className: "java/util/AbstractList", superName: "java/util/AbstractCollection", []);
 
+        partial.Add(className: "java/util/AbstractList", superName: "java/util/AbstractCollection", interfaces: []);
+
+        // The class matches only with a hierarchy that records every type between it and the ancestor.
         Assert.False(collection.Matches(Annotated));
         Assert.False(collection.Matches(Annotated, partial));
         Assert.True(collection.Matches(Annotated, Collections));
+
+        // The complete hierarchy reaches the interface through the intermediate types, and a type is not its own subtype.
         Assert.True(Collections.IsSubtypeOf(className: "java/util/AbstractList", ancestor: "java/util/Collection"));
         Assert.False(Collections.IsSubtypeOf(className: "java/util/AbstractList", ancestor: "java/util/AbstractList"));
     }

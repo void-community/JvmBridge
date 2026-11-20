@@ -33,26 +33,25 @@ public sealed class AgentProjectTests
             [key: "MSBUILDDISABLENODEREUSE"] = "1"
         };
 
-        ProcessResult result = await new ProcessRunner(repository).RunAsync(
-            [
-                "dotnet",
-                "msbuild",
-                Path.Combine(project.Path, path2: "Consumer.csproj"),
-                "-restore",
-                "-t:JvmBridgeMergeAgentJars",
-                "-p:JvmBridgeAgentJars=agents/*/Probe.jar",
-                "-p:RestoreAdditionalProjectSources=" + packages
-            ],
+        ProcessResult merge = await new ProcessRunner(repository).RunAsync(command:
+        [
+            "dotnet",
+            "msbuild",
+            Path.Combine(project.Path, path2: "Consumer.csproj"),
+            "-restore",
+            "-t:JvmBridgeMergeAgentJars",
+            "-p:JvmBridgeAgentJars=agents/*/Probe.jar",
+            "-p:RestoreAdditionalProjectSources=" + packages,
+        ],
             logPath: null,
             environment: environment,
             expectedExitCode: null,
             workingDirectory: project.Path,
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB015", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "JvmBridgeAgentJars", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, merge.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB015", merge.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JvmBridgeAgentJars", merge.Output, StringComparison.Ordinal);
     }
 
     /// <summary>PublishAot passed on the command line, as the repository's own publish commands do, satisfies the check as well.</summary>
@@ -61,9 +60,9 @@ public sealed class AgentProjectTests
     {
         using TemporaryDirectory project = CreateProject(includePublishAot: false);
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null, ["PublishAot=true"]);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, jdk: null, properties: ["PublishAot=true"]);
 
-        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.True(build.ExitCode == 0, build.Output);
     }
 
     /// <summary>PublishAot in the project satisfies the check.</summary>
@@ -72,10 +71,10 @@ public sealed class AgentProjectTests
     {
         using TemporaryDirectory project = CreateProject(includePublishAot: true);
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
 
-        Assert.True(result.ExitCode == 0, result.Output);
-        Assert.DoesNotContain(expectedSubstring: "JVMB006", result.Output, StringComparison.Ordinal);
+        Assert.True(build.ExitCode == 0, build.Output);
+        Assert.DoesNotContain(expectedSubstring: "JVMB006", build.Output, StringComparison.Ordinal);
     }
 
     /// <summary>An agent project that only sets JvmBridgeAgent would publish managed assemblies and no native library, so the build says so.</summary>
@@ -84,11 +83,11 @@ public sealed class AgentProjectTests
     {
         using TemporaryDirectory project = CreateProject(includePublishAot: false);
 
-        ProcessResult result = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
+        ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, jdk: null);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB006", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "PublishAot", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB006", build.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "PublishAot", build.Output, StringComparison.Ordinal);
     }
 
     private static TemporaryDirectory CreateProject(bool includePublishAot)
@@ -98,8 +97,7 @@ public sealed class AgentProjectTests
 
         File.WriteAllText(Path.Combine(project.Path, path2: "Agent.cs"), AgentSource);
 
-        File.WriteAllText(
-            Path.Combine(project.Path, path2: "Consumer.csproj"),
+        File.WriteAllText(Path.Combine(project.Path, path2: "Consumer.csproj"),
             $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -114,8 +112,7 @@ public sealed class AgentProjectTests
                 <PackageReference Include="JvmBridge" Version="{JavaSourceTests.PackedVersion()}" />
               </ItemGroup>
             </Project>
-            """
-        );
+            """);
 
         return project;
     }

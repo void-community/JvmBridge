@@ -22,20 +22,27 @@ internal static class PinnedJdkWriter
             "    internal const int NewestJava = " + newestJava.ToString(CultureInfo.InvariantCulture) + ";",
             string.Empty,
             "    internal static IReadOnlyList<JdkEntry> Jdks { get; } =",
-            "    ["
+            "    [",
         ];
 
+        // The current JDKs, then the legacy ones in a list of their own.
         lines.AddRange(jdks.Select(Entry));
-        lines.AddRange(["    ];", string.Empty, "    internal static IReadOnlyList<JdkEntry> LegacyJdks { get; } =", "    ["]);
+        lines.AddRange(collection: ["    ];", string.Empty, "    internal static IReadOnlyList<JdkEntry> LegacyJdks { get; } =", "    ["]);
         lines.AddRange(legacyJdks.Select(Entry));
-        lines.AddRange(["    ];", "}"]);
+        lines.AddRange(collection: ["    ];", "}"]);
 
+        // Line feeds on every platform, so that the file is the same wherever it is written.
         TextFile.Write(path, string.Join(separator: '\n', lines) + "\n");
     }
 
     private static string Entry(JdkEntry entry)
     {
-        List<string> properties = [Text(name: "Rid", entry.Rid), "Java = " + entry.Java.ToString(CultureInfo.InvariantCulture), Text(name: "Implementation", entry.Implementation)];
+        List<string> properties =
+        [
+            Text(name: "Rid", entry.Rid),
+            "Java = " + entry.Java.ToString(CultureInfo.InvariantCulture),
+            Text(name: "Implementation", entry.Implementation),
+        ];
 
         foreach (KeyValuePair<string, string?> property in new Dictionary<string, string?>
         {
@@ -56,6 +63,7 @@ internal static class PinnedJdkWriter
 
     private static string Text(string name, string value)
     {
-        return name + " = \"" + value.Replace(oldValue: "\\", newValue: "\\\\", StringComparison.Ordinal).Replace(oldValue: "\"", newValue: "\\\"", StringComparison.Ordinal) + "\"";
+        return name + " = \"" + value.Replace(oldValue: "\\", newValue: "\\\\", StringComparison.Ordinal)
+            .Replace(oldValue: "\"", newValue: "\\\"", StringComparison.Ordinal) + "\"";
     }
 }

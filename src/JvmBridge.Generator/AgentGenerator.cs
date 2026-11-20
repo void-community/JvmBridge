@@ -17,27 +17,25 @@ namespace JvmBridge.Generator;
 [Generator]
 public sealed class AgentGenerator : IIncrementalGenerator
 {
-    private static readonly DiagnosticDescriptor InvalidAgent = new(
-        id: "JVMB001",
+    private static readonly DiagnosticDescriptor InvalidAgent = new(id: "JVMB001",
         title: "Invalid JVM agent",
         messageFormat: "{0}",
         category: "JvmBridge",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true
-    );
+        isEnabledByDefault: true);
 
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValuesProvider<INamedTypeSymbol> agents = context.SyntaxProvider.CreateSyntaxProvider(
-            static (node, cancellationToken) => node is ClassDeclarationSyntax declaration && declaration.BaseList != null,
-            static (syntax, cancellation) => syntax.SemanticModel.GetDeclaredSymbol(syntax.Node, cancellation) as INamedTypeSymbol
-        )
+        IncrementalValuesProvider<INamedTypeSymbol> agents = context.SyntaxProvider
+            .CreateSyntaxProvider(static (node, cancellationToken) => node is ClassDeclarationSyntax declaration && declaration.BaseList != null,
+                static (syntax, cancellation) => syntax.SemanticModel.GetDeclaredSymbol(syntax.Node, cancellation) as INamedTypeSymbol)
             .Where(static type => type != null && !type.IsAbstract && DerivesAgent(type))
             .Select(static (type, cancellationToken) => type ?? throw new InvalidOperationException(message: "Missing agent symbol."));
 
-        context.RegisterSourceOutput(
-            agents.Collect().Combine(context.CompilationProvider).Combine(context.AnalyzerConfigOptionsProvider),
+        context.RegisterSourceOutput(agents.Collect()
+            .Combine(context.CompilationProvider)
+            .Combine(context.AnalyzerConfigOptionsProvider),
             static (production, input) =>
             {
                 HashSet<INamedTypeSymbol> distinctTypes = new(SymbolEqualityComparer.Default);
@@ -49,47 +47,50 @@ public sealed class AgentGenerator : IIncrementalGenerator
                 }
 
                 ImmutableArray<INamedTypeSymbol> types = [.. distinctTypes];
-                bool agentEnabled = input.Right.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAgent", out string? setting) && string.Equals(setting, b: "true", StringComparison.OrdinalIgnoreCase);
+
+                bool agentEnabled = input.Right
+                    .GlobalOptions
+                    .TryGetValue(key: "build_property.JvmBridgeAgent", out string? setting)
+                    && string.Equals(setting, b: "true", StringComparison.OrdinalIgnoreCase);
 
                 if (types.Length == 0 && !agentEnabled)
                     return;
 
                 if (types.Length != 1)
                 {
-                    production.ReportDiagnostic(
-                        Diagnostic.Create(InvalidAgent, Location.None, messageArgs: ["Exactly one concrete JavaAgent subclass is required per native library."])
-                    );
+                    production.ReportDiagnostic(Diagnostic.Create(InvalidAgent,
+                        Location.None,
+                        messageArgs: ["Exactly one concrete JavaAgent subclass is required per native library."]));
 
                     return;
                 }
 
                 INamedTypeSymbol type = types[index: 0];
                 bool derivesAgent = DerivesAgent(type);
-                bool accessible = input.Left.Right.IsSymbolAccessibleWithin(type, input.Left.Right.Assembly) && !type.IsFileLocal;
+
+                bool accessible = input.Left.Right.IsSymbolAccessibleWithin(type, input.Left.Right.Assembly)
+                    && !type.IsFileLocal;
 
                 for (INamedTypeSymbol? current = type; current != null; current = current.ContainingType)
                     accessible &= current.Arity == 0 && !current.IsFileLocal;
 
-                bool constructor = type.InstanceConstructors.Any(value => value.Parameters.Length == 0 && input.Left.Right.IsSymbolAccessibleWithin(value, input.Left.Right.Assembly));
+                bool constructor = type.InstanceConstructors
+                    .Any(value => value.Parameters.Length == 0 && input.Left.Right.IsSymbolAccessibleWithin(value, input.Left.Right.Assembly));
 
                 if (!derivesAgent || type.IsAbstract || !accessible || !constructor)
                 {
-                    production.ReportDiagnostic(
-                        Diagnostic.Create(
-                            InvalidAgent,
-                            type.Locations.FirstOrDefault(),
-                            messageArgs: ["Agent must derive from JavaAgent, be non-generic and non-abstract, and have an accessible parameterless constructor."]
-                        )
-                    );
+                    production.ReportDiagnostic(Diagnostic.Create(InvalidAgent,
+                        type.Locations.FirstOrDefault(),
+                        messageArgs: ["Agent must derive from JavaAgent, be non-generic and non-abstract, and have an accessible parameterless constructor."]));
 
                     return;
                 }
 
                 if (!agentEnabled)
                 {
-                    production.ReportDiagnostic(
-                        Diagnostic.Create(InvalidAgent, type.Locations.FirstOrDefault(), messageArgs: ["Set <JvmBridgeAgent>true</JvmBridgeAgent> in the agent project."])
-                    );
+                    production.ReportDiagnostic(Diagnostic.Create(InvalidAgent,
+                        type.Locations.FirstOrDefault(),
+                        messageArgs: ["Set <JvmBridgeAgent>true</JvmBridgeAgent> in the agent project."]));
 
                     return;
                 }
@@ -104,17 +105,13 @@ public sealed class AgentGenerator : IIncrementalGenerator
                             {
                                 foreach (KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
                                 {
-                                    bool isGeneratedEntryPoint = argument.Key == "EntryPoint" && IsGeneratedEntryPoint(argument.Value);
+                                    bool isGeneratedEntryPoint = argument.Key == "EntryPoint" && IsGenerated(argument.Value);
 
                                     if (isGeneratedEntryPoint)
                                     {
-                                        production.ReportDiagnostic(
-                                            Diagnostic.Create(
-                                                InvalidAgent,
-                                                method.Locations.FirstOrDefault(),
-                                                messageArgs: ["Agent entry points are generated; remove conflicting manual exports."]
-                                            )
-                                        );
+                                        production.ReportDiagnostic(Diagnostic.Create(InvalidAgent,
+                                            method.Locations.FirstOrDefault(),
+                                            messageArgs: ["Agent entry points are generated; remove conflicting manual exports."]));
 
                                         return;
                                     }
@@ -148,15 +145,11 @@ public sealed class AgentGenerator : IIncrementalGenerator
                 }
                 """;
 
-                production.AddSource(
-                    hintName: "NativeAgentExports.g.cs",
-                    SourceText.From(
-                        source.Replace(oldValue: "AGENT_TYPE", agent).Replace(oldValue: "AGENT_NAME", SymbolDisplay.FormatLiteral(input.Left.Right.AssemblyName ?? type.Name, quote: true)),
-                        Encoding.UTF8
-                    )
-                );
-            }
-        );
+                production.AddSource(hintName: "NativeAgentExports.g.cs",
+                    SourceText.From(source.Replace(oldValue: "AGENT_TYPE", agent)
+                        .Replace(oldValue: "AGENT_NAME", SymbolDisplay.FormatLiteral(input.Left.Right.AssemblyName ?? type.Name, quote: true)),
+                        Encoding.UTF8));
+            });
     }
 
     private static IEnumerable<INamedTypeSymbol> AllTypes(INamespaceSymbol scope)
@@ -187,7 +180,7 @@ public sealed class AgentGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static bool IsGeneratedEntryPoint(TypedConstant entryPoint)
+    private static bool IsGenerated(TypedConstant entryPoint)
     {
         string sourceValue = entryPoint.ToCSharpString();
 

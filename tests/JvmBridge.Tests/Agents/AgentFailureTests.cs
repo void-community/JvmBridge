@@ -12,6 +12,7 @@ public sealed unsafe class AgentFailureTests
 {
     [ThreadStatic]
     private static int s_disposeCount;
+
     [ThreadStatic]
     private static nint s_tooling;
 
@@ -19,8 +20,12 @@ public sealed unsafe class AgentFailureTests
     [Fact]
     public void FactoryFailureIsContained()
     {
-        int result = AgentRuntime.Start(static () => throw new InvalidOperationException(message: "Factory failure"), machine: 1, options: 0, attached: false);
-        Assert.Equal(Methods.JNI_ERR, result);
+        int started = AgentRuntime.Start(static () => throw new InvalidOperationException(message: "Factory failure"),
+            machine: 1,
+            options: 0,
+            attached: false);
+
+        Assert.Equal(Methods.JNI_ERR, started);
     }
 
     /// <summary>Failure after acquiring JVMTI releases the environment before returning JNI_ERR.</summary>
@@ -28,23 +33,42 @@ public sealed unsafe class AgentFailureTests
     public void FailedVersionQueryDisposesAcquiredEnvironment()
     {
         s_disposeCount = 0;
-        jvmtiInterface_1_ toolingTable = new() { GetVersionNumber = &FailVersion, DisposeEnvironment = &DisposeEnvironment };
+
+        jvmtiInterface_1_ toolingTable = new()
+        {
+            GetVersionNumber = &FailVersion,
+            DisposeEnvironment = &CountDisposal
+        };
+
         jvmtiInterface_1_* toolingPointer = &toolingTable;
+
         s_tooling = (nint)(&toolingPointer);
-        JNIInvokeInterface_ machineTable = new() { GetEnv = &GetEnvironment };
+
+        JNIInvokeInterface_ machineTable = new()
+        {
+            GetEnv = &GetEnvironment
+        };
+
         JNIInvokeInterface_* machinePointer = &machineTable;
 
         try
         {
-            int result = AgentRuntime.Start(static () => new EmptyAgent(), (nint)(&machinePointer), options: 0, attached: false);
-            Assert.Equal(Methods.JNI_ERR, result);
+            int started = AgentRuntime.Start(static () => new EmptyAgent(),
+                (nint)(&machinePointer),
+                options: 0,
+                attached: false);
+
+            Assert.Equal(Methods.JNI_ERR, started);
             Assert.Equal(expected: 1, s_disposeCount);
         }
-        finally { s_tooling = 0; }
+        finally
+        {
+            s_tooling = 0;
+        }
     }
 
     [UnmanagedCallersOnly]
-    private static jvmtiError DisposeEnvironment(jvmtiInterface_1_** environment)
+    private static jvmtiError CountDisposal(jvmtiInterface_1_** environment)
     {
         s_disposeCount++;
 

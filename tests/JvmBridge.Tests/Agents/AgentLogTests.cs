@@ -44,9 +44,11 @@ public sealed unsafe class AgentLogTests
         try
         {
             AgentLog.Sink = (level, name, message) => lines.Enqueue(new LogLine(level, name, message));
+
             AgentLog.Write(AgentLogLevel.Warning, source, message: "careful");
 
-            Assert.Contains(lines, line => line.Source == source && line.Level == AgentLogLevel.Warning && line.Message == "careful");
+            Assert.Contains(lines,
+                line => line.Source == source && line.Level == AgentLogLevel.Warning && line.Message == "careful");
         }
         finally
         {
@@ -54,7 +56,7 @@ public sealed unsafe class AgentLogTests
         }
     }
 
-    /// <summary>Setting the sink to null restores the default one.</summary>
+    /// <summary>Setting the sink to <see langword="null"/> restores the default one.</summary>
     [Fact]
     public void NullRestoresTheDefaultSink()
     {
@@ -89,7 +91,7 @@ public sealed unsafe class AgentLogTests
             ("none", AgentLogLevel.None),
             ("off", AgentLogLevel.None),
             ("loud", AgentLogLevel.Warning),
-            (null, AgentLogLevel.Warning)
+            (null, AgentLogLevel.Warning),
         ];
 
         foreach ((string? text, AgentLogLevel expected) in cases)
@@ -102,30 +104,58 @@ public sealed unsafe class AgentLogTests
     {
         ConcurrentQueue<LogLine> lines = [];
         AgentLogSink previous = AgentLog.Sink;
-        jvmtiInterface_1_ toolingTable = new() { GetVersionNumber = &Version };
+
+        jvmtiInterface_1_ toolingTable = new()
+        {
+            GetVersionNumber = &Version
+        };
+
         jvmtiInterface_1_* toolingPointer = &toolingTable;
+
         s_tooling = (nint)(&toolingPointer);
-        JNIInvokeInterface_ machineTable = new() { GetEnv = &GetEnvironment };
+
+        JNIInvokeInterface_ machineTable = new()
+        {
+            GetEnv = &GetEnvironment
+        };
+
         JNIInvokeInterface_* machinePointer = &machineTable;
         string name = "filter-" + Guid.NewGuid().ToString(format: "N");
 
         try
         {
             AgentLog.Sink = (level, source, message) => lines.Enqueue(new LogLine(level, source, message));
-            AgentContext quiet = new(new EmptyAgent(), (nint)(&machinePointer), options: "log=warn", attached: false, name);
-            AgentContext defaults = new(new EmptyAgent(), (nint)(&machinePointer), options: "other", attached: false, name + "-default");
 
+            AgentContext quiet = new(new EmptyAgent(), (nint)(&machinePointer), options: "log=warn", attached: false, name);
+
+            AgentContext defaults = new(new EmptyAgent(),
+                (nint)(&machinePointer),
+                options: "other",
+                attached: false,
+                name + "-default");
+
+            // The context that asked for warnings drops what is less severe.
             quiet.Log(message: "information is dropped");
             quiet.Log(AgentLogLevel.Debug, message: "debug is dropped");
             quiet.Log(AgentLogLevel.Error, message: "error is kept");
+
+            // The context without a log option writes from the information level up.
             defaults.Log(message: "information is kept");
             defaults.Log(AgentLogLevel.Trace, message: "trace is dropped");
+
+            // The level can change after the context is created, and at None even an error is dropped.
             quiet.LogLevel = AgentLogLevel.None;
+
             quiet.Log(AgentLogLevel.Error, message: "none drops everything");
 
+            // Each context wrote only the lines at or above its own level.
+            Assert.Equal(expected: ["error is kept"], lines.Where(line => line.Source == name).Select(line => line.Message));
+
+            Assert.Equal(expected: ["information is kept"],
+                lines.Where(line => line.Source == name + "-default").Select(line => line.Message));
+
+            // Option text without a log entry leaves the default level and is still there to read.
             Assert.Equal(AgentLogLevel.Information, defaults.LogLevel);
-            Assert.Equal(["error is kept"], lines.Where(line => line.Source == name).Select(line => line.Message));
-            Assert.Equal(["information is kept"], lines.Where(line => line.Source == name + "-default").Select(line => line.Message));
             Assert.False(defaults.IsLogEnabled(AgentLogLevel.Debug));
             Assert.True(defaults.IsLogEnabled(AgentLogLevel.Warning));
             Assert.Equal(expected: "other", defaults.ParsedOptions.Text);

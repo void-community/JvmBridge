@@ -19,7 +19,9 @@ public sealed unsafe class JavaLocalFrame : IDisposable
     public JavaLocalReference Pop(nint result)
     {
         ObjectDisposedException.ThrowIf(_popped, this);
+
         _popped = true;
+
         _jobject* kept = _environment.Functions->PopLocalFrame((JNINativeInterface_**)_environment.Handle, (_jobject*)result);
 
         return new JavaLocalReference(_environment, (nint)kept);

@@ -17,8 +17,11 @@ public sealed class ClassPatch
 
     private ClassPatch(ClassMatcher matcher, PatchStep[] steps, MethodScope? scope, AdviceStep[] advice)
     {
+        // Which classes the patch applies to, and the name it reports them by.
         _matcher = matcher;
         ClassName = matcher.ExactName ?? matcher.Description;
+
+        // What it does to them: its edits, the methods they are limited to, and its advice.
         _steps = steps;
         _scope = scope;
         _advice = advice;
@@ -49,6 +52,7 @@ public sealed class ClassPatch
     public static ClassPatch ForPackage(string package, bool includeSubpackages = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(package);
+
         RequireInternalName(package, nameof(package));
 
         return new ClassPatch(ClassMatcher.Package(package.TrimEnd('/'), includeSubpackages), [], scope: null, advice: []);
@@ -75,6 +79,7 @@ public sealed class ClassPatch
     public static ClassPatch ForSubclassesOf(string superType)
     {
         ArgumentException.ThrowIfNullOrEmpty(superType);
+
         RequireInternalName(superType, nameof(superType));
 
         return new ClassPatch(ClassMatcher.Any().SubclassOf(superType), [], scope: null, advice: []);
@@ -89,6 +94,7 @@ public sealed class ClassPatch
     public static ClassPatch ForAnnotatedWith(string annotationType)
     {
         ArgumentException.ThrowIfNullOrEmpty(annotationType);
+
         RequireInternalName(annotationType, nameof(annotationType));
 
         return new ClassPatch(ClassMatcher.Any().AnnotatedWith(annotationType), [], scope: null, advice: []);
@@ -100,6 +106,7 @@ public sealed class ClassPatch
     public ClassPatch WhereAnnotatedWith(string annotationType)
     {
         ArgumentException.ThrowIfNullOrEmpty(annotationType);
+
         RequireInternalName(annotationType, nameof(annotationType));
 
         return new ClassPatch(_matcher.AnnotatedWith(annotationType), _steps, _scope, _advice);
@@ -111,6 +118,7 @@ public sealed class ClassPatch
     public ClassPatch WhereSubclassOf(string superType)
     {
         ArgumentException.ThrowIfNullOrEmpty(superType);
+
         RequireInternalName(superType, nameof(superType));
 
         return new ClassPatch(_matcher.SubclassOf(superType), _steps, _scope, _advice);
@@ -216,6 +224,7 @@ public sealed class ClassPatch
     {
         ArgumentException.ThrowIfNullOrEmpty(fromClass);
         ArgumentException.ThrowIfNullOrEmpty(toClass);
+
         RequireInternalName(fromClass, nameof(fromClass));
         RequireInternalName(toClass, nameof(toClass));
 
@@ -235,7 +244,9 @@ public sealed class ClassPatch
     public ClassPatch ReplaceConstruction(string fromClass, JavaMethod factory, string? storedIn = null, bool ownerIsInterface = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(fromClass);
+
         RequireInternalName(fromClass, nameof(fromClass));
+
         _ = ClassFileEditor.FactoryResult(factory);
 
         return Constructing(
@@ -370,6 +381,7 @@ public sealed class ClassPatch
     public ClassPatch SetFieldAccess(string name, int accessFlags, string? descriptor = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
+
         RequireWholeClass(nameof(SetFieldAccess));
 
         return With(PatchKind.Access, editor =>
@@ -392,6 +404,7 @@ public sealed class ClassPatch
     {
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(edit);
+
         MethodScope? scope = _scope;
 
         return With(PatchKind.Edit, editor =>
@@ -609,8 +622,14 @@ public sealed class ClassPatch
 
         ClassFileEditor editor;
 
-        try { editor = new ClassFileEditor(classBytes); }
-        catch (ClassFormatException exception) { return Skipped(ClassName, $"not a valid class file: {exception.Message}"); }
+        try
+        {
+            editor = new ClassFileEditor(classBytes);
+        }
+        catch (ClassFormatException exception)
+        {
+            return Skipped(ClassName, $"not a valid class file: {exception.Message}");
+        }
 
         string className = editor.Model.Name;
 
@@ -626,8 +645,14 @@ public sealed class ClassPatch
             {
                 StepOutcome outcome;
 
-                try { outcome = step.Run(editor); }
-                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { return Skipped(className, $"an edit failed: {exception.Message}"); }
+                try
+                {
+                    outcome = step.Run(editor);
+                }
+                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException)
+                {
+                    return Skipped(className, $"an edit failed: {exception.Message}");
+                }
 
                 if (outcome.SkippedReason is { } reason)
                     return Skipped(className, reason);
@@ -666,8 +691,14 @@ public sealed class ClassPatch
 
                 AdviceSkip? skip;
 
-                try { skip = MethodAdvisor.Advise(editor, step.Name, step.Descriptor, step.Hooks); }
-                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { return Skipped(className, $"advice failed: {exception.Message}"); }
+                try
+                {
+                    skip = MethodAdvisor.Advise(editor, step.Name, step.Descriptor, step.Hooks);
+                }
+                catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException)
+                {
+                    return Skipped(className, $"advice failed: {exception.Message}");
+                }
 
                 if (skip is { } problem)
                     return Skipped(className, problem.Reason, problem.Category);
@@ -713,8 +744,14 @@ public sealed class ClassPatch
 
         AdviceSkip? skip;
 
-        try { skip = MemberAdder.Add(editor, addition, descriptor); }
-        catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException) { skip = new AdviceSkip(PatchSkipCategory.Other, $"adding {addition.Name} failed: {exception.Message}"); }
+        try
+        {
+            skip = MemberAdder.Add(editor, addition, descriptor);
+        }
+        catch (Exception exception) when (exception is ClassFormatException or ArgumentException or InvalidOperationException)
+        {
+            skip = new AdviceSkip(PatchSkipCategory.Other, $"adding {addition.Name} failed: {exception.Message}");
+        }
 
         if (skip is null)
             advice.Additions[key] = addition;
@@ -817,8 +854,14 @@ public sealed class ClassPatch
 
             int count;
 
-            try { count = replaceInMethod(editor, scope.Name, scope.Descriptor); }
-            catch (InvalidOperationException exception) { return StepOutcome.Skip(exception.Message); }
+            try
+            {
+                count = replaceInMethod(editor, scope.Name, scope.Descriptor);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return StepOutcome.Skip(exception.Message);
+            }
 
             return count == 0
                 ? StepOutcome.Skip($"no load of constant {description} in {scope}")

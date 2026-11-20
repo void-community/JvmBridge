@@ -9,43 +9,41 @@ namespace JvmBridge.Testing.Tests;
 public sealed class RedirectVerificationTests
 {
     /// <summary>A virtual and an interface receiver passed to helpers declared with Object pass the verifier and reach the helpers.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task ObjectHelpersVerifyAndRunAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         string classes = await jdk.CompileAsync(sources: "RedirectFixtures/fixture/*.java", cancellationToken: TestContext.Current.CancellationToken);
 
         try
         {
             string subject = Path.Combine(classes, path2: "fixture", path3: "RedirectSubject.class");
 
-            ClassPatchResult result = ClassPatch.For(className: "fixture/RedirectSubject")
+            ClassPatchResult patched = ClassPatch.For(className: "fixture/RedirectSubject")
                 .Method(name: "measure", descriptor: "(Ljava/lang/String;Ljava/util/List;)I")
-                .RedirectInvocation(
-                    JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
-                    JavaMethod.Static(owner: "fixture/ObjectHelpers", name: "length", descriptor: "(Ljava/lang/Object;)I")
-                )
-                .RedirectInvocation(
-                    JavaMethod.Interface(owner: "java/util/List", name: "size", descriptor: "()I"),
-                    JavaMethod.Static(owner: "fixture/ObjectHelpers", name: "size", descriptor: "(Ljava/lang/Object;)I")
-                )
+                .RedirectInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
+                    JavaMethod.Static(owner: "fixture/ObjectHelpers", name: "length", descriptor: "(Ljava/lang/Object;)I"))
+                .RedirectInvocation(JavaMethod.Interface(owner: "java/util/List", name: "size", descriptor: "()I"),
+                    JavaMethod.Static(owner: "fixture/ObjectHelpers", name: "size", descriptor: "(Ljava/lang/Object;)I"))
                 .Apply(await File.ReadAllBytesAsync(subject, TestContext.Current.CancellationToken));
 
-            Assert.True(result.Changed, result.SkippedReason);
-            Assert.Equal(expected: 2, result.RedirectedInvocations);
+            Assert.True(patched.Changed, patched.SkippedReason);
+            Assert.Equal(expected: 2, patched.RedirectedInvocations);
 
-            await File.WriteAllBytesAsync(subject, result.Bytes ?? [], TestContext.Current.CancellationToken);
+            await File.WriteAllBytesAsync(subject, patched.Bytes ?? [], TestContext.Current.CancellationToken);
 
             JavaRunOptions options = new();
+
             options.JvmArguments.Add(item: "-Xverify:all");
 
-            JavaRun run = await jdk.RunAsync(
-                mainClass: "fixture.RedirectSubject",
+            JavaRun run = await jdk.RunAsync(mainClass: "fixture.RedirectSubject",
                 classPath: classes,
                 options: options,
-                cancellationToken: TestContext.Current.CancellationToken
-            );
+                cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(expected: 0, run.ExitCode);
             Assert.Contains(expectedSubstring: "RESULT=412", run.Output, StringComparison.Ordinal);

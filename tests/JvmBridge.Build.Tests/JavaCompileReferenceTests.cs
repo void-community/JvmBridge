@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
 
@@ -56,16 +58,15 @@ public sealed class JavaCompileReferenceTests
     /// A helper compiles against an application class it only has as a stub source and another it has compiled in a directory, and the build embeds the helper alone: the stub and the referenced class are on javac's class path, not among the
     /// helpers.
     /// </summary>
+    /// <exception cref="InvalidOperationException">No Java 17 HotSpot JDK is pinned and available for this machine's runtime identifier.</exception>
     [Fact]
     public async Task HelpersCompileAgainstStubsAndReferencesWithoutEmbeddingThemAsync()
     {
         RepositoryContext repository = RepositoryContext.Discover();
-        string runtimeIdentifier = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
 
         JdkEntry entry = PinnedJdks.Jdks
-            .FirstOrDefault(
-                candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available"
-            )
+            .FirstOrDefault(candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available")
             ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
 
         using TemporaryDirectory jdk = new(prefix: "jvmbridge-compile-reference-jdk-");
@@ -74,25 +75,33 @@ public sealed class JavaCompileReferenceTests
 
         using HttpService http = new();
 
-        string home = await new JdkArchiveManager(http).UnpackAsync(FixtureCompiler.ToArchive(entry), jdk.Path, TestContext.Current.CancellationToken);
+        string home = await new JdkArchiveManager(http).UnpackAsync(FixtureCompiler.ToArchive(entry),
+            jdk.Path,
+            TestContext.Current.CancellationToken);
+
         string references = Path.Combine(project.Path, path2: "refs");
 
         Write(project.Path, path: "ledger/app/Ledger.java", LedgerSource);
         FileSystem.EnsureDirectory(references);
 
-        ProcessResult compiled = await new ProcessRunner(repository).RunAsync(
-            [Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac"), "--release", "8", "-d", references, Path.Combine(project.Path, path2: "ledger", path3: "app", path4: "Ledger.java")],
+        ProcessResult compiled = await new ProcessRunner(repository).RunAsync(command:
+        [
+            Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac"),
+            "--release",
+            "8",
+            "-d",
+            references,
+            Path.Combine(project.Path, path2: "ledger", path3: "app", path4: "Ledger.java"),
+        ],
             logPath: null,
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(compiled.ExitCode == 0, compiled.Output);
-
         Write(project.Path, path: "java/pkg/Typed.java", HelperSource);
         Write(project.Path, path: "stubs/app/Account.java", StubSource);
         Write(project.Path, path: "Program.cs", ProgramSource);
-        Write(
-            project.Path,
+
+        Write(project.Path,
             path: "Consumer.csproj",
             $"""
             <Project Sdk="Microsoft.NET.Sdk">
@@ -111,8 +120,7 @@ public sealed class JavaCompileReferenceTests
                 <JavaCompileReference Include="refs" />
               </ItemGroup>
             </Project>
-            """
-        );
+            """);
 
         ProcessResult build = await JavaSourceTests.BuildAsync(project.Path, home);
 
@@ -122,20 +130,19 @@ public sealed class JavaCompileReferenceTests
             .Where(static path => path.Replace(oldChar: '\\', newChar: '/').Contains(value: "/jvmbridge-java/classes/", StringComparison.Ordinal))
             .Select(static path => Path.GetFileName(path))];
 
-        ProcessResult run = await new ProcessRunner(repository).RunAsync(
-            ["dotnet", Path.Combine(paths: [project.Path, "bin", "Release", "net10.0", "Consumer.dll"])],
+        ProcessResult run = await new ProcessRunner(repository).RunAsync(command: ["dotnet", Path.Combine(paths: [project.Path, "bin", "Release", "net10.0", "Consumer.dll"])],
             logPath: null,
             workingDirectory: project.Path,
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(["Typed.class"], embedded);
+        Assert.Equal(expectedSpan: ["Typed.class"], embedded);
         Assert.Equal(expected: "pkg/Typed|no app", run.Output.Trim());
     }
 
     private static void Write(string root, string path, string text)
     {
         string full = Path.Combine(root, path);
+
         FileSystem.EnsureDirectory(Path.GetDirectoryName(full) ?? root);
         File.WriteAllText(full, text);
     }

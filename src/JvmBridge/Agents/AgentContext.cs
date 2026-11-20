@@ -43,21 +43,36 @@ public sealed unsafe class AgentContext
     public bool CanRetransform { get; private set; }
 
     /// <summary>Gets the raw JVMTI environment pointer while this context remains active.</summary>
-    public nint RawHandle { get { EnsureAccessible(); return (nint)_environment; } }
+    public nint RawHandle
+    {
+        get
+        {
+            EnsureAccessible();
+            return (nint)_environment;
+        }
+    }
 
     internal AgentContext(JavaAgent agent, nint machine, string options, bool attached, string? name = null)
     {
+        // Who the agent is, in log lines and to its patches.
         Agent = agent;
         Name = name ?? DefaultName(agent);
+
+        // The services the agent reaches through the context.
         _patches = new PatchEngine(this);
         Modules = new ModuleAccess(this);
         Events = new AgentEvents(this);
+
+        // The options the JVM passed, as text and parsed; "log" among them sets the verbosity.
         Options = options;
         ParsedOptions = AgentOptions.Parse(options);
         LogLevel = ParsedOptions.TryGetValue("log", out string? level) ? AgentLog.ParseLevel(level, AgentLogLevel.Information) : AgentLogLevel.Information;
+
+        // How the agent was loaded, and the JVM's tooling interface it works through.
         IsAttached = attached;
         VirtualMachine = JavaVirtualMachine.Borrow(machine);
         _environment = (jvmtiInterface_1_**)OpenToolingEnvironment(VirtualMachine);
+
         int version = 0;
         jvmtiError result = (*_environment)->GetVersionNumber(_environment, &version);
         if (result != jvmtiError.JVMTI_ERROR_NONE)
@@ -83,6 +98,7 @@ public sealed unsafe class AgentContext
     public void Patch(ClassPatch patch)
     {
         ArgumentNullException.ThrowIfNull(patch);
+
         EnsureAccessible();
 
         if (!EventsEnabled)
@@ -104,6 +120,7 @@ public sealed unsafe class AgentContext
     public PatchReport PatchNow(ClassPatch patch)
     {
         ArgumentNullException.ThrowIfNull(patch);
+
         EnsureAccessible();
 
         if (EventsEnabled)
@@ -120,6 +137,7 @@ public sealed unsafe class AgentContext
     public PatchReport Unpatch(ClassPatch patch)
     {
         ArgumentNullException.ThrowIfNull(patch);
+
         EnsureAccessible();
 
         return _patches.Withdraw(patch);
@@ -131,6 +149,7 @@ public sealed unsafe class AgentContext
     public void DefineClass(JavaClassDefinition definition, ClassLoaderTarget target)
     {
         ArgumentNullException.ThrowIfNull(definition);
+
         EnsureAccessible();
 
         if (EventsEnabled)
@@ -167,6 +186,7 @@ public sealed unsafe class AgentContext
         ArgumentException.ThrowIfNullOrWhiteSpace(module);
         ArgumentException.ThrowIfNullOrWhiteSpace(package);
         ArgumentNullException.ThrowIfNull(to);
+
         EnsureAccessible();
 
         if (EventsEnabled)
@@ -217,12 +237,16 @@ public sealed unsafe class AgentContext
         if (EventsEnabled)
             throw new InvalidOperationException("Request capabilities from Configure, before events are enabled.");
         jvmtiCapabilities available = default;
+
         Check((*_environment)->GetPotentialCapabilities(_environment, &available), nameof(TryEnableRetransformation));
         if (available.can_retransform_classes == 0)
             return false;
         jvmtiCapabilities requested = default;
+
         requested.can_retransform_classes = 1;
+
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(TryEnableRetransformation));
+
         CanRetransform = true;
         _granted |= 1 << (int)JavaCapability.RetransformClasses;
         return true;
@@ -277,8 +301,14 @@ public sealed unsafe class AgentContext
     {
         foreach (uint version in new[] { Methods.JVMTI_VERSION_1_2, Methods.JVMTI_VERSION_1_1, Methods.JVMTI_VERSION_1_0 })
         {
-            try { return machine.GetToolingEnvironment((int)version); }
-            catch (JniException failure) when (failure.ErrorCode == Methods.JNI_EVERSION) { continue; }
+            try
+            {
+                return machine.GetToolingEnvironment((int)version);
+            }
+            catch (JniException failure) when (failure.ErrorCode == Methods.JNI_EVERSION)
+            {
+                continue;
+            }
         }
 
         throw new JniException(Methods.JNI_EVERSION, operation: "GetEnv for JVMTI 1.2, 1.1 or 1.0");
@@ -287,6 +317,7 @@ public sealed unsafe class AgentContext
     internal string? GetSystemProperty(string property)
     {
         EnsureAccessible();
+
         byte* value = null;
 
         fixed (byte* encoded = ModifiedUtf8.Encode(property))
@@ -302,6 +333,7 @@ public sealed unsafe class AgentContext
         }
 
         string text = ModifiedUtf8.Decode(value);
+
         Free((nint)value);
 
         return text;
@@ -324,6 +356,7 @@ public sealed unsafe class AgentContext
         if (EventsEnabled)
             throw new InvalidOperationException("Request capabilities from Configure, before events are enabled.");
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(RequestCapabilities));
+
         CanRetransform |= requested.can_retransform_classes != 0;
     }
 
@@ -339,6 +372,7 @@ public sealed unsafe class AgentContext
         try
         {
             Check((*_environment)->GetClassSignature(_environment, (_jobject*)type, &signature, null), nameof(GetClassSignature));
+
             result = ModifiedUtf8.Decode(signature);
         }
         catch
@@ -355,8 +389,10 @@ public sealed unsafe class AgentContext
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         EnsureAccessible();
         environment.EnsureAccessible();
+
         _jobject* loader = null;
         jvmtiError result = (*_environment)->GetClassLoader(_environment, (_jobject*)type, &loader);
         if (result != jvmtiError.JVMTI_ERROR_NONE)
@@ -372,8 +408,11 @@ public sealed unsafe class AgentContext
     public int GetClassModifiers(nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         EnsureAccessible();
+
         int modifiers = 0;
+
         Check((*_environment)->GetClassModifiers(_environment, (_jobject*)type, &modifiers), nameof(GetClassModifiers));
         return modifiers;
     }
@@ -382,8 +421,11 @@ public sealed unsafe class AgentContext
     public bool IsModifiableClass(nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         EnsureAccessible();
+
         byte modifiable = 0;
+
         Check((*_environment)->IsModifiableClass(_environment, (_jobject*)type, &modifiable), nameof(IsModifiableClass));
         return modifiable != 0;
     }
@@ -392,13 +434,16 @@ public sealed unsafe class AgentContext
     public JavaFieldInfo[] GetDeclaredFields(nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         EnsureAccessible();
+
         int count = 0;
         _jfieldID** fields = null;
         JavaFieldInfo[] result;
         try
         {
             Check((*_environment)->GetClassFields(_environment, (_jobject*)type, &count, &fields), nameof(GetDeclaredFields));
+
             result = new JavaFieldInfo[count];
             for (int index = 0; index < count; index++)
                 result[index] = CopyField(type, fields[index]);
@@ -416,13 +461,16 @@ public sealed unsafe class AgentContext
     public JavaMethodInfo[] GetDeclaredMethods(nint type)
     {
         ArgumentOutOfRangeException.ThrowIfZero(type);
+
         EnsureAccessible();
+
         int count = 0;
         _jmethodID** methods = null;
         JavaMethodInfo[] result;
         try
         {
             Check((*_environment)->GetClassMethods(_environment, (_jobject*)type, &count, &methods), nameof(GetDeclaredMethods));
+
             result = new JavaMethodInfo[count];
             for (int index = 0; index < count; index++)
                 result[index] = CopyMethod(methods[index]);
@@ -445,8 +493,11 @@ public sealed unsafe class AgentContext
         try
         {
             Check((*_environment)->GetFieldName(_environment, (_jobject*)type, field, &name, &descriptor, &generic), nameof(GetDeclaredFields));
+
             int modifiers = 0;
+
             Check((*_environment)->GetFieldModifiers(_environment, (_jobject*)type, field, &modifiers), nameof(GetDeclaredFields));
+
             result = new JavaFieldInfo((nint)field, ModifiedUtf8.Decode(name), ModifiedUtf8.Decode(descriptor), generic == null ? null : ModifiedUtf8.Decode(generic), modifiers);
         }
         catch
@@ -467,8 +518,11 @@ public sealed unsafe class AgentContext
         try
         {
             Check((*_environment)->GetMethodName(_environment, method, &name, &descriptor, &generic), nameof(GetDeclaredMethods));
+
             int modifiers = 0;
+
             Check((*_environment)->GetMethodModifiers(_environment, method, &modifiers), nameof(GetDeclaredMethods));
+
             result = new JavaMethodInfo((nint)method, ModifiedUtf8.Decode(name), ModifiedUtf8.Decode(descriptor), generic == null ? null : ModifiedUtf8.Decode(generic), modifiers);
         }
         catch
@@ -528,14 +582,17 @@ public sealed unsafe class AgentContext
             return TryEnableRetransformation();
 
         jvmtiCapabilities available = default;
+
         Check((*_environment)->GetPotentialCapabilities(_environment, &available), nameof(TryRequest));
 
         if (!IsPotential(available, capability))
             return false;
 
         jvmtiCapabilities requested = default;
+
         Select(ref requested, capability);
         Check((*_environment)->AddCapabilities(_environment, &requested), nameof(TryRequest));
+
         _granted |= 1 << (int)capability;
 
         return true;
@@ -544,8 +601,10 @@ public sealed unsafe class AgentContext
     internal void SetEventEnabled(jvmtiEvent notification, bool enabled)
     {
         EnsureAccessible();
+
         jvmtiInterface_1_** environment = _environment;
         jvmtiEventMode mode = enabled ? jvmtiEventMode.JVMTI_ENABLE : jvmtiEventMode.JVMTI_DISABLE;
+
         Check(
             ((delegate* unmanaged[Cdecl]<jvmtiInterface_1_**, jvmtiEventMode, jvmtiEvent, _jobject*, jvmtiError>)(*environment)->SetEventNotificationMode)(environment, mode, notification, null),
             operation: "SetEventNotificationMode"
@@ -595,16 +654,23 @@ public sealed unsafe class AgentContext
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentOutOfRangeException.ThrowIfZero(method);
+
         EnsureAccessible();
         environment.EnsureAccessible();
+
         byte* name = null;
         byte* descriptor = null;
         byte* generic = null;
+
         Check((*_environment)->GetMethodName(_environment, (_jmethodID*)method, &name, &descriptor, &generic), nameof(DescribeMethod));
+
         string methodName = ModifiedUtf8.Decode(name);
         string methodDescriptor = ModifiedUtf8.Decode(descriptor);
+
         Free((nint)name, (nint)descriptor, (nint)generic);
+
         _jobject* declaring = null;
+
         Check((*_environment)->GetMethodDeclaringClass(_environment, (_jmethodID*)method, &declaring), nameof(DescribeMethod));
 
         try
@@ -625,11 +691,15 @@ public sealed unsafe class AgentContext
     public nint[] GetAllThreads(JavaEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         EnsureAccessible();
         environment.EnsureAccessible();
+
         int count = 0;
         _jobject** threads = null;
+
         Check((*_environment)->GetAllThreads(_environment, &count, &threads), nameof(GetAllThreads));
+
         nint[] values = new nint[count];
 
         for (int index = 0; index < count; index++)
@@ -649,8 +719,10 @@ public sealed unsafe class AgentContext
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxFrames, other: 1);
+
         EnsureAccessible();
         environment.EnsureAccessible();
+
         jvmtiFrameInfo[] buffer = new jvmtiFrameInfo[maxFrames];
         int count = 0;
 
@@ -672,9 +744,12 @@ public sealed unsafe class AgentContext
     public JavaThreadInfo GetThreadInfo(JavaEnvironment environment, nint thread)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         EnsureAccessible();
         environment.EnsureAccessible();
+
         jvmtiThreadInfo info = default;
+
         Check((*_environment)->GetThreadInfo(_environment, (_jobject*)thread, &info), nameof(GetThreadInfo));
 
         // The group and the context loader are local references that this call created; the name is JVMTI memory.
@@ -685,6 +760,7 @@ public sealed unsafe class AgentContext
             environment.DeleteLocal((nint)info.context_class_loader);
 
         string name = info.name == null ? string.Empty : ModifiedUtf8.Decode(info.name);
+
         Free((nint)info.name);
 
         return new JavaThreadInfo(name, info.priority, info.is_daemon != 0);
@@ -696,7 +772,9 @@ public sealed unsafe class AgentContext
     public JavaThreadState GetThreadState(nint thread)
     {
         EnsureAccessible();
+
         int state = 0;
+
         Check((*_environment)->GetThreadState(_environment, (_jobject*)thread, &state), nameof(GetThreadState));
 
         return (JavaThreadState)state;
@@ -707,6 +785,7 @@ public sealed unsafe class AgentContext
     public void RedefineClasses(IReadOnlyList<ClassRedefinition> definitions)
     {
         ArgumentNullException.ThrowIfNull(definitions);
+
         EnsureAccessible();
 
         if (!IsGranted(JavaCapability.RedefineClasses))
@@ -747,6 +826,7 @@ public sealed unsafe class AgentContext
         if (!CanRetransform)
             throw new NotSupportedException("Retransformation was not enabled before class hooks were registered.");
         _jobject* value = (_jobject*)type;
+
         Check((*_environment)->RetransformClasses(_environment, 1, &value), nameof(Retransform));
     }
 
@@ -792,7 +872,9 @@ public sealed unsafe class AgentContext
     internal jvmtiPhase GetPhase()
     {
         EnsureAccessible();
+
         jvmtiPhase phase = default;
+
         Check((*_environment)->GetPhase(_environment, &phase), nameof(GetPhase));
 
         return phase;
@@ -802,6 +884,7 @@ public sealed unsafe class AgentContext
     internal nint[] GetImplementedInterfaces(JavaEnvironment environment, nint type)
     {
         EnsureAccessible();
+
         int count = 0;
         _jobject** interfaces = null;
         jvmtiError result = (*_environment)->GetImplementedInterfaces(_environment, (_jobject*)type, &count, &interfaces);
@@ -830,12 +913,14 @@ public sealed unsafe class AgentContext
     {
         EnsureAccessible();
         environment.EnsureAccessible();
+
         int count = 0;
         _jobject** classes = null;
         nint[] values;
         try
         {
             Check((*_environment)->GetLoadedClasses(_environment, &count, &classes), nameof(GetLoadedClasses));
+
             values = new nint[count];
             for (int index = 0; index < count; index++)
                 values[index] = (nint)classes[index];
@@ -874,6 +959,7 @@ public sealed unsafe class AgentContext
         if (_disposed)
             return;
         Check((*_environment)->DisposeEnvironment(_environment), nameof(Dispose));
+
         _disposed = true;
     }
 }

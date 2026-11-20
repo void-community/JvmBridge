@@ -13,9 +13,7 @@ namespace JvmBridge.Tests.ClassFiles;
 public sealed class ConstantReuseTests
 {
     private const string AndThenDescriptor = "(Ljava/util/function/BiConsumer;)Ljava/util/function/BiConsumer;";
-
     private const string BiConsumer = "java/util/function/BiConsumer";
-
     private const string List = "java/util/ArrayList";
 
     private static readonly JavaMethod AndThen = JavaMethod.Interface(BiConsumer, name: "andThen", AndThenDescriptor);
@@ -55,21 +53,18 @@ public sealed class ConstantReuseTests
         .Utf8(value: "first") // 28
         .Utf8(value: "(Ljava/util/function/BiConsumer;)V") // 29
         .Utf8(value: "Code") // 30
-        .ToClass(
-            thisClass: 2,
+        .ToClass(thisClass: 2,
             superClass: 4,
             methodName: 28,
             methodDescriptor: 29,
             codeName: 30,
-            [0x2a, 0x2a, 0xb9, 0x00, 0x0b, 0x02, 0x00, 0x57, 0xb1]
-        );
+            code: [0x2a, 0x2a, 0xb9, 0x00, 0x0b, 0x02, 0x00, 0x57, 0xb1]);
 
     /// <summary>A reference of another kind is not reused: it is added once, through the first Class entry of its owner and the existing NameAndType.</summary>
     [Fact]
     public void AReferenceOfAnotherKindIsAdded()
     {
         ClassFileEditor editor = new(Duplicates);
-
         int added = editor.AddMethodReference(BiConsumer, name: "andThen", AndThenDescriptor);
         MemberReferenceEntry entry = Assert.IsType<MemberReferenceEntry>(editor.Model.ConstantPool[added]);
 
@@ -84,10 +79,9 @@ public sealed class ConstantReuseTests
     public void AssembledCodeMatchesTheCodeOfTheClass()
     {
         ClassFileEditor editor = new(Duplicates);
-
         byte[] assembled = editor.AssembleCode(static code => code.Invoke(AndThen));
 
-        Assert.Equal([0xb9, 0x00, 0x0b, 0x02, 0x00], assembled);
+        Assert.Equal(expected: [0xb9, 0x00, 0x0b, 0x02, 0x00], assembled);
         Assert.True(editor.ReplaceCode(methodName: "first", methodDescriptor: null, codeOffset: 2, assembled, assembled));
         Assert.Equal(Duplicates, editor.ToArray());
     }
@@ -98,14 +92,19 @@ public sealed class ConstantReuseTests
     {
         ClassFileEditor editor = new(Duplicates);
 
+        // A class and a name with its type are found by the text they resolve to, whichever duplicate of that text an entry names.
         Assert.Equal(expected: 6, editor.AddClass(BiConsumer));
         Assert.Equal(expected: 17, editor.AddClass(List));
         Assert.Equal(expected: 10, editor.AddNameAndType(name: "andThen", AndThenDescriptor));
         Assert.Equal(expected: 15, editor.AddNameAndType(name: "run", descriptor: "()V"));
+
+        // The references that are made of those two are found as well, and so is a string.
         Assert.Equal(expected: 11, editor.AddInterfaceMethodReference(BiConsumer, name: "andThen", AndThenDescriptor));
         Assert.Equal(expected: 20, editor.AddMethodReference(List, name: "run", descriptor: "()V"));
         Assert.Equal(expected: 24, editor.AddFieldReference(List, name: "size", descriptor: "I"));
         Assert.Equal(expected: 27, editor.AddString(value: "hello"));
+
+        // Finding a constant adds none.
         Assert.Equal(Duplicates, editor.ToArray());
     }
 
@@ -113,6 +112,7 @@ public sealed class ConstantReuseTests
     private sealed class RawClass
     {
         private readonly List<byte> _pool = [];
+
         private int _count = 1;
 
         internal RawClass Reference(ConstantTag tag, int first, int? second = null)
@@ -139,10 +139,12 @@ public sealed class ConstantReuseTests
             foreach (int value in new[] { 0x0021, thisClass, superClass, 0, 0, 1, 0x0009, methodName, methodDescriptor, 1, codeName })
                 WriteUInt16(file, value);
 
-            // The Code attribute: its length, max_stack 2, max_locals 1, the code, no exception table and no attributes; then no class attributes.
+            // The Code attribute starts with its length, max_stack 2 and max_locals 1.
             WriteUInt32(file, 12 + code.Length);
             WriteUInt16(file, value: 2);
             WriteUInt16(file, value: 1);
+
+            // The code follows its own length, then come no exception table and no attributes, and last no class attributes.
             WriteUInt32(file, code.Length);
             file.AddRange(code);
 
@@ -159,6 +161,7 @@ public sealed class ConstantReuseTests
             _pool.Add((byte)ConstantTag.Utf8);
             WriteUInt16(_pool, bytes.Length);
             _pool.AddRange(bytes);
+
             _count++;
 
             return this;
@@ -166,8 +169,8 @@ public sealed class ConstantReuseTests
 
         private static void WriteUInt16(List<byte> bytes, int value)
         {
-            bytes.Add((byte)(value >> 8));
-            bytes.Add((byte)value);
+            bytes.Add(byte.CreateTruncating(value >> 8));
+            bytes.Add(byte.CreateTruncating(value));
         }
 
         private static void WriteUInt32(List<byte> bytes, int value)

@@ -25,8 +25,11 @@ public static unsafe class JavaArrays
     public static int GetArrayLength(this JavaEnvironment environment, nint array)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         int length = environment.Functions->GetArrayLength(Handle(environment), (_jobject*)array);
+
         environment.ThrowIfException(nameof(GetArrayLength));
 
         return length;
@@ -40,8 +43,11 @@ public static unsafe class JavaArrays
     public static JavaLocalReference GetObjectArrayElement(this JavaEnvironment environment, nint array, int index)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         _jobject* element = environment.Functions->GetObjectArrayElement(Handle(environment), (_jobject*)array, index);
+
         environment.ThrowIfException(nameof(GetObjectArrayElement));
 
         return new JavaLocalReference(environment, (nint)element);
@@ -76,7 +82,9 @@ public static unsafe class JavaArrays
         where TElement : unmanaged
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         JNINativeInterface_* functions = environment.Functions;
         JNINativeInterface_** handle = Handle(environment);
         int length = destination.Length;
@@ -125,7 +133,9 @@ public static unsafe class JavaArrays
         where TElement : unmanaged
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         JNINativeInterface_* functions = environment.Functions;
         JNINativeInterface_** handle = Handle(environment);
         int length = source.Length;
@@ -173,9 +183,13 @@ public static unsafe class JavaArrays
         where TElement : unmanaged
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         JNINativeInterface_* functions = environment.Functions;
         JNINativeInterface_** handle = Handle(environment);
+
+        // The element type selects the JNI function that creates the array.
         int kind = Classify<TElement>();
         int length = values.Length;
         _jobject* array;
@@ -198,6 +212,7 @@ public static unsafe class JavaArrays
             array = functions->NewDoubleArray(handle, length);
 
         environment.ThrowIfException(nameof(NewArray));
+
         JavaLocalReference result = new(environment, (nint)array);
 
         if (length > 0)
@@ -214,8 +229,11 @@ public static unsafe class JavaArrays
     public static JavaLocalReference NewObjectArray(this JavaEnvironment environment, nint elementClass, int length)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         _jobject* array = environment.Functions->NewObjectArray(Handle(environment), length, (_jobject*)elementClass, null);
+
         environment.ThrowIfException(nameof(NewObjectArray));
 
         return new JavaLocalReference(environment, (nint)array);
@@ -252,6 +270,7 @@ public static unsafe class JavaArrays
     public static void SetObjectArrayElement(this JavaEnvironment environment, nint array, int index, nint value)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
         environment.Functions->SetObjectArrayElement(Handle(environment), (_jobject*)array, index, (_jobject*)value);
         environment.ThrowIfException(nameof(SetObjectArrayElement));

@@ -17,7 +17,14 @@ public sealed unsafe class FailureTests
     public void FailedMachineLookupDoesNotAllocateGlobalReference()
     {
         // NewGlobalRef deliberately has no function pointer: reaching it would crash the test process.
-        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, GetJavaVM = &FailMachine, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_ table = new()
+        {
+            NewLocalRef = &Duplicate,
+            GetJavaVM = &FailMachine,
+            ExceptionCheck = &NoException,
+            DeleteLocalRef = &Delete
+        };
+
         JNINativeInterface_* pointer = &table;
 
         using JavaEnvironment environment = new((nint)(&pointer));
@@ -25,6 +32,7 @@ public sealed unsafe class FailureTests
         using JavaLocalReference local = environment.NewLocalReference(value: 123);
 
         JniException failure = Assert.Throws<JniException>(local.ToGlobal);
+
         Assert.Equal(Methods.JNI_ERR, failure.ErrorCode);
         Assert.Equal(expected: 123, local.Handle);
     }
@@ -33,12 +41,17 @@ public sealed unsafe class FailureTests
     [Fact]
     public void FailedMachineLookupDoesNotAllocateWeakReference()
     {
-        JNINativeInterface_ table = new() { GetJavaVM = &FailMachine };
+        JNINativeInterface_ table = new()
+        {
+            GetJavaVM = &FailMachine
+        };
+
         JNINativeInterface_* pointer = &table;
 
         using JavaEnvironment environment = new((nint)(&pointer));
 
         JniException failure = Assert.Throws<JniException>(() => environment.NewWeakGlobalReference(value: 123));
+
         Assert.Equal(Methods.JNI_ERR, failure.ErrorCode);
     }
 
@@ -48,7 +61,15 @@ public sealed unsafe class FailureTests
     [Fact]
     public void FailedPromotionPreservesTheLocalReference()
     {
-        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, NewGlobalRef = &FailPromotion, GetJavaVM = &GetMachine, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_ table = new()
+        {
+            NewLocalRef = &Duplicate,
+            NewGlobalRef = &FailPromotion,
+            GetJavaVM = &GetMachine,
+            ExceptionCheck = &NoException,
+            DeleteLocalRef = &Delete
+        };
+
         JNINativeInterface_* pointer = &table;
 
         using JavaEnvironment environment = new((nint)(&pointer));
@@ -56,15 +77,22 @@ public sealed unsafe class FailureTests
         using JavaLocalReference local = environment.NewLocalReference(value: 123);
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(local.ToGlobal);
+
         Assert.Contains(expectedSubstring: "NewGlobalRef", exception.Message, StringComparison.Ordinal);
         Assert.Equal(expected: 123, local.Handle);
     }
 
-    /// <summary>Verifies that duplicating Java null returns an empty disposable local reference.</summary>
+    /// <summary>Verifies that duplicating Java <see langword="null"/> returns an empty disposable local reference.</summary>
     [Fact]
     public void NullLocalReferenceRemainsEmpty()
     {
-        JNINativeInterface_ table = new() { NewLocalRef = &Duplicate, ExceptionCheck = &NoException, DeleteLocalRef = &Delete };
+        JNINativeInterface_ table = new()
+        {
+            NewLocalRef = &Duplicate,
+            ExceptionCheck = &NoException,
+            DeleteLocalRef = &Delete
+        };
+
         JNINativeInterface_* pointer = &table;
 
         using JavaEnvironment environment = new((nint)(&pointer));
@@ -75,7 +103,7 @@ public sealed unsafe class FailureTests
     }
 
     /// <summary>
-    /// Verifies that null JNI method identifiers are rejected before a function-table call.
+    /// Verifies that <see langword="null"/> JNI method identifiers are rejected before a function-table call.
     /// </summary>
     [Fact]
     public void NullMethodsAreRejectedBeforeNativeInvocation()
@@ -84,7 +112,7 @@ public sealed unsafe class FailureTests
 
         void Invocation()
         {
-            int unexpectedResult = environment.CallInt(receiver: 123, method: 0, []);
+            int unexpectedResult = environment.CallInt(receiver: 123, method: 0, arguments: []);
 
             throw new InvalidOperationException($"Expected a null method identifier to fail, but JNI returned {unexpectedResult}.");
         }

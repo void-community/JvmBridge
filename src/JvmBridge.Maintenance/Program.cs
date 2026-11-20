@@ -14,22 +14,30 @@ internal static class Program
         RepositoryContext repository = RepositoryContext.Discover();
         JdkResolver resolver = new(repository, http);
         JdkUpdater updater = new(repository, http, resolver, new JdkArchiveManager(http));
+
+        // The commands: resolve looks the archives up, update pins them, and footprint rewrites the footprint table.
         RootCommand root = new(description: "Maintain pinned JDK inventories and upstream headers.");
         Command resolve = new(name: "resolve", description: "Resolve vendor archives without changing headers.");
-        resolve.SetAction((result, cancellationToken) => resolver.ResolveAsync(PinnedJdks.NewestJava, cancellationToken));
-        Command update = new(name: "update", description: "Pin the JDKs up to the newest Java and copy its headers; then run the Generate MSBuild target.");
-        update.SetAction((result, cancellationToken) => updater.UpdateAsync(cancellationToken));
-        Argument<string> measurements = new(name: "directory") { Description = "A directory that contains the hotspot-*.json files of the footprint-* CI artifacts." };
 
-        Command footprint = new(
-            name: "footprint",
-            description: "Rewrite docs/footprint.md and the size baseline of FootprintTests from CI footprint measurements."
-        );
+        resolve.SetAction((result, cancellationToken) => resolver.ResolveAsync(PinnedJdks.NewestJava, cancellationToken));
+
+        Command update = new(name: "update",
+            description: "Pin the JDKs up to the newest Java and copy its headers; then run the Generate MSBuild target.");
+
+        update.SetAction((result, cancellationToken) => updater.UpdateAsync(cancellationToken));
+
+        Argument<string> measurements = new(name: "directory")
+        {
+            Description = "A directory that contains the hotspot-*.json files of the footprint-* CI artifacts."
+        };
+
+        Command footprint = new(name: "footprint",
+            description: "Rewrite docs/footprint.md and the size baseline of FootprintTests from CI footprint measurements.");
 
         footprint.Arguments.Add(measurements);
-        footprint.SetAction(
-            result => new FootprintReporter(repository).Update(result.GetValue(measurements) ?? throw new InvalidOperationException(message: "A measurements directory is required."))
-        );
+        footprint.SetAction(result => new FootprintReporter(repository).Update(result.GetValue(measurements) ?? throw new InvalidOperationException(message: "A measurements directory is required.")));
+
+        // The root command offers all three.
         root.Subcommands.Add(resolve);
         root.Subcommands.Add(footprint);
         root.Subcommands.Add(update);

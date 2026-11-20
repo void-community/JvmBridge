@@ -26,7 +26,10 @@ internal sealed class HttpService : IDisposable
         _ownsClient = ownsClient;
         _pause = pause ?? Task.Delay;
         _client.Timeout = Timeout.InfiniteTimeSpan;
-        _client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(productName: "JvmBridge.Build", productVersion: "1.0"));
+
+        _client.DefaultRequestHeaders
+            .UserAgent
+            .Add(new ProductInfoHeaderValue(productName: "JvmBridge.Build", productVersion: "1.0"));
     }
 
     public void Dispose()
@@ -45,22 +48,22 @@ internal sealed class HttpService : IDisposable
         {
             await using (output.ConfigureAwait(continueOnCapturedContext: false))
             {
-                await SendAsync(
-                        url,
-                        HttpCompletionOption.ResponseHeadersRead,
-                        TimeSpan.FromMinutes(minutes: 10),
-                        async (response, token) =>
-                        {
-                            // Each attempt writes the file from its beginning, dropping what a broken one wrote.
-                            output.SetLength(value: 0);
+                await SendAsync(url,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    TimeSpan.FromMinutes(minutes: 10),
+                    async (response, token) =>
+                    {
+                        // Each attempt writes the file from its beginning, dropping what a broken one wrote.
+                        output.SetLength(value: 0);
 
-                            Stream input = await Succeeded(response, url).Content.ReadAsStreamAsync(token).ConfigureAwait(continueOnCapturedContext: false);
+                        Stream input = await Succeeded(response, url).Content
+                            .ReadAsStreamAsync(token)
+                            .ConfigureAwait(continueOnCapturedContext: false);
 
-                            await using (input.ConfigureAwait(continueOnCapturedContext: false))
-                                await input.CopyToAsync(output, token).ConfigureAwait(continueOnCapturedContext: false);
-                        },
-                        cancellationToken
-                    )
+                        await using (input.ConfigureAwait(continueOnCapturedContext: false))
+                            await input.CopyToAsync(output, token).ConfigureAwait(continueOnCapturedContext: false);
+                    },
+                    cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false);
             }
         }
@@ -83,6 +86,7 @@ internal sealed class HttpService : IDisposable
             return null;
 
         JsonNode value = JsonNode.Parse(payload) ?? throw new InvalidOperationException($"Empty JSON response: {url}");
+
         _cache[url] = value;
 
         return value;
@@ -93,17 +97,19 @@ internal sealed class HttpService : IDisposable
     {
         string? text = null;
 
-        await SendAsync(
-                url,
-                HttpCompletionOption.ResponseContentRead,
-                TimeSpan.FromSeconds(seconds: 90),
-                async (response, token) =>
+        await SendAsync(url,
+            HttpCompletionOption.ResponseContentRead,
+            TimeSpan.FromSeconds(seconds: 90),
+            async (response, token) =>
+            {
+                if (!missing || response.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.Gone))
                 {
-                    if (!missing || response.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.Gone))
-                        text = await Succeeded(response, url).Content.ReadAsStringAsync(token).ConfigureAwait(continueOnCapturedContext: false);
-                },
-                cancellationToken
-            )
+                    text = await Succeeded(response, url).Content
+                        .ReadAsStringAsync(token)
+                        .ConfigureAwait(continueOnCapturedContext: false);
+                }
+            },
+            cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
         return text;
@@ -113,7 +119,9 @@ internal sealed class HttpService : IDisposable
     {
         HttpRequestMessage request = new(HttpMethod.Get, url);
         Uri uri = request.RequestUri ?? throw new InvalidOperationException(message: "HTTP request URI is missing.");
-        string? token = Environment.GetEnvironmentVariable(variable: "GH_TOKEN") ?? Environment.GetEnvironmentVariable(variable: "GITHUB_TOKEN");
+
+        string? token = Environment.GetEnvironmentVariable(variable: "GH_TOKEN")
+            ?? Environment.GetEnvironmentVariable(variable: "GITHUB_TOKEN");
 
         if (!string.IsNullOrEmpty(token) && string.Equals(uri.Host, b: "api.github.com", StringComparison.OrdinalIgnoreCase))
             request.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", token);
@@ -123,17 +131,17 @@ internal sealed class HttpService : IDisposable
 
     private static HttpResponseMessage Succeeded(HttpResponseMessage response, string url)
     {
-        return response.IsSuccessStatusCode ? response : throw new InvalidOperationException($"Download failed HTTP {(int)response.StatusCode}: {url}");
+        return response.IsSuccessStatusCode
+            ? response
+            : throw new InvalidOperationException($"Download failed HTTP {(int)response.StatusCode}: {url}");
     }
 
     // A failure without an answer, a transient status, a connection reset while the content is read and a request that outlasts its time are asked again; the caller's cancellation is not.
-    private async Task SendAsync(
-        string url,
+    private async Task SendAsync(string url,
         HttpCompletionOption completion,
         TimeSpan timeout,
         Func<HttpResponseMessage, CancellationToken, Task> read,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         Exception? failure = null;
 
@@ -150,7 +158,8 @@ internal sealed class HttpService : IDisposable
 
             try
             {
-                using HttpResponseMessage response = await _client.SendAsync(request, completion, limit.Token).ConfigureAwait(continueOnCapturedContext: false);
+                using HttpResponseMessage response = await _client.SendAsync(request, completion, limit.Token)
+                    .ConfigureAwait(continueOnCapturedContext: false);
 
                 HttpStatusCode status = response.StatusCode;
 

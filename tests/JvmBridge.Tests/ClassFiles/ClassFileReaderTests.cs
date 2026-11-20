@@ -22,13 +22,17 @@ public sealed class ClassFileReaderTests
             foreach (Instruction instruction in code.Instructions)
             {
                 Assert.Equal(expected, instruction.Offset);
+
                 expected += instruction.Length;
             }
 
             Assert.Equal(code.CodeLength, expected);
         }
 
-        byte[] opcodes = [.. file.Methods.SelectMany(static method => method.Code?.Instructions ?? []).Select(static instruction => instruction.Opcode)];
+        byte[] opcodes = [.. file.Methods
+            .SelectMany(static method => method.Code?.Instructions ?? [])
+            .Select(static instruction => instruction.Opcode)];
+
         Assert.Contains(Opcodes.TableSwitch, opcodes);
         Assert.Contains(Opcodes.LookupSwitch, opcodes);
     }
@@ -47,11 +51,16 @@ public sealed class ClassFileReaderTests
     public void DecodesWideInstructions()
     {
         byte[] code = [Opcodes.Wide, Opcodes.IInc, 0x01, 0x00, 0x00, 0x02, Opcodes.Wide, 0x15, 0x01, 0x00, 0xb1];
-        byte[] bytes = new ClassFileWriter(name: "pkg/Wide").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code).ToArray();
 
-        int[] lengths = [.. JavaClassFile.Read(bytes).GetCode(name: "run").Instructions.Select(static instruction => instruction.Length)];
+        byte[] bytes = new ClassFileWriter(name: "pkg/Wide").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code)
+            .ToArray();
 
-        Assert.Equal([6, 4, 1], lengths);
+        int[] lengths = [.. JavaClassFile.Read(bytes)
+            .GetCode(name: "run")
+            .Instructions
+            .Select(static instruction => instruction.Length)];
+
+        Assert.Equal(expectedSpan: [6, 4, 1], lengths);
     }
 
     /// <summary>Typed constants are exposed, and a Long or Double hides the slot after it.</summary>
@@ -63,13 +72,18 @@ public sealed class ClassFileReaderTests
         DoubleEntry ratio = Assert.Single(file.ConstantPool.OfType<DoubleEntry>());
         FloatEntry scale = Assert.Single(file.ConstantPool.OfType<FloatEntry>());
 
+        // The numeric constants have the values the source gave them.
         Assert.Equal(expected: 5000000000L, big.Value);
         Assert.Equal(expected: 3.5, ratio.Value);
         Assert.Equal(expected: 2.5f, scale.Value);
         Assert.Equal(expected: 1, file.CountOf<IntegerEntry>(static entry => entry.Value == 100000));
+
+        // Index 0 and the index after each constant of two slots hold no entry.
         Assert.Null(file.ConstantPool[index: 0]);
         Assert.Null(file.ConstantPool[big.Index + 1]);
         Assert.Null(file.ConstantPool[ratio.Index + 1]);
+
+        // A string constant is read through the entry that holds its text.
         Assert.Contains(expected: "hello", file.GetStrings());
     }
 
@@ -82,14 +96,19 @@ public sealed class ClassFileReaderTests
         ClassMember limit = file.GetField(name: "LIMIT");
         ClassMember count = file.GetField(name: "count");
 
+        // The header gives the version and the place of the class in the hierarchy.
         Assert.Equal(expected: 52, file.MajorVersion);
         Assert.Equal(expected: "fixture/Sample", file.Name);
         Assert.Equal(expected: "java/lang/Object", file.SuperName);
         Assert.Empty(file.Interfaces);
+
+        // A method and a field are found by name with their descriptor and flags.
         Assert.Equal(SortDescriptor, sort.Descriptor);
         Assert.Equal(expected: 0x9, sort.AccessFlags);
         Assert.Equal(expected: "I", limit.Descriptor);
         Assert.Equal(expected: 0x19, limit.AccessFlags);
+
+        // A private field has its own flags, and a field never has code.
         Assert.Equal(expected: 0x2, count.AccessFlags);
         Assert.Null(count.Code);
     }
@@ -99,9 +118,10 @@ public sealed class ClassFileReaderTests
     public void RejectsBadMagicAndTrailingBytes()
     {
         byte[] magic = ClassFileFixtures.Sample;
-        magic[0] = 0;
-        byte[] trailing = [.. ClassFileFixtures.Sample, 0];
 
+        magic[0] = 0;
+
+        byte[] trailing = [.. ClassFileFixtures.Sample, 0];
         ClassFormatException badMagic = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(magic));
         ClassFormatException extra = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(trailing));
 
@@ -117,8 +137,9 @@ public sealed class ClassFileReaderTests
         JavaClassFile file = JavaClassFile.Read(bytes);
         int thisClass = file.AccessFlagsOffset + 2;
         int utf8 = file.ConstantPool.OfType<Utf8Entry>().First().Index;
-        bytes[thisClass] = (byte)(utf8 >> 8);
-        bytes[thisClass + 1] = (byte)utf8;
+
+        bytes[thisClass] = byte.CreateTruncating(utf8 >> 8);
+        bytes[thisClass + 1] = byte.CreateTruncating(utf8);
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
 
@@ -131,6 +152,7 @@ public sealed class ClassFileReaderTests
     {
         byte[] bytes = ClassFileFixtures.Sample;
         int thisClass = JavaClassFile.Read(bytes).AccessFlagsOffset + 2;
+
         bytes[thisClass] = 0xff;
         bytes[thisClass + 1] = 0xff;
 
@@ -158,7 +180,12 @@ public sealed class ClassFileReaderTests
     public void RejectsMalformedUtf8Constants()
     {
         byte[] bytes = ClassFileFixtures.Sample;
-        Utf8Entry entry = JavaClassFile.Read(bytes).ConstantPool.OfType<Utf8Entry>().First(candidate => candidate.Value == "hello");
+
+        Utf8Entry entry = JavaClassFile.Read(bytes)
+            .ConstantPool
+            .OfType<Utf8Entry>()
+            .First(candidate => candidate.Value == "hello");
+
         bytes[entry.Offset + 3] = 0xff;
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
@@ -171,7 +198,9 @@ public sealed class ClassFileReaderTests
     public void RejectsTableswitchWithInvertedBounds()
     {
         byte[] code = [Opcodes.TableSwitch, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0xb1];
-        byte[] bytes = new ClassFileWriter(name: "pkg/Switch").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code).ToArray();
+
+        byte[] bytes = new ClassFileWriter(name: "pkg/Switch").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code)
+            .ToArray();
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
 
@@ -183,6 +212,7 @@ public sealed class ClassFileReaderTests
     public void RejectsUnknownConstantTags()
     {
         byte[] bytes = ClassFileFixtures.Sample;
+
         bytes[10] = 2;
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
@@ -195,6 +225,7 @@ public sealed class ClassFileReaderTests
     public void RejectsUnknownOpcodes()
     {
         byte[] bytes = ClassFileFixtures.Sample;
+
         bytes[JavaClassFile.Read(bytes).GetCode(name: "greeting").CodeOffset] = 0xfe;
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
@@ -207,7 +238,9 @@ public sealed class ClassFileReaderTests
     public void RejectsWideBeforeAnInstructionWithoutAWideForm()
     {
         byte[] code = [Opcodes.Wide, Opcodes.Nop, 0, 0, 0xb1];
-        byte[] bytes = new ClassFileWriter(name: "pkg/Wide").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code).ToArray();
+
+        byte[] bytes = new ClassFileWriter(name: "pkg/Wide").AddMethod(name: "run", descriptor: "()V", maxStack: 1, maxLocals: 1, code)
+            .ToArray();
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
 
@@ -219,16 +252,25 @@ public sealed class ClassFileReaderTests
     public void ResolvesInvocationOperands()
     {
         JavaClassFile file = JavaClassFile.Read(ClassFileFixtures.Sample);
-        Instruction[] calls = [.. file.GetCode(name: "sortTwice").Instructions.Where(instruction => instruction.Opcode == Opcodes.InvokeStatic)];
-        Instruction size = file.GetCode(name: "size").Instructions.Single(instruction => instruction.Opcode == Opcodes.InvokeInterface);
+
+        Instruction[] calls = [.. file.GetCode(name: "sortTwice")
+            .Instructions
+            .Where(instruction => instruction.Opcode == Opcodes.InvokeStatic)];
+
+        Instruction size = file.GetCode(name: "size")
+            .Instructions
+            .Single(instruction => instruction.Opcode == Opcodes.InvokeInterface);
+
         MemberReference expected = new(ConstantTag.Methodref, Owner: "java/util/Collections", Name: "sort", SortDescriptor);
 
         Assert.Equal(expected: 2, calls.Length);
         Assert.All(calls, call => Assert.Equal(expected, file.GetMemberReference(call.ConstantIndex ?? 0)));
         Assert.Equal(expected: 5, size.Length);
-        Assert.Equal(
-            new MemberReference(ConstantTag.InterfaceMethodref, Owner: "java/util/List", Name: "size", Descriptor: "()I"),
-            file.GetMemberReference(size.ConstantIndex ?? 0)
-        );
+
+        Assert.Equal(new MemberReference(ConstantTag.InterfaceMethodref,
+                Owner: "java/util/List",
+                Name: "size",
+                Descriptor: "()I"),
+            file.GetMemberReference(size.ConstantIndex ?? 0));
     }
 }

@@ -40,9 +40,12 @@ public sealed class ClassFileWriter : IConstantPool
         ArgumentOutOfRangeException.ThrowIfGreaterThan(accessFlags, ushort.MaxValue);
         ArgumentOutOfRangeException.ThrowIfLessThan(majorVersion, 45);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(majorVersion, ushort.MaxValue);
+
         Name = name;
         _accessFlags = accessFlags;
         _majorVersion = majorVersion;
+
+        // The class and its superclass go into the constant pool.
         _thisClass = _pool.Class(name);
         _superClass = _pool.Class(superName);
     }
@@ -117,6 +120,7 @@ public sealed class ClassFileWriter : IConstantPool
     public ClassFileWriter AddMethod(string name, string descriptor, int maxStack, int maxLocals, ReadOnlySpan<byte> code, int accessFlags = PublicStatic)
     {
         ValidateMethod(name, descriptor, accessFlags);
+
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxStack, ushort.MaxValue);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxLocals, ushort.MaxValue);
         ArgumentOutOfRangeException.ThrowIfNegative(maxStack);
@@ -125,8 +129,11 @@ public sealed class ClassFileWriter : IConstantPool
             throw new ArgumentException("A method body must contain between 1 and 65535 bytes of code.", nameof(code));
         int nameIndex = _pool.Utf8(name);
         int descriptorIndex = _pool.Utf8(descriptor);
+
         _ = _pool.Utf8("Code");
+
         _methods.Add((accessFlags, nameIndex, descriptorIndex, maxStack, maxLocals, code.ToArray()));
+
         _declared[(name, descriptor)] = accessFlags;
         return this;
     }
@@ -145,10 +152,12 @@ public sealed class ClassFileWriter : IConstantPool
     public ClassFileWriter AddMethod(string name, string descriptor, Func<CodeBuilder, CodeBuilder> code, int accessFlags = PublicStatic)
     {
         ArgumentNullException.ThrowIfNull(code);
+
         ValidateMethod(name, descriptor, accessFlags);
 
         int receiver = (accessFlags & 0x0008) == 0 ? 1 : 0;
         CodeBuilder builder = new(this, Opcodes.CountArgumentSlots(descriptor) + receiver);
+
         CodeBuilder.RequireSame(builder, code(builder));
 
         if (builder.HasBranches && _majorVersion >= 51)
@@ -168,6 +177,7 @@ public sealed class ClassFileWriter : IConstantPool
         ArgumentException.ThrowIfNullOrEmpty(descriptor);
         ArgumentOutOfRangeException.ThrowIfNegative(accessFlags);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(accessFlags, ushort.MaxValue);
+
         _fields.Add((accessFlags, _pool.Utf8(name), _pool.Utf8(descriptor)));
 
         return this;
@@ -182,6 +192,7 @@ public sealed class ClassFileWriter : IConstantPool
     {
         ValidateMethod(name, descriptor, accessFlags);
         _methods.Add((accessFlags, _pool.Utf8(name), _pool.Utf8(descriptor), 0, 0, null));
+
         _declared[(name, descriptor)] = accessFlags;
         return this;
     }
@@ -197,10 +208,13 @@ public sealed class ClassFileWriter : IConstantPool
         WriteUInt16(stream, _pool.Count);
         foreach (byte[] entry in _pool.Entries)
             stream.Write(entry);
+        // The class's flags, its name and its superclass, and no interfaces.
         WriteUInt16(stream, _accessFlags);
         WriteUInt16(stream, _thisClass);
         WriteUInt16(stream, _superClass);
         WriteUInt16(stream, 0);
+
+        // The fields, none of which has an attribute.
         WriteUInt16(stream, _fields.Count);
 
         foreach ((int access, int name, int descriptor) in _fields)
@@ -212,6 +226,7 @@ public sealed class ClassFileWriter : IConstantPool
         }
 
         WriteUInt16(stream, _methods.Count);
+
         int codeName = _methods.Any(method => method.Code is not null) ? _pool.Utf8("Code") : 0;
         foreach ((int access, int name, int descriptor, int maxStack, int maxLocals, byte[]? code) in _methods)
         {
@@ -223,13 +238,18 @@ public sealed class ClassFileWriter : IConstantPool
                 WriteUInt16(stream, 0);
                 continue;
             }
+            // One attribute, Code, whose length counts the fixed fields around the bytecode.
             WriteUInt16(stream, 1);
             WriteUInt16(stream, codeName);
             WriteInt32(stream, 12 + code.Length);
+
+            // The sizes of the operand stack and the locals, then the bytecode.
             WriteUInt16(stream, maxStack);
             WriteUInt16(stream, maxLocals);
             WriteInt32(stream, code.Length);
             stream.Write(code);
+
+            // An empty exception table, and no attributes of the code.
             WriteUInt16(stream, 0);
             WriteUInt16(stream, 0);
         }
@@ -248,6 +268,7 @@ public sealed class ClassFileWriter : IConstantPool
             return existing;
 
         _ = _pool.Utf8(ClassAttributes.BootstrapMethods);
+
         _bootstrapMethods.Add(entry);
 
         return _bootstrapMethods.Count - 1;
@@ -259,6 +280,7 @@ public sealed class ClassFileWriter : IConstantPool
             return;
 
         _ = _pool.Utf8(ClassAttributes.InnerClasses);
+
         _innerClasses.Add((innerClass, ClassAttributes.InnerClass(_pool.Class(innerClass), _pool.Class(outerClass), _pool.Utf8(simpleName), accessFlags)));
     }
 
@@ -318,6 +340,7 @@ public sealed class ClassFileWriter : IConstantPool
     private static void WriteUInt16(Stream stream, int value)
     {
         Span<byte> buffer = stackalloc byte[2];
+
         BinaryPrimitives.WriteUInt16BigEndian(buffer, checked((ushort)value));
         stream.Write(buffer);
     }
@@ -325,6 +348,7 @@ public sealed class ClassFileWriter : IConstantPool
     private static void WriteInt32(Stream stream, int value)
     {
         Span<byte> buffer = stackalloc byte[4];
+
         BinaryPrimitives.WriteInt32BigEndian(buffer, value);
         stream.Write(buffer);
     }

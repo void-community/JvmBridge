@@ -188,6 +188,7 @@ public sealed class CodeBuilder
         ArgumentOutOfRangeException.ThrowIfGreaterThan(slot, ushort.MaxValue);
         ArgumentOutOfRangeException.ThrowIfLessThan(delta, short.MinValue);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(delta, short.MaxValue);
+
         MaxLocals = Math.Max(MaxLocals, slot + 1);
 
         bool narrow = slot <= byte.MaxValue && delta is >= sbyte.MinValue and <= sbyte.MaxValue;
@@ -303,6 +304,7 @@ public sealed class CodeBuilder
     public CodeBuilder Mark(CodeLabel label)
     {
         ArgumentNullException.ThrowIfNull(label);
+
         RequireOwn(label);
 
         if (label.Offset >= 0)
@@ -356,6 +358,7 @@ public sealed class CodeBuilder
     public CodeBuilder Op(byte opcode)
     {
         (int Pops, int Pushes) effect = Opcodes.GetStackEffect(opcode) ?? throw new ArgumentException($"0x{opcode:x2} takes operands; write it with the method of its name.", nameof(opcode));
+
         Write([opcode], effect.Pops, effect.Pushes);
 
         if (opcode is >= Opcodes.IReturn and <= Opcodes.Return or Opcodes.AThrow)
@@ -435,6 +438,7 @@ public sealed class CodeBuilder
     private CodeBuilder Branch(byte opcode, CodeLabel target)
     {
         ArgumentNullException.ThrowIfNull(target);
+
         RequireOwn(target);
 
         int pops = opcode switch
@@ -445,12 +449,14 @@ public sealed class CodeBuilder
         };
 
         int from = _code.Count;
+
         Write([opcode, 0, 0], pops, pushes: 0);
 
         if (target.Depth is int expected && expected != _depth)
             throw new InvalidOperationException($"The branch reaches its label with {_depth} stack slots, but the label has {expected}.");
 
         target.Depth = _depth;
+
         _jumps.Add((from + 1, from, target));
 
         if (opcode == Opcodes.Goto)
@@ -478,6 +484,7 @@ public sealed class CodeBuilder
 
         _depth += pushes - pops;
         MaxStack = Math.Max(MaxStack, _depth);
+
         _code.AddRange(instruction);
     }
 
@@ -485,6 +492,7 @@ public sealed class CodeBuilder
     {
         ArgumentOutOfRangeException.ThrowIfNegative(slot);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(slot, ushort.MaxValue - 1);
+
         MaxLocals = Math.Max(MaxLocals, slot + size);
 
         int pops = load ? 0 : size;

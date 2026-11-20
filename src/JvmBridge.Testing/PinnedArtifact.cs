@@ -14,10 +14,14 @@ public class PinnedArtifact
 {
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Paths = new(StringComparer.Ordinal);
 
-    /// <summary>Pins a file.</summary>
+    /// <summary>Initializes a new instance of the <see cref="PinnedArtifact"/> class. Pins a file.</summary>
     /// <param name="url">The absolute HTTP or HTTPS address of the file.</param>
     /// <param name="sha256">The SHA-256 of the file, in hexadecimal.</param>
     /// <param name="fileName">The name of the cached file, or <see langword="null"/> for the last segment of the address; give one when the address ends in a name many files share, so that paths in test output tell them apart.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="url"/> or <paramref name="sha256"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="url"/> is not an absolute HTTP or HTTPS address, <paramref name="sha256"/> is not 64 hexadecimal digits, or the file name is <c>.</c>, <c>..</c> or has a character that no file name may have.
+    /// </exception>
     public PinnedArtifact(Uri url, string sha256, string? fileName = null)
     {
         ArgumentNullException.ThrowIfNull(url);
@@ -34,7 +38,7 @@ public class PinnedArtifact
         if (name.Length == 0)
             name = "artifact";
 
-        if (name is "." or ".." || name.IndexOfAny([.. Path.GetInvalidFileNameChars(), '/', '\\']) >= 0)
+        if (name is "." or ".." || name.IndexOfAny(anyOf: [.. Path.GetInvalidFileNameChars(), '/', '\\']) >= 0)
             throw new ArgumentException($"'{name}' is not a file name.", nameof(fileName));
 
         Url = url;
@@ -43,12 +47,15 @@ public class PinnedArtifact
     }
 
     /// <summary>Gets the name of the cached file, for example <c>eventbus-0.10.3.jar</c>.</summary>
+    /// <value>The name the constructor was given, or else the last segment of the address; <c>artifact</c> when the address ends in none.</value>
     public string FileName { get; }
 
     /// <summary>Gets the pinned checksum, in uppercase hexadecimal.</summary>
+    /// <value>Sixty-four digits, which the checksum of the downloaded file must equal.</value>
     public string Sha256 { get; }
 
     /// <summary>Gets the address the file is downloaded from.</summary>
+    /// <value>The absolute HTTP or HTTPS address that the constructor was given.</value>
     public Uri Url { get; }
 
     /// <summary>Gets the path of the cached file, downloading and checking it the first time.</summary>
@@ -57,7 +64,9 @@ public class PinnedArtifact
     /// <exception cref="InvalidOperationException">The downloaded file has another checksum than the pinned one.</exception>
     public Task<string> GetPathAsync(CancellationToken cancellationToken = default)
     {
-        Lazy<Task<string>> pending = Paths.GetOrAdd(Sha256 + "/" + FileName, static (key, artifact) => new Lazy<Task<string>>(artifact.DownloadAsync), this);
+        Lazy<Task<string>> pending = Paths.GetOrAdd(Sha256 + "/" + FileName,
+            static (key, artifact) => new Lazy<Task<string>>(artifact.DownloadAsync),
+            this);
 
         return pending.Value.WaitAsync(cancellationToken);
     }
@@ -90,7 +99,10 @@ public class PinnedArtifact
         string staging = path + ".download-" + Guid.NewGuid().ToString(format: "N");
 
         using (HttpService http = new())
-            await http.DownloadFileAsync(Url.AbsoluteUri, staging, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+        {
+            await http.DownloadFileAsync(Url.AbsoluteUri, staging, CancellationToken.None)
+                .ConfigureAwait(continueOnCapturedContext: false);
+        }
 
         string actual = await HashAsync(staging).ConfigureAwait(continueOnCapturedContext: false);
 

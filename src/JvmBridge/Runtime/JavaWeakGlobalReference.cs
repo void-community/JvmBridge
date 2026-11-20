@@ -7,7 +7,11 @@ public sealed class JavaWeakGlobalReference : IDisposable
     private readonly object _sync = new();
     private nint _handle;
 
-    internal JavaWeakGlobalReference(JavaVirtualMachine machine, nint handle) { _machine = machine; _handle = handle; }
+    internal JavaWeakGlobalReference(JavaVirtualMachine machine, nint handle)
+    {
+        _machine = machine;
+        _handle = handle;
+    }
 
     /// <summary>Gets the raw weak handle while owned. A nonzero handle does not imply a live referent.</summary>
     public nint Handle
@@ -26,6 +30,7 @@ public sealed class JavaWeakGlobalReference : IDisposable
     public JavaLocalReference? TryPromote(JavaEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_handle == 0, this);
@@ -44,6 +49,7 @@ public sealed class JavaWeakGlobalReference : IDisposable
                 return;
             using JavaThreadAttachment attachment = _machine.AttachCurrentThread();
             attachment.Environment.DeleteWeakGlobal(_handle);
+
             _handle = 0;
         }
     }

@@ -11,7 +11,9 @@ public sealed class ModuleAccessTests
 {
     private static readonly JavaClassDefinition Nested = JavaClassDefinition.FromBytes(new ClassFileWriter(name: "test/Channels$Reopening").ToArray());
 
-    private static readonly JavaClassDefinition Helper = new(name: "test/Channels", new ClassFileWriter(name: "test/Channels").ToArray(), [Nested]);
+    private static readonly JavaClassDefinition Helper = new(name: "test/Channels",
+        new ClassFileWriter(name: "test/Channels").ToArray(),
+        nestedClasses: [Nested]);
 
     /// <summary>A package goes to a helper of the agent, named by the helper or one of its nested classes, in internal form or with dots.</summary>
     [Fact]
@@ -23,14 +25,12 @@ public sealed class ModuleAccessTests
 
         context.DefineClass(Helper, ClassLoaderTarget.Bootstrap);
 
-        Exception? failure = Record.Exception(
-            () =>
-            {
-                context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper);
-                context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper);
-                context.OpenPackage(module: "java.base", package: "java.lang.invoke", Nested);
-            }
-        );
+        Exception? failure = Record.Exception(() =>
+        {
+            context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper);
+            context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper);
+            context.OpenPackage(module: "java.base", package: "java.lang.invoke", Nested);
+        });
 
         Assert.Null(failure);
     }
@@ -43,12 +43,25 @@ public sealed class ModuleAccessTests
 
         AgentContext context = jvm.CreateContext(name: "refused");
 
-        InvalidOperationException undeclared = Assert.Throws<InvalidOperationException>(() => context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper));
+        InvalidOperationException undeclared = Assert.Throws<InvalidOperationException>(() => context.ExportPackage(module: "java.base",
+            package: "sun/nio/ch",
+            Helper));
+
         context.DefineClass(Helper, ClassLoaderTarget.PatchedClassLoader);
-        ArgumentException malformed = Assert.Throws<ArgumentException>(() => context.OpenPackage(module: "java.base", package: "sun//ch", Helper));
-        ArgumentException blank = Assert.Throws<ArgumentException>(() => context.ExportPackage(module: " ", package: "sun/nio/ch", Helper));
+
+        ArgumentException malformed = Assert.Throws<ArgumentException>(() => context.OpenPackage(module: "java.base",
+            package: "sun//ch",
+            Helper));
+
+        ArgumentException blank = Assert.Throws<ArgumentException>(() => context.ExportPackage(module: " ",
+            package: "sun/nio/ch",
+            Helper));
+
         context.EventsEnabled = true;
-        InvalidOperationException late = Assert.Throws<InvalidOperationException>(() => context.ExportPackage(module: "java.base", package: "sun/nio/ch", Helper));
+
+        InvalidOperationException late = Assert.Throws<InvalidOperationException>(() => context.ExportPackage(module: "java.base",
+            package: "sun/nio/ch",
+            Helper));
 
         Assert.Equal(expected: "test/Channels is not a helper of this agent; declare it with DefineClass first.", undeclared.Message);
         Assert.StartsWith(expectedStartString: "sun//ch is not a package name.", malformed.Message, StringComparison.Ordinal);

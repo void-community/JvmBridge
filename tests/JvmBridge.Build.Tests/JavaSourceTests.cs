@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using Xunit;
 
 using JvmBridge.Build.Infrastructure;
@@ -45,11 +47,11 @@ public sealed class JavaSourceTests
     {
         using TemporaryDirectory project = CreateProject(PackedVersion());
 
-        ProcessResult result = await BuildAsync(project.Path, jdk: null);
+        ProcessResult build = await BuildAsync(project.Path, jdk: null);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB004", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "JvmBridgeJdkHome", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB004", build.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "JvmBridgeJdkHome", build.Output, StringComparison.Ordinal);
     }
 
     /// <summary>A JDK directory without javac is reported by path.</summary>
@@ -59,13 +61,14 @@ public sealed class JavaSourceTests
         using TemporaryDirectory project = CreateProject(PackedVersion());
 
         string emptyJdk = Path.Combine(project.Path, path2: "not-a-jdk");
+
         FileSystem.EnsureDirectory(emptyJdk);
 
-        ProcessResult result = await BuildAsync(project.Path, emptyJdk);
+        ProcessResult build = await BuildAsync(project.Path, emptyJdk);
 
-        Assert.NotEqual(expected: 0, result.ExitCode);
-        Assert.Contains(expectedSubstring: "JVMB005", result.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "javac was not found", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(expected: 0, build.ExitCode);
+        Assert.Contains(expectedSubstring: "JVMB005", build.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "javac was not found", build.Output, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -75,8 +78,10 @@ public sealed class JavaSourceTests
     [Fact]
     public async Task JavaRelease6CompilesWithTheProvisionedJdk11Async()
     {
-        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
-        bool pinned = PinnedJdks.Jdks.Any(entry => entry.Rid == rid && entry.Java == 11 && entry.Implementation == "hotspot" && entry.Status == "available");
+        string rid = RuntimeInformation.RuntimeIdentifier;
+
+        bool pinned = PinnedJdks.Jdks
+            .Any(entry => entry.Rid == rid && entry.Java == 11 && entry.Implementation == "hotspot" && entry.Status == "available");
 
         Assert.SkipUnless(pinned, reason: "This platform has no pinned JDK 11, the newest javac that compiles for Java 6.");
 
@@ -84,33 +89,42 @@ public sealed class JavaSourceTests
 
         string newer = Path.Combine(project.Path, path2: "newer-jdk");
         string javac = Path.Combine(newer, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
+
         FileSystem.EnsureDirectory(Path.GetDirectoryName(javac) ?? newer);
-        await File.WriteAllTextAsync(javac, contents: "#!/bin/sh\necho 'error: release version 6 not supported'\nexit 2\n", TestContext.Current.CancellationToken);
+
+        await File.WriteAllTextAsync(javac,
+            contents: "#!/bin/sh\necho 'error: release version 6 not supported'\nexit 2\n",
+            TestContext.Current.CancellationToken);
 
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(javac, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
-        ProcessResult build = await BuildAsync(project.Path, jdk: null, ["JavaRelease=6", "JvmBridgeProvisionJdk=true", "JAVA_HOME=" + newer]);
+        ProcessResult build = await BuildAsync(project.Path,
+            jdk: null,
+            properties: ["JavaRelease=6", "JvmBridgeProvisionJdk=true", "JAVA_HOME=" + newer]);
 
         Assert.True(build.ExitCode == 0, build.Output);
-        string helper = Directory.EnumerateFiles(Path.Combine(project.Path, path2: "obj"), searchPattern: "Helper.class", SearchOption.AllDirectories).Single();
+
+        string helper = Directory.EnumerateFiles(Path.Combine(project.Path, path2: "obj"), searchPattern: "Helper.class", SearchOption.AllDirectories)
+            .Single();
+
         byte[] bytes = await File.ReadAllBytesAsync(helper, TestContext.Current.CancellationToken);
+
         Assert.Equal(expected: 50, (bytes[6] << 8) | bytes[7]);
     }
 
     /// <summary>
     /// Java sources are compiled with the pinned JDK, embedded with their nested classes, and exposed by package; a C# native helper class gets a definition. The consumer is built and run, not just inspected.
     /// </summary>
+    /// <exception cref="InvalidOperationException">No Java 17 HotSpot JDK is pinned and available for this machine's runtime identifier.</exception>
     [Fact]
     public async Task JavaSourcesBecomeTypedDefinitionsAsync()
     {
-        string runtimeIdentifier = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
         RepositoryContext repository = RepositoryContext.Discover();
 
         JdkEntry entry = PinnedJdks.Jdks
-            .FirstOrDefault(
-                candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available"
-            )
+            .FirstOrDefault(candidate => candidate.Rid == runtimeIdentifier && candidate.Java == 17 && candidate.Implementation == "hotspot" && candidate.Status == "available")
             ?? throw new InvalidOperationException("No pinned Java 17 compiler is available for " + runtimeIdentifier + ".");
 
         using TemporaryDirectory jdk = new(prefix: "jvmbridge-javasource-jdk-");
@@ -119,17 +133,17 @@ public sealed class JavaSourceTests
 
         using HttpService http = new();
 
-        string home = await new JdkArchiveManager(http).UnpackAsync(FixtureCompiler.ToArchive(entry), jdk.Path, CancellationToken.None);
+        string home = await new JdkArchiveManager(http).UnpackAsync(FixtureCompiler.ToArchive(entry),
+            jdk.Path,
+            CancellationToken.None);
 
         ProcessResult build = await BuildAsync(project.Path, home);
 
-        ProcessResult run = await new ProcessRunner(repository).RunAsync(
-            ["dotnet", Path.Combine(paths: [project.Path, "bin", "Release", "net10.0", "Consumer.dll"])],
+        ProcessResult run = await new ProcessRunner(repository).RunAsync(command: ["dotnet", Path.Combine(paths: [project.Path, "bin", "Release", "net10.0", "Consumer.dll"])],
             logPath: null,
             workingDirectory: project.Path
 ,
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(expected: 0, build.ExitCode);
         Assert.Equal(expected: "pkg/Helper|1|cafebabe|other/tools/Utility|pkg/Natives", run.Output.Trim());
@@ -151,7 +165,15 @@ public sealed class JavaSourceTests
             [key: "MSBUILDDISABLENODEREUSE"] = "1"
         };
 
-        List<string> command = ["dotnet", "build", Path.Combine(project, path2: "Consumer.csproj"), "-c", "Release", "-p:RestoreAdditionalProjectSources=" + packages];
+        List<string> command =
+        [
+            "dotnet",
+            "build",
+            Path.Combine(project, path2: "Consumer.csproj"),
+            "-c",
+            "Release",
+            "-p:RestoreAdditionalProjectSources=" + packages,
+        ];
 
         if (jdk is not null)
             command.Add("-p:JvmBridgeJdkHome=" + jdk);
@@ -159,22 +181,25 @@ public sealed class JavaSourceTests
         foreach (string property in properties ?? [])
             command.Add("-p:" + property);
 
-        return await new ProcessRunner(repository).RunAsync(command, logPath: null, environment: environment, expectedExitCode: null, workingDirectory: project).ConfigureAwait(continueOnCapturedContext: false);
+        return await new ProcessRunner(repository).RunAsync(command, logPath: null, environment: environment, expectedExitCode: null, workingDirectory: project)
+            .ConfigureAwait(continueOnCapturedContext: false);
     }
 
     internal static TemporaryDirectory CreateProject(string version)
     {
         TemporaryDirectory project = new(prefix: "jvmbridge-javasource-");
-
         string java = Path.Combine(project.Path, path2: "java");
+
+        // One directory per Java package, so that each source lies where its package declaration says.
         FileSystem.EnsureDirectory(Path.Combine(java, path2: "pkg"));
         FileSystem.EnsureDirectory(Path.Combine(java, path2: "other", path3: "tools"));
+
+        // Two Java classes in different packages, and the program that prints what the build generated for them.
         File.WriteAllText(Path.Combine(java, path2: "pkg", path3: "Helper.java"), HelperSource);
         File.WriteAllText(Path.Combine(java, path2: "other", path3: "tools", path4: "Utility.java"), UtilitySource);
         File.WriteAllText(Path.Combine(project.Path, path2: "Program.cs"), ProgramSource);
 
-        File.WriteAllText(
-            Path.Combine(project.Path, path2: "Consumer.csproj"),
+        File.WriteAllText(Path.Combine(project.Path, path2: "Consumer.csproj"),
             $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -190,8 +215,7 @@ public sealed class JavaSourceTests
                 <JavaSource Include="java/**/*.java" />
               </ItemGroup>
             </Project>
-            """
-        );
+            """);
 
         return project;
     }
@@ -201,7 +225,11 @@ public sealed class JavaSourceTests
         string packages = Path.Combine(RepositoryContext.Discover().Artifacts, path2: "packages");
 
         string package = Directory.Exists(packages)
-            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg").Where(IsMainPackage).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() ?? string.Empty
+            ? Directory.EnumerateFiles(packages, searchPattern: "JvmBridge.*.nupkg")
+                .Where(IsMainPackage)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault()
+                ?? string.Empty
             : string.Empty;
 
         return package.Length == 0
@@ -215,6 +243,8 @@ public sealed class JavaSourceTests
         bool versioned = name.Length > "JvmBridge.".Length && char.IsDigit(name["JvmBridge.".Length]);
 
         // JvmBridge.Testing and JvmBridge.Templates are packed beside it, and the symbols package shares its prefix.
-        return versioned && name.EndsWith(value: ".nupkg", StringComparison.Ordinal) && !name.EndsWith(value: ".snupkg", StringComparison.Ordinal);
+        return versioned
+            && name.EndsWith(value: ".nupkg", StringComparison.Ordinal)
+            && !name.EndsWith(value: ".snupkg", StringComparison.Ordinal);
     }
 }

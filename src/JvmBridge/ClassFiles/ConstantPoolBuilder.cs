@@ -71,8 +71,10 @@ internal sealed class ConstantPoolBuilder
         if (Count + slots > ushort.MaxValue)
             throw new InvalidOperationException("The constant pool is full (65535 slots).");
         int index = Count;
+
         _entries.Add(encode());
         _indices.Add(key, index);
+
         Count += slots;
         return index;
     }

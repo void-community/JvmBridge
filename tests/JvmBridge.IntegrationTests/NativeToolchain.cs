@@ -24,10 +24,13 @@ internal static class NativeToolchain
         if (!OperatingSystem.IsWindows() || ProcessRunner.FindExecutable(name: "cl") is not null)
             return true;
 
-        string programs = Environment.GetEnvironmentVariable(variable: "ProgramFiles(x86)") ?? throw new InvalidOperationException(message: "ProgramFiles(x86) is not set.");
+        string programs = Environment.GetEnvironmentVariable(variable: "ProgramFiles(x86)")
+            ?? throw new InvalidOperationException(message: "ProgramFiles(x86) is not set.");
+
         string locator = Path.Combine(programs, path2: "Microsoft Visual Studio", path3: "Installer", path4: "vswhere.exe");
         string installation = Run(locator, arguments: "-latest -products * -property installationPath").Trim();
         string script = Path.Combine(paths: [installation, "VC", "Auxiliary", "Build", "vcvarsall.bat"]);
+
         // An x86 target is compiled by the x64 compiler, as the runner is an x64 machine.
         string architecture = TestTarget.Rid switch { "win-x86" => "x64_x86", "win-arm64" => "arm64", _ => "x64" };
 
@@ -44,12 +47,19 @@ internal static class NativeToolchain
 
     private static string Run(string fileName, string arguments)
     {
-        using Process process = Process.Start(new ProcessStartInfo(fileName, arguments) { RedirectStandardOutput = true, UseShellExecute = false })
+        using Process process = Process.Start(new ProcessStartInfo(fileName, arguments)
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        })
             ?? throw new InvalidOperationException("Could not start " + fileName + ".");
 
         string output = process.StandardOutput.ReadToEnd();
+
         process.WaitForExit();
 
-        return process.ExitCode == 0 ? output : throw new InvalidOperationException($"{fileName} {arguments} exited with {process.ExitCode}:\n{output}");
+        return process.ExitCode == 0
+            ? output
+            : throw new InvalidOperationException($"{fileName} {arguments} exited with {process.ExitCode}:\n{output}");
     }
 }

@@ -4,20 +4,19 @@ namespace JvmBridge.Testing;
 /// A jar or other file from a Maven repository, pinned by checksum: the <see cref="PinnedArtifact"/> whose address comes from Maven coordinates, such as <c>new MavenArtifact("https://maven.minecraftforge.net", "net.minecraftforge:eventbus:0.10.3",
 /// sha256)</c>. It is downloaded, cached and checked as any pinned artifact is.
 /// </summary>
-public sealed class MavenArtifact : PinnedArtifact
+/// <remarks>Initializes a new instance of the <see cref="MavenArtifact"/> class. Pins an artifact.</remarks>
+/// <param name="repository">The repository's base address, for example <c>https://repo1.maven.org/maven2</c>.</param>
+/// <param name="coordinates"><c>group:artifact:version</c>, with an optional <c>:classifier</c> and <c>@extension</c> (<c>jar</c> by default), for example <c>net.minecraftforge:forge:1.12.2-14.23.5.2860:universal</c>.</param>
+/// <param name="sha256">The SHA-256 of the file, in hexadecimal.</param>
+public sealed class MavenArtifact(string repository, string coordinates, string sha256) : PinnedArtifact(Locate(repository,
+        coordinates,
+        out string fileName),
+    sha256,
+    fileName)
 {
-    /// <summary>Pins an artifact.</summary>
-    /// <param name="repository">The repository's base address, for example <c>https://repo1.maven.org/maven2</c>.</param>
-    /// <param name="coordinates"><c>group:artifact:version</c>, with an optional <c>:classifier</c> and <c>@extension</c> (<c>jar</c> by default), for example <c>net.minecraftforge:forge:1.12.2-14.23.5.2860:universal</c>.</param>
-    /// <param name="sha256">The SHA-256 of the file, in hexadecimal.</param>
-    public MavenArtifact(string repository, string coordinates, string sha256)
-        : base(Locate(repository, coordinates, out string fileName), sha256, fileName)
-    {
-        Coordinates = coordinates;
-    }
-
     /// <summary>Gets the coordinates as they were given.</summary>
-    public string Coordinates { get; }
+    /// <value><c>group:artifact:version</c> with the classifier and the extension it came with, which <see cref="ToString"/> returns too.</value>
+    public string Coordinates { get; } = coordinates;
 
     /// <inheritdoc/>
     public override string ToString()
@@ -47,8 +46,6 @@ public sealed class MavenArtifact : PinnedArtifact
 
         fileName = parts[1] + "-" + parts[2] + (parts.Length == 4 ? "-" + parts[3] : string.Empty) + "." + extension;
 
-        return new Uri(
-            repository.TrimEnd(trimChar: '/') + "/" + parts[0].Replace(oldChar: '.', newChar: '/') + "/" + parts[1] + "/" + parts[2] + "/" + fileName
-        );
+        return new Uri(repository.TrimEnd(trimChar: '/') + "/" + parts[0].Replace(oldChar: '.', newChar: '/') + "/" + parts[1] + "/" + parts[2] + "/" + fileName);
     }
 }

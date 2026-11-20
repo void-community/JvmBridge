@@ -107,6 +107,8 @@ internal static class MethodAdvisor
         string returnType = isAfter ? target.ReturnType : "V";
         string result = isAfter && target.ReturnSlots > 0 ? target.ReturnType : string.Empty;
         string arguments = isAfter && !includeArguments ? string.Empty : target.ParameterText;
+
+        // A hook may take the receiver as Object or as the class it advises.
         string withObject = $"(Ljava/lang/Object;{arguments}{result}){returnType}";
         string withOwner = $"(L{owner};{arguments}{result}){returnType}";
 

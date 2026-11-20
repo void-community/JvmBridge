@@ -15,26 +15,24 @@ public sealed class AbiInspectorGenerator : IIncrementalGenerator
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValueProvider<bool> enabled = context.AnalyzerConfigOptionsProvider.Select(
-            static (options, cancellationToken) =>
-            options.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAbiInspector", out string? value) && string.Equals(value, b: "true", StringComparison.OrdinalIgnoreCase)
-        );
+        IncrementalValueProvider<bool> enabled = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, cancellationToken) => options.GlobalOptions.TryGetValue(key: "build_property.JvmBridgeAbiInspector", out string? value) && string.Equals(value, b: "true", StringComparison.OrdinalIgnoreCase));
 
-        context.RegisterSourceOutput(
-            context.CompilationProvider.Combine(enabled),
+        context.RegisterSourceOutput(context.CompilationProvider.Combine(enabled),
             static (production, input) =>
             {
                 if (!input.Right)
                     return;
 
-                INamedTypeSymbol? nativeValue = input.Left.GetTypeByMetadataName(fullyQualifiedMetadataName: "JvmBridge.Native.jvalue");
+                INamedTypeSymbol? nativeValue = input.Left
+                    .GetTypeByMetadataName(fullyQualifiedMetadataName: "JvmBridge.Native.jvalue");
 
                 if (nativeValue is null)
                     return;
 
-                production.AddSource(hintName: "AbiInspector.g.cs", SourceText.From(Generate(nativeValue.ContainingNamespace), Encoding.UTF8));
-            }
-        );
+                production.AddSource(hintName: "AbiInspector.g.cs",
+                    SourceText.From(Generate(nativeValue.ContainingNamespace), Encoding.UTF8));
+            });
     }
 
     private static string Generate(INamespaceSymbol nativeNamespace)
@@ -70,6 +68,7 @@ public sealed class AbiInspectorGenerator : IIncrementalGenerator
                 continue;
 
             string typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
             lines.Add($"            writer.WriteNumber(\"size.{type.Name}\", sizeof({typeName}));");
 
             bool isTable = type.Name is "JNINativeInterface_" or "JNIInvokeInterface_" or "jvmtiInterface_1_" or "jvmtiEventCallbacks" or "jvmtiHeapCallbacks";
@@ -78,11 +77,7 @@ public sealed class AbiInspectorGenerator : IIncrementalGenerator
                 continue;
 
             foreach (IFieldSymbol field in fields)
-            {
-                lines.Add(
-                    $"            writer.WriteNumber(\"offset.{type.Name}.{field.Name}\", global::System.Runtime.InteropServices.Marshal.OffsetOf<{typeName}>(nameof({typeName}.@{field.Name})).ToInt64());"
-                );
-            }
+                lines.Add($"            writer.WriteNumber(\"offset.{type.Name}.{field.Name}\", global::System.Runtime.InteropServices.Marshal.OffsetOf<{typeName}>(nameof({typeName}.@{field.Name})).ToInt64());");
         }
 
         foreach (string capability in new[] { "can_tag_objects", "can_retransform_classes", "can_generate_all_class_hook_events" })
@@ -92,15 +87,13 @@ public sealed class AbiInspectorGenerator : IIncrementalGenerator
             lines.Add($"            writer.WriteNumber(\"capability.{capability}\", *(long*)&{capability});");
         }
 
-        lines.Add(
-            item: """
+        lines.Add(item: """
                         writer.WriteEndObject();
                     }
                     global::System.Console.WriteLine(global::System.Text.Encoding.UTF8.GetString(stream.ToArray()));
                 }
             }
-            """
-        );
+            """);
 
         return string.Join(separator: "\n", lines);
     }

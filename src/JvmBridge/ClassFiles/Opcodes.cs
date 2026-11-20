@@ -626,7 +626,9 @@ public static class Opcodes
         if (opcode == TableSwitch)
         {
             int table = offset + 1 + Padding(offset);
+
             RequireAvailable(code, table, 12, offset);
+
             int low = ReadInt(code, table + 4);
             int high = ReadInt(code, table + 8);
             long entries = (long)high - low + 1;
@@ -637,7 +639,9 @@ public static class Opcodes
         else if (opcode == LookupSwitch)
         {
             int table = offset + 1 + Padding(offset);
+
             RequireAvailable(code, table, 8, offset);
+
             int pairs = ReadInt(code, table + 4);
             if (pairs < 0 || pairs > code.Length)
                 throw new ClassFormatException($"Invalid lookupswitch pair count at code offset {offset}.");
@@ -646,6 +650,7 @@ public static class Opcodes
         else if (opcode == Wide)
         {
             RequireAvailable(code, offset, 2, offset);
+
             byte modified = code[offset + 1];
             if (modified == IInc)
                 length = 6;
@@ -747,40 +752,47 @@ public static class Opcodes
                 effects[opcode] = (byte)((pops << 4) | pushes);
         }
 
-        Set(Nop, Nop, pops: 0, pushes: 0);
-        Set(AConstNull, IConst5, pops: 0, pushes: 1);
-        Set(LConst0, LConst1, pops: 0, pushes: 2);
-        Set(FConst0, FConst2, pops: 0, pushes: 1);
-        Set(DConst0, DConst1, pops: 0, pushes: 2);
-        Set(ILoad0, ILoad3, pops: 0, pushes: 1);
-        Set(LLoad0, LLoad3, pops: 0, pushes: 2);
-        Set(FLoad0, FLoad3, pops: 0, pushes: 1);
-        Set(DLoad0, DLoad3, pops: 0, pushes: 2);
-        Set(ALoad0, ALoad3, pops: 0, pushes: 1);
-        Set(IALoad, IALoad, pops: 2, pushes: 1);
-        Set(LALoad, LALoad, pops: 2, pushes: 2);
-        Set(FALoad, FALoad, pops: 2, pushes: 1);
-        Set(DALoad, DALoad, pops: 2, pushes: 2);
-        Set(AALoad, SALoad, pops: 2, pushes: 1);
-        Set(IStore0, IStore3, pops: 1, pushes: 0);
-        Set(LStore0, LStore3, pops: 2, pushes: 0);
-        Set(FStore0, FStore3, pops: 1, pushes: 0);
-        Set(DStore0, DStore3, pops: 2, pushes: 0);
-        Set(AStore0, AStore3, pops: 1, pushes: 0);
-        Set(IAStore, IAStore, pops: 3, pushes: 0);
-        Set(LAStore, LAStore, pops: 4, pushes: 0);
-        Set(FAStore, FAStore, pops: 3, pushes: 0);
-        Set(DAStore, DAStore, pops: 4, pushes: 0);
-        Set(AAStore, SAStore, pops: 3, pushes: 0);
-        Set(Pop, Pop, pops: 1, pushes: 0);
-        Set(Pop2, Pop2, pops: 2, pushes: 0);
-        Set(Dup, Dup, pops: 1, pushes: 2);
-        Set(DupX1, DupX1, pops: 2, pushes: 3);
-        Set(DupX2, DupX2, pops: 3, pushes: 4);
-        Set(Dup2, Dup2, pops: 2, pushes: 4);
-        Set(Dup2X1, Dup2X1, pops: 3, pushes: 5);
-        Set(Dup2X2, Dup2X2, pops: 4, pushes: 6);
-        Set(Swap, Swap, pops: 2, pushes: 2);
+        // Constants, loads, stores and the stack instructions: a range of opcodes, the slots each pops and the slots it pushes.
+        StackEffect[] pushesStoresAndStack =
+        [
+            new(Nop, Nop, Pops: 0, Pushes: 0),
+            new(AConstNull, IConst5, Pops: 0, Pushes: 1),
+            new(LConst0, LConst1, Pops: 0, Pushes: 2),
+            new(FConst0, FConst2, Pops: 0, Pushes: 1),
+            new(DConst0, DConst1, Pops: 0, Pushes: 2),
+            new(ILoad0, ILoad3, Pops: 0, Pushes: 1),
+            new(LLoad0, LLoad3, Pops: 0, Pushes: 2),
+            new(FLoad0, FLoad3, Pops: 0, Pushes: 1),
+            new(DLoad0, DLoad3, Pops: 0, Pushes: 2),
+            new(ALoad0, ALoad3, Pops: 0, Pushes: 1),
+            new(IALoad, IALoad, Pops: 2, Pushes: 1),
+            new(LALoad, LALoad, Pops: 2, Pushes: 2),
+            new(FALoad, FALoad, Pops: 2, Pushes: 1),
+            new(DALoad, DALoad, Pops: 2, Pushes: 2),
+            new(AALoad, SALoad, Pops: 2, Pushes: 1),
+            new(IStore0, IStore3, Pops: 1, Pushes: 0),
+            new(LStore0, LStore3, Pops: 2, Pushes: 0),
+            new(FStore0, FStore3, Pops: 1, Pushes: 0),
+            new(DStore0, DStore3, Pops: 2, Pushes: 0),
+            new(AStore0, AStore3, Pops: 1, Pushes: 0),
+            new(IAStore, IAStore, Pops: 3, Pushes: 0),
+            new(LAStore, LAStore, Pops: 4, Pushes: 0),
+            new(FAStore, FAStore, Pops: 3, Pushes: 0),
+            new(DAStore, DAStore, Pops: 4, Pushes: 0),
+            new(AAStore, SAStore, Pops: 3, Pushes: 0),
+            new(Pop, Pop, Pops: 1, Pushes: 0),
+            new(Pop2, Pop2, Pops: 2, Pushes: 0),
+            new(Dup, Dup, Pops: 1, Pushes: 2),
+            new(DupX1, DupX1, Pops: 2, Pushes: 3),
+            new(DupX2, DupX2, Pops: 3, Pushes: 4),
+            new(Dup2, Dup2, Pops: 2, Pushes: 4),
+            new(Dup2X1, Dup2X1, Pops: 3, Pushes: 5),
+            new(Dup2X2, Dup2X2, Pops: 4, Pushes: 6),
+            new(Swap, Swap, Pops: 2, Pushes: 2),
+        ];
+
+        foreach (StackEffect range in pushesStoresAndStack)
+            Set(range.First, range.Last, range.Pops, range.Pushes);
 
         // Arithmetic comes in int, long, float and double groups of four: two slots per operand for long and double.
         for (int group = IAdd; group <= DRem; group += 4)
@@ -808,29 +820,36 @@ public static class Opcodes
             Set(longLogic, longLogic, pops: 4, pushes: 2);
         }
 
-        Set(I2L, I2L, pops: 1, pushes: 2);
-        Set(I2F, I2F, pops: 1, pushes: 1);
-        Set(I2D, I2D, pops: 1, pushes: 2);
-        Set(L2I, L2F, pops: 2, pushes: 1);
-        Set(L2D, L2D, pops: 2, pushes: 2);
-        Set(F2I, F2I, pops: 1, pushes: 1);
-        Set(F2L, F2D, pops: 1, pushes: 2);
-        Set(D2I, D2I, pops: 2, pushes: 1);
-        Set(D2L, D2L, pops: 2, pushes: 2);
-        Set(D2F, D2F, pops: 2, pushes: 1);
-        Set(I2B, I2S, pops: 1, pushes: 1);
-        Set(LCmp, LCmp, pops: 4, pushes: 1);
-        Set(FCmpL, FCmpG, pops: 2, pushes: 1);
-        Set(DCmpL, DCmpG, pops: 4, pushes: 1);
-        Set(IReturn, IReturn, pops: 1, pushes: 0);
-        Set(LReturn, LReturn, pops: 2, pushes: 0);
-        Set(FReturn, FReturn, pops: 1, pushes: 0);
-        Set(DReturn, DReturn, pops: 2, pushes: 0);
-        Set(AReturn, AReturn, pops: 1, pushes: 0);
-        Set(Return, Return, pops: 0, pushes: 0);
-        Set(ArrayLength, ArrayLength, pops: 1, pushes: 1);
-        Set(AThrow, AThrow, pops: 1, pushes: 0);
-        Set(MonitorEnter, MonitorExit, pops: 1, pushes: 0);
+        // Conversions, comparisons, returns and the instructions on one reference, as ranges of the same shape.
+        StackEffect[] conversionsAndReturns =
+        [
+            new(I2L, I2L, Pops: 1, Pushes: 2),
+            new(I2F, I2F, Pops: 1, Pushes: 1),
+            new(I2D, I2D, Pops: 1, Pushes: 2),
+            new(L2I, L2F, Pops: 2, Pushes: 1),
+            new(L2D, L2D, Pops: 2, Pushes: 2),
+            new(F2I, F2I, Pops: 1, Pushes: 1),
+            new(F2L, F2D, Pops: 1, Pushes: 2),
+            new(D2I, D2I, Pops: 2, Pushes: 1),
+            new(D2L, D2L, Pops: 2, Pushes: 2),
+            new(D2F, D2F, Pops: 2, Pushes: 1),
+            new(I2B, I2S, Pops: 1, Pushes: 1),
+            new(LCmp, LCmp, Pops: 4, Pushes: 1),
+            new(FCmpL, FCmpG, Pops: 2, Pushes: 1),
+            new(DCmpL, DCmpG, Pops: 4, Pushes: 1),
+            new(IReturn, IReturn, Pops: 1, Pushes: 0),
+            new(LReturn, LReturn, Pops: 2, Pushes: 0),
+            new(FReturn, FReturn, Pops: 1, Pushes: 0),
+            new(DReturn, DReturn, Pops: 2, Pushes: 0),
+            new(AReturn, AReturn, Pops: 1, Pushes: 0),
+            new(Return, Return, Pops: 0, Pushes: 0),
+            new(ArrayLength, ArrayLength, Pops: 1, Pushes: 1),
+            new(AThrow, AThrow, Pops: 1, Pushes: 0),
+            new(MonitorEnter, MonitorExit, Pops: 1, Pushes: 0),
+        ];
+
+        foreach (StackEffect range in conversionsAndReturns)
+            Set(range.First, range.Last, range.Pops, range.Pushes);
 
         return effects;
     }
@@ -838,43 +857,69 @@ public static class Opcodes
     private static byte[] BuildLengths()
     {
         byte[] lengths = new byte[256];
+
         void Fill(int first, int last, byte length)
         {
             for (int opcode = first; opcode <= last; opcode++)
                 lengths[opcode] = length;
         }
+
+        // nop and the constants up to dconst_1 carry no operand.
         Fill(0x00, 0x0f, 1);
+
+        // bipush and ldc carry one byte, and sipush two.
         lengths[0x10] = 2;
         lengths[0x11] = 3;
         lengths[0x12] = 2;
-        lengths[0x13] = 3;
-        lengths[0x14] = 3;
+
+        // ldc_w and ldc2_w carry a two-byte index; a load or a store names its slot in one byte, and the shorthand and array loads carry nothing.
+        Fill(0x13, 0x14, 3);
         Fill(0x15, 0x19, 2);
         Fill(0x1a, 0x35, 1);
         Fill(0x36, 0x3a, 2);
+
+        // From istore_0 through the stack and arithmetic instructions to lxor there is no operand; iinc carries a slot and a constant.
         Fill(0x3b, 0x83, 1);
+
         lengths[0x84] = 3;
+
+        // Conversions and comparisons carry nothing; the branches from ifeq to jsr carry a two-byte offset, and ret a slot.
         Fill(0x85, 0x98, 1);
         Fill(0x99, 0xa8, 3);
+
         lengths[0xa9] = 2;
+
+        // The returns carry nothing; the field accesses and the invocations up to invokestatic carry a two-byte index.
         Fill(0xac, 0xb1, 1);
         Fill(0xb2, 0xb8, 3);
+
+        // invokeinterface and invokedynamic carry two bytes beyond the index; new carries an index and newarray a type code.
         lengths[0xb9] = 5;
         lengths[0xba] = 5;
         lengths[0xbb] = 3;
         lengths[0xbc] = 2;
+
+        // anewarray and checkcast carry an index; arraylength and athrow carry nothing.
         lengths[0xbd] = 3;
         lengths[0xbe] = 1;
         lengths[0xbf] = 1;
         lengths[0xc0] = 3;
+
+        // instanceof carries an index, the monitor instructions nothing, and multianewarray an index and a count of dimensions.
         lengths[0xc1] = 3;
         lengths[0xc2] = 1;
         lengths[0xc3] = 1;
         lengths[0xc5] = 4;
+
+        // ifnull and ifnonnull carry a two-byte offset; goto_w and jsr_w a four-byte one.
         lengths[0xc6] = 3;
         lengths[0xc7] = 3;
         lengths[0xc8] = 5;
         lengths[0xc9] = 5;
+
         return lengths;
     }
+
+    // A range of opcodes that all pop and push the same number of stack slots.
+    private readonly record struct StackEffect(int First, int Last, int Pops, int Pushes);
 }

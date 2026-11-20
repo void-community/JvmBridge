@@ -13,7 +13,9 @@ public static unsafe class JavaThrowing
     public static void Throw(this JavaEnvironment environment, nint throwable)
     {
         ArgumentNullException.ThrowIfNull(environment);
+
         environment.EnsureAccessible();
+
         int result = environment.Functions->Throw((JNINativeInterface_**)environment.Handle, (_jobject*)throwable);
 
         if (result != 0)
@@ -28,6 +30,7 @@ public static unsafe class JavaThrowing
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentException.ThrowIfNullOrEmpty(className);
+
         environment.EnsureAccessible();
         using JavaLocalReference type = environment.FindClass(className);
         byte[]? encoded = message is null ? null : ModifiedUtf8.Encode(message);

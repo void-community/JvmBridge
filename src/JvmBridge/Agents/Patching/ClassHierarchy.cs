@@ -29,6 +29,7 @@ public sealed class ClassHierarchy
     {
         ArgumentException.ThrowIfNullOrEmpty(className);
         ArgumentNullException.ThrowIfNull(interfaces);
+
         Supertypes supertypes = new(superName, [.. interfaces]);
 
         lock (_sync)

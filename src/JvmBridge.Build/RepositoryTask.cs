@@ -1,7 +1,12 @@
+using System.ComponentModel;
+using System.Text.Json;
+
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
 
 using Microsoft.Build.Framework;
+
+using Nito.AsyncEx;
 
 using BuildTask = Microsoft.Build.Utilities.Task;
 
@@ -13,6 +18,7 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
     private readonly CancellationTokenSource _cancellation = new();
 
     /// <summary>Gets or sets the requested repository operation.</summary>
+    /// <value>The name of the operation the build target asks for, such as <c>Generate</c>; empty until MSBuild sets it, and required.</value>
     [Required]
     public string Operation { get; set; } = string.Empty;
 
@@ -34,11 +40,11 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
         try
         {
             // ITask.Execute is synchronous; this is the sole boundary into asynchronous build operations.
-            Nito.AsyncEx.AsyncContext.Run(() => ExecuteAsync(_cancellation.Token));
+            AsyncContext.Run(() => ExecuteAsync(_cancellation.Token));
 
             return true;
         }
-        catch (Exception failure) when (IsBuildFailure(failure))
+        catch (Exception failure) when (IsExpected(failure))
         {
             Log.LogErrorFromException(failure, showStackTrace: true);
 
@@ -46,9 +52,9 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
         }
     }
 
-    private static bool IsBuildFailure(Exception failure)
+    private static bool IsExpected(Exception failure)
     {
-        return failure is InvalidOperationException or IOException or HttpRequestException or OperationCanceledException or TimeoutException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException;
+        return failure is InvalidOperationException or IOException or HttpRequestException or OperationCanceledException or TimeoutException or Win32Exception or JsonException;
     }
 
     private async Task ExecuteAsync(CancellationToken cancellationToken)
@@ -60,9 +66,14 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
         if (Operation is "Generate" or "VerifyGenerated")
         {
             bool check = Operation == "VerifyGenerated";
-            await new BindingGenerator(repository, processes).GenerateAsync(check, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            await new BindingGenerator(repository, processes).GenerateAsync(check, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             reporter.Report(verify: false, check);
+
             CompatibilityConfiguration configuration = Compatibility.Configuration;
+
             ManifestValidator.ValidateManifest(configuration, PinnedJdks.Jdks);
 
             return;
@@ -79,7 +90,8 @@ public sealed class RepositoryTask : BuildTask, ICancelableTask, IDisposable
         {
             using HttpService http = new();
 
-            await new FixtureCompiler(repository, new JdkArchiveManager(http), processes).CompileAllAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await new FixtureCompiler(repository, new JdkArchiveManager(http), processes).CompileAllAsync(cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             return;
         }

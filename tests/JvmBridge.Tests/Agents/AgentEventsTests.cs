@@ -19,16 +19,16 @@ public sealed unsafe class AgentEventsTests
         using FakeJvm jvm = new();
 
         SubscribingAgent agent = new(JavaEvents.ThreadStart | JavaEvents.ClassLoad);
+        int started = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
 
-        int result = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
-
-        Assert.Equal(Methods.JNI_OK, result);
+        Assert.Equal(Methods.JNI_OK, started);
         Assert.Contains(new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_START, Enabled: true), FakeJvm.Toggles);
         Assert.Contains(new EventToggle(jvmtiEvent.JVMTI_EVENT_CLASS_LOAD, Enabled: true), FakeJvm.Toggles);
         Assert.Equal(JavaEvents.ThreadStart | JavaEvents.ClassLoad, agent.Subscribed);
     }
 
     /// <summary>A handler that keeps failing is unsubscribed after a run of failures, with one line for the first failure of each run and one for the unsubscription; a success ends the run.</summary>
+    /// <exception cref="InvalidOperationException">The agent did not start, so it has no context whose events could be failed.</exception>
     [Fact]
     public void FailingHandlersAreUnsubscribed()
     {
@@ -42,8 +42,11 @@ public sealed unsafe class AgentEventsTests
             using FakeJvm jvm = new();
 
             SubscribingAgent agent = new(JavaEvents.ThreadStart);
-            int result = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
-            AgentEvents events = agent.Context?.Events ?? throw new InvalidOperationException(message: "The agent did not start.");
+            int started = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
+
+            AgentEvents events = agent.Context?.Events
+                ?? throw new InvalidOperationException(message: "The agent did not start.");
+
             InvalidOperationException failure = new(message: "handler failed");
 
             for (int count = 0; count < 19; count++)
@@ -54,19 +57,19 @@ public sealed unsafe class AgentEventsTests
             for (int count = 0; count < 19; count++)
                 Assert.True(events.Failed(JavaEvents.ThreadStart, failure));
 
+            // Nineteen failures after the success are one short of the limit, so the handler is still subscribed.
             Assert.Equal(JavaEvents.ThreadStart, events.Subscribed);
 
+            // The twentieth failure in a row reaches the limit.
             Assert.True(events.Failed(JavaEvents.ThreadStart, failure));
 
-            Assert.Equal(Methods.JNI_OK, result);
+            // The event is switched off in the JVM too, and the log has the first failure of each run plus the unsubscription.
+            Assert.Equal(Methods.JNI_OK, started);
             Assert.Equal(JavaEvents.None, events.Subscribed);
             Assert.Contains(new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_START, Enabled: false), FakeJvm.Toggles);
-            Assert.Equal(
-                expected: 3,
-                lines.Count(
-                    line => line.StartsWith(value: "Error|", StringComparison.Ordinal) && line.Contains(value: "ThreadStart", StringComparison.Ordinal)
-                )
-            );
+
+            Assert.Equal(expected: 3,
+                lines.Count(line => line.StartsWith(value: "Error|", StringComparison.Ordinal) && line.Contains(value: "ThreadStart", StringComparison.Ordinal)));
         }
         finally
         {
@@ -85,12 +88,15 @@ public sealed unsafe class AgentEventsTests
 
         AgentContext context = jvm.CreateContext(name: "early");
 
+        // With no version, and with the 1.0 that a JVM reports before it is live, the major version is still unknown.
         Assert.Equal(expected: 0, context.JavaMajor);
-        FakeJvm.ReportSpecificationVersion(version: "1.0");
+        FakeJvm.ReportSpecification(version: "1.0");
         Assert.Equal(expected: 0, context.JavaMajor);
-        FakeJvm.ReportSpecificationVersion(version: "1.8");
+
+        // The first version that says something is kept, and a different one afterwards does not replace it.
+        FakeJvm.ReportSpecification(version: "1.8");
         Assert.Equal(expected: 8, context.JavaMajor);
-        FakeJvm.ReportSpecificationVersion(version: "21");
+        FakeJvm.ReportSpecification(version: "21");
         Assert.Equal(expected: 8, context.JavaMajor);
     }
 
@@ -98,9 +104,12 @@ public sealed unsafe class AgentEventsTests
     [Fact]
     public void JavaMajorReadsBothForms()
     {
+        // Java 8 and earlier write the major version after "1.", and later versions write it alone.
         Assert.Equal(expected: 6, AgentContext.ParseJavaMajor(specification: "1.6"));
         Assert.Equal(expected: 8, AgentContext.ParseJavaMajor(specification: "1.8"));
         Assert.Equal(expected: 21, AgentContext.ParseJavaMajor(specification: "21"));
+
+        // A missing or unreadable specification version gives 0, which stands for a version that is not known.
         Assert.Equal(expected: 0, AgentContext.ParseJavaMajor(specification: null));
         Assert.Equal(expected: 0, AgentContext.ParseJavaMajor(specification: "soon"));
     }
@@ -112,12 +121,18 @@ public sealed unsafe class AgentEventsTests
         using FakeJvm jvm = new();
 
         FakeJvm.Offer(JavaCapability.RedefineClasses, JavaCapability.RetransformClasses);
+
         AgentContext context = jvm.CreateContext(name: "capabilities");
 
+        // A capability the JVM offers is granted when it is requested.
         Assert.True(context.TryRequest(JavaCapability.RedefineClasses));
         Assert.True(context.IsGranted(JavaCapability.RedefineClasses));
+
+        // A capability the JVM does not offer is refused by the return value alone.
         Assert.False(context.TryRequest(JavaCapability.GenerateMonitorEvents));
         Assert.False(context.IsGranted(JavaCapability.GenerateMonitorEvents));
+
+        // An offered capability is not held until it is requested, which is what retransformation depends on.
         Assert.False(context.CanRetransform);
         Assert.True(context.TryRequest(JavaCapability.RetransformClasses));
         Assert.True(context.CanRetransform);
@@ -130,16 +145,23 @@ public sealed unsafe class AgentEventsTests
     {
         using FakeJvm jvm = new();
 
-        int result = AgentRuntime.Start(static () => new SubscribingAgent(JavaEvents.None), jvm.Machine, options: 0, attached: false);
+        int started = AgentRuntime.Start(static () => new SubscribingAgent(JavaEvents.None),
+            jvm.Machine,
+            options: 0,
+            attached: false);
+
         jvmtiEventCallbacks callbacks = FakeJvm.Callbacks;
 
-        Assert.Equal(Methods.JNI_OK, result);
+        // The start succeeds and installs the callbacks of the JVM life cycle, class and thread events.
+        Assert.Equal(Methods.JNI_OK, started);
         Assert.True(callbacks.VMInit != null && callbacks.VMDeath != null && callbacks.ClassPrepare != null && callbacks.ClassFileLoadHook != null);
         Assert.True(callbacks.ThreadStart != null && callbacks.ThreadEnd != null && callbacks.ClassLoad != null && callbacks.Exception != null);
-        Assert.True(
-            callbacks.MethodEntry != null && callbacks.MethodExit != null && callbacks.GarbageCollectionStart != null && callbacks.GarbageCollectionFinish != null
-        );
+
+        // The method, garbage collection and monitor events, which need capabilities, have callbacks as well.
+        Assert.True(callbacks.MethodEntry != null && callbacks.MethodExit != null && callbacks.GarbageCollectionStart != null && callbacks.GarbageCollectionFinish != null);
         Assert.True(callbacks.MonitorContendedEnter != null && callbacks.MonitorContendedEntered != null);
+
+        // The debugging events, which no agent can subscribe to, have none.
         Assert.True(callbacks.SingleStep == null && callbacks.Breakpoint == null && callbacks.FramePop == null && callbacks.FieldAccess == null);
     }
 
@@ -150,20 +172,28 @@ public sealed unsafe class AgentEventsTests
         using FakeJvm jvm = new();
 
         FakeJvm.Offer(JavaCapability.GenerateExceptionEvents);
+
         AgentContext context = jvm.CreateContext(name: "denials");
 
-        EventSubscriptionResult result = context.Events.Subscribe(JavaEvents.Exception | JavaEvents.MonitorContendedEnter | JavaEvents.ThreadStart);
+        EventSubscriptionResult subscription = context.Events
+            .Subscribe(JavaEvents.Exception | JavaEvents.MonitorContendedEnter | JavaEvents.ThreadStart);
 
-        Assert.False(result.AllEnabled);
-        Assert.Equal(expected: 3, result.Events.Count);
+        Assert.False(subscription.AllEnabled);
+        Assert.Equal(expected: 3, subscription.Events.Count);
         Assert.Equal(JavaEvents.Exception | JavaEvents.ThreadStart, context.Events.Subscribed);
-        EventSubscriptionStatus denied = result.Events.Single(static status => !status.Enabled);
+
+        EventSubscriptionStatus denied = subscription.Events.Single(static status => !status.Enabled);
+
         Assert.Equal(JavaEvents.MonitorContendedEnter, denied.Event);
         Assert.Contains(expectedSubstring: "GenerateMonitorEvents", denied.Reason, StringComparison.Ordinal);
-        Assert.StartsWith(expectedStartString: "not subscribed: MonitorContendedEnter", result.ToString(), StringComparison.Ordinal);
+
+        Assert.StartsWith(expectedStartString: "not subscribed: MonitorContendedEnter",
+            subscription.ToString(),
+            StringComparison.Ordinal);
     }
 
     /// <summary>Subscribing after the agent started enables the event at once, and unsubscribing disables it.</summary>
+    /// <exception cref="InvalidOperationException">The agent did not start, so it has no context whose events could be subscribed.</exception>
     [Fact]
     public void SubscriptionsAfterStartTakeEffectAtOnce()
     {
@@ -172,17 +202,19 @@ public sealed unsafe class AgentEventsTests
         SubscribingAgent agent = new(JavaEvents.None);
         int started = AgentRuntime.Start(() => agent, jvm.Machine, options: 0, attached: false);
         AgentEvents events = agent.Context?.Events ?? throw new InvalidOperationException(message: "The agent did not start.");
-
         EventSubscriptionResult subscribed = events.Subscribe(JavaEvents.ThreadEnd);
-        events.Unsubscribe(JavaEvents.ThreadEnd);
 
+        events.Unsubscribe(JavaEvents.ThreadEnd);
         Assert.Equal(Methods.JNI_OK, started);
         Assert.True(subscribed.AllEnabled);
         Assert.Equal(JavaEvents.None, events.Subscribed);
-        Assert.Equal(
-            [new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_END, Enabled: true), new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_END, Enabled: false)],
-            FakeJvm.Toggles.Skip(FakeJvm.Toggles.Count - 2)
-        );
+
+        Assert.Equal(expected:
+        [
+            new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_END, Enabled: true),
+            new EventToggle(jvmtiEvent.JVMTI_EVENT_THREAD_END, Enabled: false),
+        ],
+            FakeJvm.Toggles.Skip(FakeJvm.Toggles.Count - 2));
     }
 
     /// <summary>The thread state bits come back as flags.</summary>
@@ -191,9 +223,9 @@ public sealed unsafe class AgentEventsTests
     {
         using FakeJvm jvm = new();
 
-        FakeJvm.ReportThreadState(JavaThreadState.Alive | JavaThreadState.Runnable | JavaThreadState.InNative);
-        AgentContext context = jvm.CreateContext(name: "state");
+        FakeJvm.ReportThread(JavaThreadState.Alive | JavaThreadState.Runnable | JavaThreadState.InNative);
 
+        AgentContext context = jvm.CreateContext(name: "state");
         JavaThreadState state = context.GetThreadState(thread: 0);
 
         Assert.Equal(JavaThreadState.Alive | JavaThreadState.Runnable | JavaThreadState.InNative, state);
@@ -208,11 +240,12 @@ public sealed unsafe class AgentEventsTests
         using FakeJvm jvm = new();
 
         FakeJvm.OfferToolingUpTo(unchecked((int)Methods.JVMTI_VERSION_1_1));
+
         AgentContext context = jvm.CreateContext(name: "java6");
 
-        Assert.Equal([unchecked((int)Methods.JVMTI_VERSION_1_2), unchecked((int)Methods.JVMTI_VERSION_1_1)], FakeJvm.ToolingRequests);
-
+        Assert.Equal(expected: [unchecked((int)Methods.JVMTI_VERSION_1_2), unchecked((int)Methods.JVMTI_VERSION_1_1)], FakeJvm.ToolingRequests);
         FakeJvm.OfferToolingUpTo(version: 0);
+
         JniException failure = Assert.Throws<JniException>(() => jvm.CreateContext(name: "none"));
 
         Assert.Equal(Methods.JNI_EVERSION, failure.ErrorCode);
@@ -222,9 +255,9 @@ public sealed unsafe class AgentEventsTests
 
     private sealed class SubscribingAgent(JavaEvents events) : JavaAgent
     {
-        internal AgentContext? Context { get; private set; }
-
         internal JavaEvents Subscribed => Context?.Events.Subscribed ?? JavaEvents.None;
+
+        internal AgentContext? Context { get; private set; }
 
         public override void Configure(AgentContext context)
         {
@@ -232,10 +265,10 @@ public sealed unsafe class AgentEventsTests
 
             if (events != JavaEvents.None)
             {
-                EventSubscriptionResult result = context.Events.Subscribe(events);
+                EventSubscriptionResult subscription = context.Events.Subscribe(events);
 
-                if (!result.AllEnabled)
-                    throw new InvalidOperationException(result.ToString());
+                if (!subscription.AllEnabled)
+                    throw new InvalidOperationException(subscription.ToString());
             }
         }
     }

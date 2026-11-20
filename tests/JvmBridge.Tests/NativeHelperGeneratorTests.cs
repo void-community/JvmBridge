@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
@@ -71,7 +72,6 @@ public sealed unsafe class NativeHelperGeneratorTests
 
     private static readonly List<RegisteredNative> Registered = [];
     private static readonly List<string> Steps = [];
-
     private static readonly List<string> Thrown = [];
 
     private static string s_pendingClass = string.Empty;
@@ -82,11 +82,16 @@ public sealed unsafe class NativeHelperGeneratorTests
     {
         JavaClassFile file = JavaClassFile.Read(Load(Helpers).Definition().Bytes.Span);
 
+        // The class has the Java name its attribute gives it.
         Assert.Equal(expected: "sample/Callbacks", file.Name);
+
+        // Each descriptor follows from the C# parameter and return types.
         Assert.Equal(expected: "(I)I", file.GetMethod(name: "twice").Descriptor);
         Assert.Equal(expected: "(JIZC)J", file.GetMethod(name: "combine").Descriptor);
         Assert.Equal(expected: "()V", file.GetMethod(name: "ping").Descriptor);
         Assert.Equal(expected: "(Ljava/util/List;)Ljava/lang/Object;", file.GetMethod(name: "echo").Descriptor);
+
+        // Every method is one that Java can call without an instance and that native code implements.
         Assert.All(file.Methods, static method => Assert.Equal(ClassFileWriter.PublicStaticNative, method.AccessFlags));
     }
 
@@ -99,10 +104,13 @@ public sealed unsafe class NativeHelperGeneratorTests
         string java7 = Run(Helpers, javaRelease: "7").GeneratedTrees.Single().ToString();
         string java17 = Run(Helpers, javaRelease: "17").GeneratedTrees.Single().ToString();
 
+        // Each release gets the class file version of that Java version, and a missing one that of Java 8.
         Assert.Contains(expectedSubstring: "majorVersion: 52)", defaulted, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "majorVersion: 50)", java6, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "majorVersion: 51)", java7, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "majorVersion: 61)", java17, StringComparison.Ordinal);
+
+        // The generated source has the number itself, with no placeholder left where it goes.
         Assert.DoesNotContain(expectedSubstring: "JVMBRIDGE_CLASS_VERSION", defaulted, StringComparison.Ordinal);
     }
 
@@ -112,8 +120,16 @@ public sealed unsafe class NativeHelperGeneratorTests
     {
         Registered.Clear();
         Steps.Clear();
+
         ProbeAccess probe = Load(Helpers);
-        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException };
+
+        JNINativeInterface_ table = new()
+        {
+            RegisterNatives = &Register,
+            GetStaticMethodID = &LookUp,
+            ExceptionCheck = &NoException
+        };
+
         JNINativeInterface_* tablePointer = &table;
         JNINativeInterface_** environment = &tablePointer;
 
@@ -122,6 +138,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         probe.Definition().RegisterNatives?.Invoke(javaEnvironment, arg2: 1);
 
         string[] expected = [.. Registered.SelectMany(static native => new[] { "look up " + native.Name, "register " + native.Name })];
+
         Assert.NotEmpty(expected);
         Assert.Equal(expected, Steps);
     }
@@ -137,13 +154,23 @@ public sealed unsafe class NativeHelperGeneratorTests
         Assert.Equal(expected: "([Z[C[J[D)[Ljava/lang/String;", file.GetMethod(name: "names").Descriptor);
     }
 
-    /// <summary>An array argument is copied into a managed array, a null array is passed as null, and a null array result is returned as null without touching the JVM.</summary>
+    /// <summary>An array argument is copied into a managed array, a <see langword="null"/> array is passed as <see langword="null"/>, and a <see langword="null"/> array result is returned as <see langword="null"/> without touching the JVM.</summary>
     [Fact]
     public void MarshalsArraysAndNulls()
     {
         Registered.Clear();
+
         ProbeAccess probe = Load(Helpers);
-        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException, GetArrayLength = &ThreeElements, GetIntArrayRegion = &FillOneTwoThree };
+
+        JNINativeInterface_ table = new()
+        {
+            RegisterNatives = &Register,
+            GetStaticMethodID = &LookUp,
+            ExceptionCheck = &NoException,
+            GetArrayLength = &ThreeElements,
+            GetIntArrayRegion = &FillOneTwoThree
+        };
+
         JNINativeInterface_* tablePointer = &table;
         JNINativeInterface_** environment = &tablePointer;
 
@@ -154,6 +181,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, int> sum = (delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, int>)Find(name: "sum");
         delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jobject*> bytes = (delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jobject*>)Find(name: "bytes");
 
+        // The class argument is not used, an array that is missing is a null reference, and the fake JVM answers for any other handle.
         _jobject* type = null;
         _jobject* missing = null;
         _jobject* array = (_jobject*)5;
@@ -168,9 +196,11 @@ public sealed unsafe class NativeHelperGeneratorTests
     [Fact]
     public void NamesJavaMethodsInJavaStyle()
     {
-        string[] names = [.. JavaClassFile.Read(Load(Helpers).Definition().Bytes.Span).Methods.Select(static method => method.Name)];
+        string[] names = [.. JavaClassFile.Read(Load(Helpers).Definition().Bytes.Span)
+            .Methods
+            .Select(static method => method.Name)];
 
-        Assert.Equal(["twice", "combine", "ping", "fails", "echo", "sum", "bytes", "names", "reject"], names);
+        Assert.Equal(expectedSpan: ["twice", "combine", "ping", "fails", "echo", "sum", "bytes", "names", "reject"], names);
     }
 
     /// <summary>A C# method that throws JavaThrowException makes the entry point raise that Java exception and return a default value.</summary>
@@ -179,6 +209,7 @@ public sealed unsafe class NativeHelperGeneratorTests
     {
         Registered.Clear();
         Thrown.Clear();
+
         ProbeAccess probe = Load(Helpers);
 
         JNINativeInterface_ table = new()
@@ -199,7 +230,6 @@ public sealed unsafe class NativeHelperGeneratorTests
         probe.Definition().RegisterNatives?.Invoke(javaEnvironment, arg2: 1);
 
         delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int> reject = (delegate* unmanaged<JNINativeInterface_**, _jobject*, int, int>)Find(name: "reject");
-
         _jobject* type = null;
         int accepted = 4;
         int refused = -1;
@@ -207,7 +237,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         Assert.Equal(expected: 4, reject(environment, type, accepted));
         Assert.Empty(Thrown);
         Assert.Equal(expected: 0, reject(environment, type, refused));
-        Assert.Equal(["java/lang/IllegalArgumentException: negative"], Thrown);
+        Assert.Equal(expected: ["java/lang/IllegalArgumentException: negative"], Thrown);
     }
 
     /// <summary>Registration hands the JVM entry points that marshal arguments, call the C# method, and contain its failures.</summary>
@@ -215,8 +245,16 @@ public sealed unsafe class NativeHelperGeneratorTests
     public void RegistersEntryPointsThatMarshalAndContainFailures()
     {
         Registered.Clear();
+
         ProbeAccess probe = Load(Helpers);
-        JNINativeInterface_ table = new() { RegisterNatives = &Register, GetStaticMethodID = &LookUp, ExceptionCheck = &NoException };
+
+        JNINativeInterface_ table = new()
+        {
+            RegisterNatives = &Register,
+            GetStaticMethodID = &LookUp,
+            ExceptionCheck = &NoException
+        };
+
         JNINativeInterface_* tablePointer = &table;
         JNINativeInterface_** environment = &tablePointer;
 
@@ -224,21 +262,31 @@ public sealed unsafe class NativeHelperGeneratorTests
 
         probe.Definition().RegisterNatives?.Invoke(javaEnvironment, arg2: 1);
 
-        Assert.Equal(
-            ["twice", "combine", "ping", "fails", "echo", "sum", "bytes", "names", "reject"],
-            Registered.Select(static native => native.Name)
-        );
+        Assert.Equal(expected: ["twice", "combine", "ping", "fails", "echo", "sum", "bytes", "names", "reject"],
+            Registered.Select(static native => native.Name));
+
+        // Arguments of the primitive types reach the C# method, and its result comes back.
         Assert.Equal(expected: 42, CallTwice(environment, value: 21));
         Assert.Equal(45L + 'A', CallCombine(environment, left: 40L, right: 5, negate: false));
         Assert.Equal(-45L + 'A', CallCombine(environment, left: 40L, right: 5, negate: true));
+
+        // A method without arguments or a result runs once for one call.
         CallPing(environment);
         Assert.Equal(expected: 1, probe.Pings());
+
+        // A C# exception does not cross into the JVM, which gets the default value.
         Assert.Equal(expected: 0, CallFails(environment));
+
+        // An object passes through as the handle it is, under the descriptor of its Java types.
         Assert.Equal(expected: 7, CallEcho(environment, value: 7));
-        Assert.Equal(expected: "(Ljava/util/List;)Ljava/lang/Object;", Registered.Single(static native => native.Name == "echo").Signature);
+
+        Assert.Equal(expected: "(Ljava/util/List;)Ljava/lang/Object;",
+            Registered.Single(static native => native.Name == "echo").Signature);
     }
 
     /// <summary>Invalid helper classes and methods are reported with their own diagnostics.</summary>
+    /// <param name="declaration">The C# source of one helper class that breaks a rule of the generator; the using directives it needs are put in front of it.</param>
+    /// <param name="expected">The identifier of the diagnostic the generator must report for the declaration, such as <c>JVMB002</c>.</param>
     [Theory]
     [InlineData("[JavaClass(\"a/B\")] public partial class Bad { [JavaMethod] public static void M() { } }", "JVMB002")]
     [InlineData("[JavaClass(\"a/B\")] public static class Bad { [JavaMethod] public static void M() { } }", "JVMB002")]
@@ -260,11 +308,11 @@ public sealed unsafe class NativeHelperGeneratorTests
     private static int CallCombine(JNINativeInterface_** environment, long left, int right, bool negate)
     {
         _jobject* type = null;
-        byte flag = negate ? (byte)1 : (byte)0;
+        byte javaBoolean = negate ? (byte)1 : (byte)0;
         ushort marker = 'A';
         delegate* unmanaged<JNINativeInterface_**, _jobject*, long, int, byte, ushort, long> function = (delegate* unmanaged<JNINativeInterface_**, _jobject*, long, int, byte, ushort, long>)Find(name: "combine");
 
-        return (int)function(environment, type, left, right, flag, marker);
+        return int.CreateTruncating(function(environment, type, left, right, javaBoolean, marker));
     }
 
     private static nint CallEcho(JNINativeInterface_** environment, nint value)
@@ -302,14 +350,13 @@ public sealed unsafe class NativeHelperGeneratorTests
     private static CSharpCompilation CreateCompilation(string source)
     {
         List<MetadataReference> references = RuntimeReferences.Create();
+
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
-        return CSharpCompilation.Create(
-            "NativeHelpers" + Guid.NewGuid().ToString(format: "N"),
-            [CSharpSyntaxTree.ParseText(source)],
+        return CSharpCompilation.Create("NativeHelpers" + Guid.NewGuid().ToString(format: "N"),
+            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true)
-        );
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
     }
 
     [UnmanagedCallersOnly]
@@ -340,9 +387,15 @@ public sealed unsafe class NativeHelperGeneratorTests
     private static ProbeAccess Load(string source)
     {
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new NativeHelperGenerator().AsSourceGenerator());
-        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source),
+            out Compilation output,
+            out ImmutableArray<Diagnostic> generatorDiagnostics);
+
         Diagnostic[] errors = [.. generatorDiagnostics, .. output.GetDiagnostics()];
+
         errors = [.. errors.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
+
         SyntaxTree[] trees = [.. driver.GetRunResult().GeneratedTrees];
         SyntaxTree generated = Assert.Single(trees);
 
@@ -352,14 +405,16 @@ public sealed unsafe class NativeHelperGeneratorTests
         using MemoryStream stream = new();
 
         Assert.True(output.Emit(stream).Success);
-        stream.Position = 0;
-        Assembly assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
-        Type probe = assembly.GetType(name: "Sample.Probe", throwOnError: true) ?? throw new InvalidOperationException(message: "Probe was not generated.");
 
-        return new ProbeAccess(
-            probe.GetMethod(name: "Definition")?.CreateDelegate<Func<JavaClassDefinition>>() ?? throw new InvalidOperationException(message: "Probe.Definition is missing."),
-            probe.GetMethod(name: "Pings")?.CreateDelegate<Func<int>>() ?? throw new InvalidOperationException(message: "Probe.Pings is missing.")
-        );
+        stream.Position = 0;
+
+        Assembly assembly = AssemblyLoadContext.Default.LoadFromStream(stream);
+
+        Type probe = assembly.GetType(name: "Sample.Probe", throwOnError: true)
+            ?? throw new InvalidOperationException(message: "Probe was not generated.");
+
+        return new ProbeAccess(probe.GetMethod(name: "Definition")?.CreateDelegate<Func<JavaClassDefinition>>() ?? throw new InvalidOperationException(message: "Probe.Definition is missing."),
+            probe.GetMethod(name: "Pings")?.CreateDelegate<Func<int>>() ?? throw new InvalidOperationException(message: "Probe.Pings is missing."));
     }
 
     [UnmanagedCallersOnly]
@@ -391,6 +446,7 @@ public sealed unsafe class NativeHelperGeneratorTests
         {
             string name = Marshal.PtrToStringUTF8((nint)methods[index].name) ?? string.Empty;
             string signature = Marshal.PtrToStringUTF8((nint)methods[index].signature) ?? string.Empty;
+
             Registered.Add(new RegisteredNative(name, signature, (nint)methods[index].fnPtr));
             Steps.Add("register " + name);
         }
@@ -400,7 +456,9 @@ public sealed unsafe class NativeHelperGeneratorTests
 
     private static GeneratorDriverRunResult Run(string source, string? javaRelease = null)
     {
-        GeneratorDriver driver = CSharpGeneratorDriver.Create([new NativeHelperGenerator().AsSourceGenerator()], optionsProvider: new ReleaseOptionsProvider(javaRelease));
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators: [new NativeHelperGenerator().AsSourceGenerator()],
+            optionsProvider: new ReleaseOptionsProvider(javaRelease));
+
         driver = driver.RunGenerators(CreateCompilation(source));
 
         return driver.GetRunResult();

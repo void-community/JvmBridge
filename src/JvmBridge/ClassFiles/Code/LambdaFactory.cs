@@ -55,6 +55,7 @@ internal static class LambdaFactory
 
         string[] capturedTypes = [.. sources.Take(captured)];
         string instantiated = Instantiate(abstractMethod, sources.Skip(captured).ToArray(), target.ReturnType, functionalMethod, implementation);
+
         (int kind, ConstantTag tag) = Handle(pool, implementation);
 
         // In javac's order: the bootstrap method, then its static arguments, then the call site.
@@ -62,6 +63,8 @@ internal static class LambdaFactory
         int erasedType = pool.AddMethodType(functionalMethod.Descriptor);
         int implementationHandle = pool.AddMethodHandle(kind, tag, implementation.Owner, implementation.Name, implementation.Descriptor);
         int instantiatedType = pool.AddMethodType(instantiated);
+
+        // The bootstrap method entry ties them together, and the call site names it.
         int bootstrapMethod = pool.AddBootstrapMethod(bootstrapHandle, [erasedType, implementationHandle, instantiatedType]);
         int callSite = pool.AddInvokeDynamic(bootstrapMethod, functionalMethod.Name, $"({string.Concat(capturedTypes)}){Reference(functionalMethod.Owner)}");
 
@@ -124,8 +127,14 @@ internal static class LambdaFactory
 
     private static MethodDescriptor Parse(JavaMethod method, string parameter)
     {
-        try { return MethodDescriptor.Parse(method.Descriptor); }
-        catch (ClassFormatException exception) { throw new ArgumentException(exception.Message, parameter, exception); }
+        try
+        {
+            return MethodDescriptor.Parse(method.Descriptor);
+        }
+        catch (ClassFormatException exception)
+        {
+            throw new ArgumentException(exception.Message, parameter, exception);
+        }
     }
 
     private static string Reference(string className) => className.StartsWith('[') ? className : $"L{className};";

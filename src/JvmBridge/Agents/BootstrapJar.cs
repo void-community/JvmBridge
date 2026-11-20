@@ -33,7 +33,10 @@ internal static class BootstrapJar
 
     internal static void Delete(string path)
     {
-        try { File.Delete(path); }
+        try
+        {
+            File.Delete(path);
+        }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // The JVM may still hold the jar open, as on Windows; a temporary file is not worth failing shutdown.

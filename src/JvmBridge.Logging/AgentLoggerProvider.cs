@@ -12,11 +12,13 @@ public sealed class AgentLoggerProvider : ILoggerProvider
 {
     private readonly AgentContext _context;
 
-    /// <summary>Connects Microsoft.Extensions.Logging to an agent, so that the loggers it creates write to the agent's log.</summary>
+    /// <summary>Initializes a new instance of the <see cref="AgentLoggerProvider"/> class. Connects Microsoft.Extensions.Logging to an agent, so that the loggers it creates write to the agent's log.</summary>
     /// <param name="context">The agent whose log the loggers write to.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public AgentLoggerProvider(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         _context = context;
     }
 

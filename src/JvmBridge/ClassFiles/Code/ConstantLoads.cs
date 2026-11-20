@@ -44,6 +44,7 @@ internal static class ConstantLoads
                     continue;
 
                 LoadSite load = new(method.Descriptor, instruction.Offset, instruction.Length, instruction.Opcode);
+
                 loads.Add(load);
 
                 if (instruction.Opcode == Opcodes.Ldc)
@@ -65,6 +66,7 @@ internal static class ConstantLoads
 
         // Adding the constant moved the code, so the bytes each load has now are read after it.
         model = editor.Model;
+
         byte[] bytes = editor.ToArray();
 
         foreach (LoadSite load in loads)

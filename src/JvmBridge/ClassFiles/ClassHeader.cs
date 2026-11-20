@@ -44,6 +44,7 @@ internal sealed class ClassHeader
             throw new ClassFormatException("The bytes are not a class file: the magic number is wrong.");
 
         reader.Skip(4);
+
         int count = reader.ReadUInt16();
         int[] utf8Start = new int[count];
         int[] utf8Length = new int[count];
@@ -57,6 +58,7 @@ internal sealed class ClassHeader
             {
                 utf8Length[index] = reader.ReadUInt16();
                 utf8Start[index] = reader.Position;
+
                 reader.Skip(utf8Length[index]);
             }
             else if (tag == (byte)ConstantTag.Class)
@@ -71,6 +73,7 @@ internal sealed class ClassHeader
         }
 
         reader.Skip(2);
+
         string name = ClassName(bytes, utf8Start, utf8Length, classNames, reader.ReadUInt16());
         int superIndex = reader.ReadUInt16();
         string? superName = superIndex == 0 ? null : ClassName(bytes, utf8Start, utf8Length, classNames, superIndex);
@@ -199,6 +202,7 @@ internal sealed class ClassHeader
         for (int member = 0; member < members; member++)
         {
             reader.Skip(6);
+
             int attributes = reader.ReadUInt16();
 
             for (int attribute = 0; attribute < attributes; attribute++)

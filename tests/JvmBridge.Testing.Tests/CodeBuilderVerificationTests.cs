@@ -8,40 +8,49 @@ namespace JvmBridge.Testing.Tests;
 /// <summary>Runs classes that <see cref="CodeBuilder"/> wrote on real JVMs with the verifier on every class, so the computed stack and local sizes and the branch offsets are the ones the JVM accepts.</summary>
 public sealed class CodeBuilderVerificationTests
 {
-    private static readonly JavaMethod PrintInt = JavaMethod.Virtual(owner: "java/io/PrintStream", name: "println", descriptor: "(I)V");
+    private static readonly JavaMethod PrintInt = JavaMethod.Virtual(owner: "java/io/PrintStream",
+        name: "println",
+        descriptor: "(I)V");
 
-    private static readonly JavaMethod PrintText = JavaMethod.Virtual(owner: "java/io/PrintStream", name: "println", descriptor: "(Ljava/lang/String;)V");
+    private static readonly JavaMethod PrintText = JavaMethod.Virtual(owner: "java/io/PrintStream",
+        name: "println",
+        descriptor: "(Ljava/lang/String;)V");
 
     /// <summary>
     /// javac 8 writes a second Class entry for a class that a stack map frame names, and the code's references go through it. Code assembled for a call in such a class names the
     /// reference the code already uses, so it matches the method's bytes, and nothing is added to the class.
     /// </summary>
     /// <param name="jdk">The JDK whose javac writes the duplicate.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The <c>run</c> method of the compiled <c>Chain</c> fixture has no code.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AssembledCodeMatchesWhatJavac8WroteAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
 
-        JavaMethod andThen = JavaMethod.Interface(
-            owner: "java/util/function/BiConsumer",
+        JavaMethod andThen = JavaMethod.Interface(owner: "java/util/function/BiConsumer",
             name: "andThen",
-            descriptor: "(Ljava/util/function/BiConsumer;)Ljava/util/function/BiConsumer;"
-        );
+            descriptor: "(Ljava/util/function/BiConsumer;)Ljava/util/function/BiConsumer;");
 
         string classes = await jdk.CompileAsync(sources: "PoolFixtures/fixture/*.java", cancellationToken: TestContext.Current.CancellationToken);
 
         try
         {
             byte[] original = await File.ReadAllBytesAsync(Path.Combine(classes, path2: "fixture", path3: "Chain.class"), TestContext.Current.CancellationToken);
+
             JavaClassFile file = JavaClassFile.Read(original);
-            CodeAttribute body = file.FindMethod(name: "run")?.Code ?? throw new InvalidOperationException(message: "Chain.run has no code.");
+
+            CodeAttribute body = file.FindMethod(name: "run")?.Code
+                ?? throw new InvalidOperationException(message: "Chain.run has no code.");
+
             Instruction call = body.Instructions.Single(instruction => file.Invokes(instruction, andThen));
             ClassFileEditor editor = new(original);
-
             byte[] assembled = editor.AssembleCode(code => code.Invoke(andThen));
 
-            Assert.Equal(expected: 2, file.ConstantPool.OfType<ClassEntry>().Count(entry => file.GetClassName(entry.Index) == andThen.Owner));
+            Assert.Equal(expected: 2,
+                file.ConstantPool.OfType<ClassEntry>().Count(entry => file.GetClassName(entry.Index) == andThen.Owner));
+
             Assert.Equal(original.AsSpan(body.CodeOffset + call.Offset, call.Length).ToArray(), assembled);
             Assert.True(editor.ReplaceCode(methodName: "run", methodDescriptor: null, call.Offset, assembled, assembled));
             Assert.Equal(original, editor.ToArray());
@@ -54,11 +63,13 @@ public sealed class CodeBuilderVerificationTests
 
     /// <summary>A loop with branches in a class of version 50, and straight-line code in one of version 52, which the type-checking verifier checks, both verify and print what they compute.</summary>
     /// <param name="jdk">The JDK to run on.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(6, 8, 17)]
     public async Task BuiltClassesVerifyAndRunAsync(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
         string classes = Directory.CreateTempSubdirectory(prefix: "jvmbridge-built-").FullName;
 
         try
@@ -66,37 +77,41 @@ public sealed class CodeBuilderVerificationTests
             string package = Directory.CreateDirectory(Path.Combine(classes, path2: "fixture")).FullName;
 
             // for (int i = 1; i <= 10; i++) total += i; System.out.println(total);
-            byte[] loop = new ClassFileWriter(name: "fixture/Loop", majorVersion: 50).AddMethod(name: "main", descriptor: "([Ljava/lang/String;)V", Sum).ToArray();
+            byte[] loop = new ClassFileWriter(name: "fixture/Loop", majorVersion: 50).AddMethod(name: "main", descriptor: "([Ljava/lang/String;)V", Sum)
+                .ToArray();
 
             // System.out.println("straight"); then the class of version 52 calls the loop.
             byte[] straight = new ClassFileWriter(name: "fixture/Straight")
-                .AddMethod(
-                    name: "main",
+                .AddMethod(name: "main",
                     descriptor: "([Ljava/lang/String;)V",
                     static code => code.GetStatic(owner: "java/lang/System", name: "out", descriptor: "Ljava/io/PrintStream;")
                         .Ldc(value: "straight")
                         .Invoke(PrintText)
                         .ALoad(slot: 0)
                         .Invoke(JavaMethod.Static(owner: "fixture/Loop", name: "main", descriptor: "([Ljava/lang/String;)V"))
-                        .Return()
-                )
+                        .Return())
                 .ToArray();
 
-            await File.WriteAllBytesAsync(Path.Combine(package, path2: "Loop.class"), loop, TestContext.Current.CancellationToken);
+            await File.WriteAllBytesAsync(Path.Combine(package, path2: "Loop.class"),
+                loop,
+                TestContext.Current.CancellationToken);
 
             // Java 6 and 7 cannot load the class of version 52, so they run the loop on its own.
             if (jdk.Major >= 8)
-                await File.WriteAllBytesAsync(Path.Combine(package, path2: "Straight.class"), straight, TestContext.Current.CancellationToken);
+            {
+                await File.WriteAllBytesAsync(Path.Combine(package, path2: "Straight.class"),
+                    straight,
+                    TestContext.Current.CancellationToken);
+            }
 
             JavaRunOptions options = new();
+
             options.JvmArguments.Add(item: "-Xverify:all");
 
-            JavaRun run = await jdk.RunAsync(
-                mainClass: jdk.Major >= 8 ? "fixture.Straight" : "fixture.Loop",
+            JavaRun run = await jdk.RunAsync(mainClass: jdk.Major >= 8 ? "fixture.Straight" : "fixture.Loop",
                 classPath: classes,
                 options: options,
-                cancellationToken: TestContext.Current.CancellationToken
-            );
+                cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(expected: 0, run.ExitCode);
             Assert.Contains(expectedSubstring: "55", run.Output, StringComparison.Ordinal);

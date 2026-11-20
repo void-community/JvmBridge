@@ -18,33 +18,32 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 {
     /// <inheritdoc/>
     private const string ClassVersionPlaceholder = "JVMBRIDGE_CLASS_VERSION";
+
     private const string EnvironmentType = "JvmBridge.Runtime.JavaEnvironment";
     private const string JavaMethodAttribute = "JvmBridge.Agents.JavaMethodAttribute";
     private const string JavaTypeAttribute = "JvmBridge.Agents.JavaTypeAttribute";
-
     private const string Pointer = "global::JvmBridge.Native._jobject*";
 
-    private static readonly DiagnosticDescriptor InvalidClass = new(
-        id: "JVMB002",
+    private static readonly DiagnosticDescriptor InvalidClass = new(id: "JVMB002",
         title: "Invalid native helper class",
         messageFormat: "{0}",
         category: "JvmBridge",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true
-    );
+        isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor InvalidMethod = new(
-        id: "JVMB003",
+    private static readonly DiagnosticDescriptor InvalidMethod = new(id: "JVMB003",
         title: "Unsupported native helper method signature",
         messageFormat: "{0}",
         category: "JvmBridge",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true
-    );
+        isEnabledByDefault: true);
 
     private static readonly Dictionary<SpecialType, Mapped> Primitives = new()
     {
-        [SpecialType.System_Boolean] = new Mapped(descriptor: "Z", native: "byte", fromJni: "{0} != 0", toJni: "(byte)({0} ? 1 : 0)"),
+        [SpecialType.System_Boolean] = new Mapped(descriptor: "Z",
+            native: "byte",
+            fromJni: "{0} != 0",
+            toJni: "(byte)({0} ? 1 : 0)"),
         [SpecialType.System_SByte] = new Mapped(descriptor: "B", native: "sbyte", fromJni: "{0}", toJni: "{0}"),
         [SpecialType.System_Char] = new Mapped(descriptor: "C", native: "ushort", fromJni: "(char){0}", toJni: "(ushort){0}"),
         [SpecialType.System_Int16] = new Mapped(descriptor: "S", native: "short", fromJni: "{0}", toJni: "{0}"),
@@ -71,19 +70,16 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValuesProvider<HelperOutput> helpers = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: "JvmBridge.Agents.JavaClassAttribute",
-            static (node, cancellationToken) => node is ClassDeclarationSyntax,
-            static (syntax, cancellationToken) => Analyze(syntax)
-        );
+        IncrementalValuesProvider<HelperOutput> helpers = context.SyntaxProvider
+            .ForAttributeWithMetadataName(fullyQualifiedMetadataName: "JvmBridge.Agents.JavaClassAttribute",
+                static (node, cancellationToken) => node is ClassDeclarationSyntax,
+                static (syntax, cancellationToken) => Analyze(syntax));
 
         // The helper class gets the class file version of JavaRelease, as the JavaSource classes do, so that a JVM of that release loads it: 50 for Java 6, 52 for Java 8.
-        IncrementalValueProvider<int> classVersion = context.AnalyzerConfigOptionsProvider.Select(
-            static (options, cancellationToken) => ClassVersionOf(options.GlobalOptions.TryGetValue(key: "build_property.JavaRelease", out string? release) ? release : null)
-        );
+        IncrementalValueProvider<int> classVersion = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, cancellationToken) => ClassVersionOf(options.GlobalOptions.TryGetValue(key: "build_property.JavaRelease", out string? release) ? release : null));
 
-        context.RegisterSourceOutput(
-            helpers.Combine(classVersion),
+        context.RegisterSourceOutput(helpers.Combine(classVersion),
             static (production, input) =>
             {
                 HelperOutput helper = input.Left;
@@ -93,11 +89,12 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
                 if (helper.Source is { } source)
                 {
-                    string versioned = source.Replace(ClassVersionPlaceholder, input.Right.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    string versioned = source.Replace(ClassVersionPlaceholder,
+                        input.Right.ToString(CultureInfo.InvariantCulture));
+
                     production.AddSource(helper.HintName, SourceText.From(versioned, Encoding.UTF8));
                 }
-            }
-        );
+            });
     }
 
     /// <summary>Gets the class file version of a Java release: 44 plus the release, 52 when the release is missing or not a number from 6 up.</summary>
@@ -105,7 +102,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     /// <returns>The major version of the class file.</returns>
     internal static int ClassVersionOf(string? release)
     {
-        bool parsed = int.TryParse(release, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int value);
+        bool parsed = int.TryParse(release, NumberStyles.None, CultureInfo.InvariantCulture, out int value);
 
         return parsed && value >= 6 ? 44 + value : 52;
     }
@@ -119,18 +116,18 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
         if (javaName is not { Length: > 0 } || javaName.Contains(value: '.'))
         {
-            diagnostics.Add(
-                Diagnostic.Create(InvalidClass, location, messageArgs: ["The Java class name must be an internal name with slashes, for example pkg/Callbacks."])
-            );
+            diagnostics.Add(Diagnostic.Create(InvalidClass,
+                location,
+                messageArgs: ["The Java class name must be an internal name with slashes, for example pkg/Callbacks."]));
         }
 
         bool isPartial = type.DeclaringSyntaxReferences.Any(IsPartialDeclaration);
 
         if (!type.IsStatic || !isPartial || type.ContainingType is not null || type.IsGenericType)
         {
-            diagnostics.Add(
-                Diagnostic.Create(InvalidClass, location, messageArgs: ["A native helper class must be a top-level, non-generic static partial class."])
-            );
+            diagnostics.Add(Diagnostic.Create(InvalidClass,
+                location,
+                messageArgs: ["A native helper class must be a top-level, non-generic static partial class."]));
         }
 
         List<NativeMethod> methods = [];
@@ -143,17 +140,19 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
         if (methods.Count == 0 && diagnostics.Count == 0)
         {
-            diagnostics.Add(
-                Diagnostic.Create(InvalidClass, location, messageArgs: ["A native helper class needs at least one method marked with JavaMethodAttribute."])
-            );
+            diagnostics.Add(Diagnostic.Create(InvalidClass,
+                location,
+                messageArgs: ["A native helper class needs at least one method marked with JavaMethodAttribute."]));
         }
 
         if (diagnostics.Count > 0 || javaName is null)
-            return new HelperOutput(string.Empty, source: null, [.. diagnostics]);
+            return new HelperOutput(string.Empty, source: null, diagnostics: [.. diagnostics]);
 
-        string prefix = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString() + ".";
+        string prefix = type.ContainingNamespace.IsGlobalNamespace
+            ? string.Empty
+            : type.ContainingNamespace.ToDisplayString() + ".";
 
-        return new HelperOutput(prefix + type.Name + ".JavaClass.g.cs", Emit(type, javaName, methods), []);
+        return new HelperOutput(prefix + type.Name + ".JavaClass.g.cs", Emit(type, javaName, methods), diagnostics: []);
     }
 
     private static string ConvertArgument(NativeParameter parameter, int position)
@@ -161,7 +160,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         return parameter.Type.FromJni.Replace(oldValue: "{0}", "argument" + position.ToString(CultureInfo.InvariantCulture));
     }
 
-    private static string DeclareParameter(NativeParameter parameter, int position)
+    private static string Declare(NativeParameter parameter, int position)
     {
         return ", " + parameter.Type.Native + " argument" + position.ToString(CultureInfo.InvariantCulture);
     }
@@ -169,8 +168,13 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     private static string Emit(INamedTypeSymbol type, string javaName, List<NativeMethod> methods)
     {
         string access = type.DeclaredAccessibility == Accessibility.Public ? "public" : "internal";
-        string inNamespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
+
+        string inNamespace = type.ContainingNamespace.IsGlobalNamespace
+            ? string.Empty
+            : type.ContainingNamespace.ToDisplayString();
+
         SourceWriter text = new();
+
         text.Line(text: "// <auto-generated/>");
         text.Line(text: "#nullable disable");
 
@@ -180,25 +184,22 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             text.Line(text: "{");
         }
 
+        // The partial class gains the definition that agents pass to AgentContext.DefineClass.
         text.Line(access + " static unsafe partial class " + type.Name);
         text.Line(text: "{");
-        text.Line(
-            text: "    /// <summary>Gets the Java class to define with <c>AgentContext.DefineClass</c>. Its native methods are registered when it is defined.</summary>"
-        );
+        text.Line(text: "    /// <summary>Gets the Java class to define with <c>AgentContext.DefineClass</c>. Its native methods are registered when it is defined.</summary>");
         text.Line("    " + access + " static global::JvmBridge.Agents.JavaClassDefinition Definition { get; } = CreateDefinition();");
+
+        // The definition's class file declares one native method for each [JavaMethod].
         text.Line();
         text.Line(text: "    private static global::JvmBridge.Agents.JavaClassDefinition CreateDefinition()");
         text.Line(text: "    {");
-        text.Line(
-            "        global::JvmBridge.ClassFiles.ClassFileWriter writer = new(" + Literal(javaName) + ", majorVersion: " + ClassVersionPlaceholder + ");"
-        );
+        text.Line("        global::JvmBridge.ClassFiles.ClassFileWriter writer = new(" + Literal(javaName) + ", majorVersion: " + ClassVersionPlaceholder + ");");
 
         foreach (NativeMethod method in methods)
             text.Line("        writer = writer.AddNativeMethod(" + Literal(method.JavaName) + ", " + Literal(method.Descriptor) + ");");
 
-        text.Line(
-            "        return new global::JvmBridge.Agents.JavaClassDefinition(" + Literal(javaName) + ", writer.ToArray(), registerNatives: static (environment, type) =>"
-        );
+        text.Line("        return new global::JvmBridge.Agents.JavaClassDefinition(" + Literal(javaName) + ", writer.ToArray(), registerNatives: static (environment, type) =>");
         text.Line(text: "        {");
 
         for (int index = 0; index < methods.Count; index++)
@@ -207,9 +208,8 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             string parameters = string.Concat(method.Parameters.Select(static parameter => parameter.Type.Native + ", "));
             string signature = "global::JvmBridge.Native.JNINativeInterface_**, " + Pointer + ", " + parameters + method.Return.Native;
             string pointer = "(nint)(delegate* unmanaged<" + signature + ">)&Native" + index.ToString(CultureInfo.InvariantCulture);
-            text.Line(
-                "            environment.RegisterNative(type, " + Literal(method.JavaName) + ", " + Literal(method.Descriptor) + ", " + pointer + ");"
-            );
+
+            text.Line("            environment.RegisterNative(type, " + Literal(method.JavaName) + ", " + Literal(method.Descriptor) + ", " + pointer + ");");
         }
 
         text.Line(text: "        });");
@@ -229,16 +229,22 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     private static void EmitEntryPoint(SourceWriter text, INamedTypeSymbol type, NativeMethod method, int index)
     {
         string name = "Native" + index.ToString(CultureInfo.InvariantCulture);
-        string parameters = string.Concat(method.Parameters.Select(DeclareParameter));
+        string parameters = string.Concat(method.Parameters.Select(Declare));
         string returnType = method.Return.IsVoid ? "void" : method.Return.Native;
         List<string> arguments = method.TakesEnvironment ? ["javaEnvironment"] : [];
+
         arguments.AddRange(method.Parameters.Select(ConvertArgument));
+
         string call = type.Name + "." + method.Name + "(" + string.Join(separator: ", ", arguments) + ")";
         string environment = "global::JvmBridge.Native.JNINativeInterface_** environment, " + Pointer + " type";
+
+        // The entry point has the signature JNI calls a native method with.
         text.Line();
         text.Line(text: "    [global::System.Runtime.InteropServices.UnmanagedCallersOnly]");
         text.Line("    private static " + returnType + " " + name + "(" + environment + parameters + ")");
         text.Line(text: "    {");
+
+        // The managed method runs inside a try, because no exception may unwind into the JVM.
         text.Line(text: "        using global::JvmBridge.Runtime.JavaEnvironment javaEnvironment = new((nint)environment);");
         text.Line(text: "        try");
         text.Line(text: "        {");
@@ -253,14 +259,19 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             text.Line("            return " + method.Return.ToJni.Replace(oldValue: "{0}", newValue: "value") + ";");
         }
 
+        // A JavaThrowException is raised in the JVM as the Java exception it carries.
         text.Line(text: "        }");
         text.Line(text: "        catch (global::JvmBridge.Runtime.JavaThrowException throwing)");
         text.Line(text: "        {");
         text.Line(text: "            throwing.Raise(javaEnvironment);");
+
+        // The method then returns at once, and any other exception is reported and contained instead.
         text.Line(method.Return.IsVoid ? "            return;" : "            return default;");
         text.Line(text: "        }");
         text.Line(text: "        catch (global::System.Exception exception) when (global::JvmBridge.Agents.AgentRuntime.ReportFailure(exception))");
         text.Line(text: "        {");
+
+        // With an exception pending or reported, the JVM gets a default value that it does not read.
         text.Line(method.Return.IsVoid ? "            return;" : "            return default;");
         text.Line(text: "        }");
         text.Line(text: "    }");
@@ -268,12 +279,14 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
     private static bool HasJavaMethodAttribute(IMethodSymbol method)
     {
-        return method.GetAttributes().Any(static attribute => attribute.AttributeClass?.ToDisplayString() == JavaMethodAttribute);
+        return method.GetAttributes()
+            .Any(static attribute => attribute.AttributeClass?.ToDisplayString() == JavaMethodAttribute);
     }
 
     private static bool IsPartialDeclaration(SyntaxReference reference)
     {
-        return reference.GetSyntax() is ClassDeclarationSyntax declaration && declaration.Modifiers.IndexOf(SyntaxKind.PartialKeyword) >= 0;
+        return reference.GetSyntax() is ClassDeclarationSyntax declaration
+            && declaration.Modifiers.IndexOf(SyntaxKind.PartialKeyword) >= 0;
     }
 
     private static string Literal(string value)
@@ -284,12 +297,17 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     private static NativeMethod? Map(IMethodSymbol method, List<Diagnostic> diagnostics)
     {
         Location location = method.Locations.FirstOrDefault() ?? Location.None;
-        AttributeData marker = method.GetAttributes().First(static attribute => attribute.AttributeClass?.ToDisplayString() == JavaMethodAttribute);
-        string javaName = ReadString(marker) ?? ToJavaName(method.Name);
+
+        AttributeData marker = method.GetAttributes()
+            .First(static attribute => attribute.AttributeClass?.ToDisplayString() == JavaMethodAttribute);
+
+        string javaName = ReadString(marker) ?? ToJavaCase(method.Name);
 
         if (!method.IsStatic || method.IsGenericMethod || method.IsAsync)
         {
-            diagnostics.Add(Diagnostic.Create(InvalidMethod, location, $"{method.Name} must be a static, non-generic, non-async method."));
+            diagnostics.Add(Diagnostic.Create(InvalidMethod,
+                location,
+                $"{method.Name} must be a static, non-generic, non-async method."));
 
             return null;
         }
@@ -308,18 +326,15 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
                 continue;
             }
 
-            Mapped? mapped = parameter.RefKind == RefKind.None ? MapType(parameter.Type, parameter.GetAttributes()) : null;
+            Mapped? mapped = parameter.RefKind == RefKind.None ? Map(parameter.Type, parameter.GetAttributes()) : null;
 
             if (mapped is null)
             {
                 Location parameterLocation = parameter.Locations.FirstOrDefault() ?? location;
-                diagnostics.Add(
-                    Diagnostic.Create(
-                        InvalidMethod,
-                        parameterLocation,
-                        $"Parameter {parameter.Name} of {method.Name} has an unsupported type {parameter.Type.ToDisplayString()}."
-                    )
-                );
+
+                diagnostics.Add(Diagnostic.Create(InvalidMethod,
+                    parameterLocation,
+                    $"Parameter {parameter.Name} of {method.Name} has an unsupported type {parameter.Type.ToDisplayString()}."));
 
                 return null;
             }
@@ -327,46 +342,21 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
             parameters.Add(new NativeParameter(mapped));
         }
 
-        Mapped? result = method.ReturnsVoid ? Mapped.Void : MapType(method.ReturnType, method.GetReturnTypeAttributes());
+        Mapped? returned = method.ReturnsVoid ? Mapped.Void : Map(method.ReturnType, method.GetReturnTypeAttributes());
 
-        if (result is null)
+        if (returned is null)
         {
-            diagnostics.Add(Diagnostic.Create(InvalidMethod, location, $"{method.Name} returns an unsupported type {method.ReturnType.ToDisplayString()}."));
+            diagnostics.Add(Diagnostic.Create(InvalidMethod,
+                location,
+                $"{method.Name} returns an unsupported type {method.ReturnType.ToDisplayString()}."));
 
             return null;
         }
 
-        return new NativeMethod(method.Name, javaName, takesEnvironment, parameters, result);
+        return new NativeMethod(method.Name, javaName, takesEnvironment, parameters, returned);
     }
 
-    private static Mapped? MapArray(ITypeSymbol element)
-    {
-        if (element.SpecialType == SpecialType.System_String)
-        {
-            string toStrings = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewStringArray(javaEnvironment, {0}).Release()";
-
-            return new Mapped(
-                descriptor: "[Ljava/lang/String;",
-                Pointer,
-                fromJni: "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.GetStringArray(javaEnvironment, (nint){0})",
-                toStrings
-            );
-        }
-
-        if (!ArrayElements.TryGetValue(element.SpecialType, out KeyValuePair<string, string> known))
-            return null;
-
-        string toArray = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewArray<" + known.Value + ">(javaEnvironment, {0}).Release()";
-
-        return new Mapped(
-            "[" + known.Key,
-            Pointer,
-            "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.ToArray<" + known.Value + ">(javaEnvironment, (nint){0})",
-            toArray
-        );
-    }
-
-    private static Mapped? MapType(ITypeSymbol type, ImmutableArray<AttributeData> attributes)
+    private static Mapped? Map(ITypeSymbol type, ImmutableArray<AttributeData> attributes)
     {
         if (Primitives.TryGetValue(type.SpecialType, out Mapped? primitive))
             return primitive;
@@ -390,6 +380,29 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         return new Mapped(descriptor, Pointer, fromJni: "(nint){0}", "(" + Pointer + "){0}");
     }
 
+    private static Mapped? MapArray(ITypeSymbol element)
+    {
+        if (element.SpecialType == SpecialType.System_String)
+        {
+            string toStrings = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewStringArray(javaEnvironment, {0}).Release()";
+
+            return new Mapped(descriptor: "[Ljava/lang/String;",
+                Pointer,
+                fromJni: "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.GetStringArray(javaEnvironment, (nint){0})",
+                toStrings);
+        }
+
+        if (!ArrayElements.TryGetValue(element.SpecialType, out KeyValuePair<string, string> known))
+            return null;
+
+        string toArray = "{0} is null ? null : (" + Pointer + ")global::JvmBridge.Runtime.JavaArrays.NewArray<" + known.Value + ">(javaEnvironment, {0}).Release()";
+
+        return new Mapped("[" + known.Key,
+            Pointer,
+            "{0} == null ? null : global::JvmBridge.Runtime.JavaArrays.ToArray<" + known.Value + ">(javaEnvironment, (nint){0})",
+            toArray);
+    }
+
     private static string? ReadString(AttributeData? attribute)
     {
         if (attribute is null || attribute.ConstructorArguments.Length != 1)
@@ -401,7 +414,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         return quoted ? literal.Substring(startIndex: 1, literal.Length - 2) : null;
     }
 
-    private static string ToJavaName(string name)
+    private static string ToJavaCase(string name)
     {
         return name.Length == 0 ? name : char.ToLowerInvariant(name[index: 0]).ToString() + name.Substring(startIndex: 1);
     }
@@ -409,9 +422,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     private sealed class HelperOutput(string hintName, string? source, ImmutableArray<Diagnostic> diagnostics)
     {
         public ImmutableArray<Diagnostic> Diagnostics { get; } = diagnostics;
-
         public string HintName { get; } = hintName;
-
         public string? Source { get; } = source;
     }
 
@@ -419,29 +430,26 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
     {
         public static readonly Mapped Void = new(descriptor: "V", native: "void", string.Empty, string.Empty);
 
+        // The type as the Java descriptor and as the unmanaged signature spell it.
         public string Descriptor { get; } = descriptor;
-
-        public string FromJni { get; } = fromJni;
-
         public bool IsVoid => Native == "void";
-
         public string Native { get; } = native;
 
+        // The conversions between the unmanaged value and the managed one, with {0} standing for the value.
+        public string FromJni { get; } = fromJni;
         public string ToJni { get; } = toJni;
     }
 
     private sealed class NativeMethod(string name, string javaName, bool takesEnvironment, List<NativeParameter> parameters, Mapped result)
     {
+        // What Java sees of the method.
         public string Descriptor => "(" + string.Concat(Parameters.Select(static parameter => parameter.Type.Descriptor)) + ")" + Return.Descriptor;
-
         public string JavaName { get; } = javaName;
 
+        // What the entry point calls: the managed method, its mapped types, and whether it wants the environment first.
         public string Name { get; } = name;
-
         public List<NativeParameter> Parameters { get; } = parameters;
-
         public Mapped Return { get; } = result;
-
         public bool TakesEnvironment { get; } = takesEnvironment;
     }
 

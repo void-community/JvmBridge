@@ -13,6 +13,7 @@ public sealed class JavaThrowException : Exception
         : base(javaMessage ?? javaClassName)
     {
         ArgumentException.ThrowIfNullOrEmpty(javaClassName);
+
         JavaClassName = javaClassName;
         JavaMessage = javaMessage;
     }

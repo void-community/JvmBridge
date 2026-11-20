@@ -1,3 +1,4 @@
+using System.Globalization;
 using JvmBridge.Build.Infrastructure;
 
 using Microsoft.CodeAnalysis;
@@ -11,6 +12,7 @@ namespace JvmBridge.Build;
 internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
 {
     private static readonly string[] Capabilities = ["can_tag_objects", "can_retransform_classes", "can_generate_all_class_hook_events"];
+
     private readonly RepositoryContext _repository = repository;
 
     public static void Verify(IReadOnlyDictionary<string, long> native, IReadOnlyDictionary<string, long> managed)
@@ -28,8 +30,9 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
 
                 if (!found || value > managedValue)
                 {
-                    string managedText = found ? managedValue.ToString(System.Globalization.CultureInfo.InvariantCulture) : "missing";
-                    failures.Add($"{key}: native {value.ToString(System.Globalization.CultureInfo.InvariantCulture)} exceeds managed {managedText}");
+                    string managedText = found ? managedValue.ToString(CultureInfo.InvariantCulture) : "missing";
+
+                    failures.Add($"{key}: native {value.ToString(CultureInfo.InvariantCulture)} exceeds managed {managedText}");
                 }
             }
             else
@@ -38,8 +41,9 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
 
                 if (!found || managedValue != value)
                 {
-                    string managedText = found ? managedValue.ToString(System.Globalization.CultureInfo.InvariantCulture) : "missing";
-                    failures.Add($"{key}: native={value.ToString(System.Globalization.CultureInfo.InvariantCulture)}, managed={managedText}");
+                    string managedText = found ? managedValue.ToString(CultureInfo.InvariantCulture) : "missing";
+
+                    failures.Add($"{key}: native={value.ToString(CultureInfo.InvariantCulture)}, managed={managedText}");
                 }
             }
         }
@@ -53,7 +57,8 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
         string jni = File.ReadAllText(Path.Combine(headers, path2: "jni.h"));
         string tooling = File.ReadAllText(Path.Combine(headers, path2: "jvmti.h"));
 
-        List<string> lines = [
+        List<string> lines =
+        [
             "#include <stdio.h>",
             "#include <stddef.h>",
             "#include <string.h>",
@@ -80,10 +85,13 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
             "}",
             "int main(int argc, char **argv) {",
             "if (argc == 2) return invocation(argv[1]);",
-            "printf(\"{\\\"pointer\\\":%llu\", (unsigned long long)sizeof(void*));"
+            "printf(\"{\\\"pointer\\\":%llu\", (unsigned long long)sizeof(void*));",
         ];
 
-        string toolingName = tooling.Contains(value: "struct JVMTINativeInterface_", StringComparison.Ordinal) ? "JVMTINativeInterface_" : "jvmtiInterface_1_";
+        string toolingName = tooling.Contains(value: "struct JVMTINativeInterface_", StringComparison.Ordinal)
+            ? "JVMTINativeInterface_"
+            : "jvmtiInterface_1_";
+
         Dictionary<string, StructDeclarationSyntax> records = Records();
 
         foreach (string name in records.Keys)
@@ -93,7 +101,10 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
             if (!jni.Contains(nativeName, StringComparison.Ordinal) && !tooling.Contains(nativeName, StringComparison.Ordinal))
                 continue;
 
-            string ctype = name is "JNINativeInterface_" or "JNIInvokeInterface_" or "JNIEnv_" or "JavaVM_" or "jvmtiInterface_1_" or "_jvmtiEnv" ? "struct " + nativeName : nativeName;
+            string ctype = name is "JNINativeInterface_" or "JNIInvokeInterface_" or "JNIEnv_" or "JavaVM_" or "jvmtiInterface_1_" or "_jvmtiEnv"
+                ? "struct " + nativeName
+                : nativeName;
+
             lines.Add($"printf(\",\\\"size.{name}\\\":%llu\", (unsigned long long)sizeof({ctype}));");
         }
 
@@ -101,16 +112,14 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
         {
             string nativeName = name == "jvmtiInterface_1_" ? toolingName : name;
 
-            Match table = Regex.Match(
-                header,
+            Match table = Regex.Match(header,
                 "(?:typedef )?struct " + Regex.Escape(nativeName) + "\\s*\\{(.*?)\\n\\s*\\}",
-                RegexOptions.Singleline | RegexOptions.CultureInvariant
-            );
+                RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
             if (!table.Success)
                 throw new InvalidOperationException("Native table not found: " + name);
 
-            foreach (Match fieldMatch in MyRegex().Matches(GroupValue(table, index: 1)))
+            foreach (Match fieldMatch in TableSlotRegex().Matches(GroupValue(table, index: 1)))
             {
                 Group left = fieldMatch.Groups.Cast<Group>().ElementAt(index: 1);
                 string field = left.Success ? left.Value : GroupValue(fieldMatch, index: 2);
@@ -145,7 +154,6 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
         return string.Join(separator: '\n', lines) + "\n";
     }
 
-
     public Dictionary<string, StructDeclarationSyntax> Records()
     {
         string source = File.ReadAllText(_repository.PathFromRoot(parts: ["src", "JvmBridge", "Native", "Generated", "Bindings.g.cs"]));
@@ -167,17 +175,16 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
 
     internal static Dictionary<string, StructDeclarationSyntax> ParseRecords(string source)
     {
-        Dictionary<string, StructDeclarationSyntax> result = [];
-
+        Dictionary<string, StructDeclarationSyntax> structs = [];
         CompilationUnitSyntax root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
 
         foreach (StructDeclarationSyntax declaration in root.DescendantNodes().OfType<StructDeclarationSyntax>())
         {
             if (declaration.Members.Count > 0)
-                result.Add(declaration.Identifier.ValueText, declaration);
+                structs.Add(declaration.Identifier.ValueText, declaration);
         }
 
-        return result;
+        return structs;
     }
 
     private static string GroupValue(Match match, int index)
@@ -185,7 +192,6 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
         return match.Groups.Cast<Group>().ElementAt(index).Value;
     }
 
-    [GeneratedRegex("\\(JNICALL \\*(\\w+)\\)|void\\s*\\*\\s*(reserved\\d+)\\s*;", RegexOptions.CultureInvariant
-    )]
-    private static partial Regex MyRegex();
+    [GeneratedRegex("\\(JNICALL \\*(\\w+)\\)|void\\s*\\*\\s*(reserved\\d+)\\s*;", RegexOptions.CultureInvariant)]
+    private static partial Regex TableSlotRegex();
 }

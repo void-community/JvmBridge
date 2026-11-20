@@ -12,17 +12,32 @@ internal static class DumpCommand
 
     internal static Command Create()
     {
-        Argument<string> path = new(name: "path") { Description = "A .class file, or a .jar that holds the class named by --class." };
-        Option<string?> className = new(name: "--class") { Description = "The internal name of the class to dump from a jar, for example com/acme/Service. Without it the classes of the jar are listed." };
-        Option<string?> method = new(name: "--method") { Description = "Dump only the methods with this name." };
+        Argument<string> path = new(name: "path")
+        {
+            Description = "A .class file, or a .jar that holds the class named by --class."
+        };
+
+        Option<string?> className = new(name: "--class")
+        {
+            Description = "The internal name of the class to dump from a jar, for example com/acme/Service. Without it the classes of the jar are listed."
+        };
+
+        Option<string?> method = new(name: "--method")
+        {
+            Description = "Dump only the methods with this name."
+        };
+
         Command command = new(name: "dump", description: "Disassemble a class in the style of javap -c.");
 
         command.Arguments.Add(path);
         command.Options.Add(className);
         command.Options.Add(method);
-        command.SetAction(
-            result => Run(result.GetValue(path) ?? string.Empty, result.GetValue(className), result.GetValue(method), Console.Out, Console.Error)
-        );
+
+        command.SetAction(result => Run(result.GetValue(path) ?? string.Empty,
+            result.GetValue(className),
+            result.GetValue(method),
+            Console.Out,
+            Console.Error));
 
         return command;
     }
@@ -47,7 +62,10 @@ internal static class DumpCommand
 
         if (className is null)
         {
-            foreach (string name in archive.Entries.Where(static entry => entry.FullName.EndsWith(ClassExtension, StringComparison.Ordinal)).Select(static entry => entry.FullName[..^ClassExtension.Length]).Order(StringComparer.Ordinal))
+            foreach (string name in archive.Entries
+                .Where(static entry => entry.FullName.EndsWith(ClassExtension, StringComparison.Ordinal))
+                .Select(static entry => entry.FullName[..^ClassExtension.Length])
+                .Order(StringComparer.Ordinal))
                 output.WriteLine(name);
 
             return 0;

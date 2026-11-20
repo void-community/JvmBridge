@@ -23,12 +23,18 @@ internal static class LauncherJar
         "osx-x64",
         "win-arm64",
         "win-x64",
-        "win-x86"
+        "win-x86",
     ];
 
     private const string LauncherName = "jvmbridge/Launcher";
 
-    private static readonly DateTimeOffset Timestamp = new(year: 1980, month: 1, day: 1, hour: 0, minute: 0, second: 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Timestamp = new(year: 1980,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+        TimeSpan.Zero);
 
     /// <summary>Puts libraries together for one jar: each runtime identifier once, and only the ones the launcher can detect. The same library given twice for a platform counts once, so jars that overlap can be combined.</summary>
     /// <param name="libraries">The libraries, from the command line or from other jars.</param>
@@ -41,12 +47,7 @@ internal static class LauncherJar
         foreach (AgentLibrary library in libraries)
         {
             if (!KnownRids.Contains(library.Rid))
-            {
-                throw new ArgumentException(
-                    $"{library.Rid} is not a runtime identifier that the launcher detects. Known: {string.Join(separator: ", ", KnownRids)}.",
-                    nameof(libraries)
-                );
-            }
+                throw new ArgumentException($"{library.Rid} is not a runtime identifier that the launcher detects. Known: {string.Join(separator: ", ", KnownRids)}.", nameof(libraries));
 
             AgentLibrary? existing = combined.FirstOrDefault(candidate => candidate.Rid == library.Rid);
 
@@ -74,7 +75,9 @@ internal static class LauncherJar
     {
         using ZipArchive archive = ZipFile.OpenRead(jar);
 
-        string manifest = ReadText(archive, name: "META-INF/MANIFEST.MF") ?? throw new InvalidDataException($"{jar} has no manifest, so it is not a jar from jvmbridge pack.");
+        string manifest = ReadText(archive, name: "META-INF/MANIFEST.MF")
+            ?? throw new InvalidDataException($"{jar} has no manifest, so it is not a jar from jvmbridge pack.");
+
         string prefix = "Premain-Class: ";
         string? launcher = manifest.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r')).FirstOrDefault(line => line.StartsWith(prefix, StringComparison.Ordinal))?[prefix.Length..];
 
@@ -82,7 +85,10 @@ internal static class LauncherJar
             throw new InvalidDataException($"{jar} has no JvmBridge launcher, so it is not a jar from jvmbridge pack.");
 
         string directory = launcher.Replace(oldChar: '.', newChar: '/') + "/";
-        string index = ReadText(archive, directory + "native.properties") ?? throw new InvalidDataException($"{jar} has no {directory}native.properties.");
+
+        string index = ReadText(archive, directory + "native.properties")
+            ?? throw new InvalidDataException($"{jar} has no {directory}native.properties.");
+
         List<AgentLibrary> libraries = [];
 
         foreach (string line in index.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -94,7 +100,9 @@ internal static class LauncherJar
 
             string rid = line[..separator];
             string fileName = line[(separator + 1)..];
-            ZipArchiveEntry entry = archive.GetEntry($"{directory}native/{rid}/{fileName}") ?? throw new InvalidDataException($"{jar} lists {fileName} for {rid} but does not hold it.");
+
+            ZipArchiveEntry entry = archive.GetEntry($"{directory}native/{rid}/{fileName}")
+                ?? throw new InvalidDataException($"{jar} lists {fileName} for {rid} but does not hold it.");
 
             using MemoryStream bytes = new();
 
@@ -111,7 +119,8 @@ internal static class LauncherJar
     /// <returns>The class-file bytes.</returns>
     internal static byte[] ReadLauncher()
     {
-        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name: "Launcher.class") ?? throw new InvalidOperationException(message: "The tool does not carry Launcher.class.");
+        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name: "Launcher.class")
+            ?? throw new InvalidOperationException(message: "The tool does not carry Launcher.class.");
 
         using MemoryStream bytes = new();
 
@@ -133,7 +142,7 @@ internal static class LauncherJar
             throw new ArgumentException($"The name must be {old.Length} characters long.", nameof(name));
 
         // A Utf8 constant is the tag 1, a two-byte length and the characters; this one holds the name of the class.
-        byte[] constant = [1, 0, (byte)old.Length, .. old];
+        byte[] constant = [1, 0, byte.CreateTruncating(old.Length), .. old];
         int position = launcher.AsSpan().IndexOf(constant);
 
         if (position < 0 || launcher.AsSpan(position + 1).IndexOf(constant) >= 0)
@@ -165,13 +174,11 @@ internal static class LauncherJar
 
         using ZipArchive archive = new(file, ZipArchiveMode.Create);
 
-        Add(
-            archive,
+        Add(archive,
             name: "META-INF/MANIFEST.MF",
-            Encoding.ASCII.GetBytes(
-                $"Manifest-Version: 1.0\r\nPremain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\nAgent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n\r\n"
-            )
-        );
+            Encoding.ASCII
+                .GetBytes($"Manifest-Version: 1.0\r\nPremain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\nAgent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n\r\n"));
+
         Add(archive, name + ".class", Rename(ReadLauncher(), name));
 
         List<string> index = [];

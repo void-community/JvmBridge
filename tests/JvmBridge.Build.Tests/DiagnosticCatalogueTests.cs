@@ -44,7 +44,9 @@ public sealed partial class DiagnosticCatalogueTests
     private static bool IsAuthored(string file)
     {
         string normalized = file.Replace(oldChar: '\\', newChar: '/');
-        bool generatedFolder = normalized.Contains(value: "/obj/", StringComparison.Ordinal) || normalized.Contains(value: "/bin/", StringComparison.Ordinal);
+
+        bool generatedFolder = normalized.Contains(value: "/obj/", StringComparison.Ordinal)
+            || normalized.Contains(value: "/bin/", StringComparison.Ordinal);
 
         return !generatedFolder && Path.GetExtension(file) is ".cs" or ".targets" or ".props" or ".md";
     }

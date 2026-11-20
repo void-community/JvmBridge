@@ -14,38 +14,63 @@ internal static class PatchCommand
 {
     internal static Command Create()
     {
-        Option<bool> dryRun = new(name: "--dry-run") { Description = "Only report what the patches would change. Required: the command does not write class files." };
-        Option<string> agent = new(name: "--agent") { Description = "The managed assembly of the agent: the .dll that dotnet build writes, before it is compiled to native code.", Required = true };
-        Option<string[]> classes = new(name: "--classes") { Description = "The classes to patch: .class files, directories of them, or .jar files.", Required = true, AllowMultipleArgumentsPerToken = true };
-        Option<string> options = new(name: "--options") { Description = "The agent options, as passed after the = of -agentpath or -javaagent.", DefaultValueFactory = static result => string.Empty };
-        Option<bool> disassemble = new(name: "--disassemble") { Description = "Also print the disassembly of every patched class." };
-        Command command = new(name: "patch", description: "Preview what an agent's patches would change in class files (needs --dry-run).");
+        Option<bool> dryRun = new(name: "--dry-run")
+        {
+            Description = "Only report what the patches would change. Required: the command does not write class files."
+        };
 
+        Option<string> agent = new(name: "--agent")
+        {
+            Description = "The managed assembly of the agent: the .dll that dotnet build writes, before it is compiled to native code.",
+            Required = true
+        };
+
+        Option<string[]> classes = new(name: "--classes")
+        {
+            Description = "The classes to patch: .class files, directories of them, or .jar files.",
+            Required = true,
+            AllowMultipleArgumentsPerToken = true
+        };
+
+        Option<string> options = new(name: "--options")
+        {
+            Description = "The agent options, as passed after the = of -agentpath or -javaagent.",
+            DefaultValueFactory = static result => string.Empty
+        };
+
+        Option<bool> disassemble = new(name: "--disassemble")
+        {
+            Description = "Also print the disassembly of every patched class."
+        };
+
+        Command command = new(name: "patch",
+            description: "Preview what an agent's patches would change in class files (needs --dry-run).");
+
+        // What to preview: the agent, and the class files that its patches would change.
         command.Options.Add(dryRun);
         command.Options.Add(agent);
         command.Options.Add(classes);
+
+        // How to preview it: the options the agent is given, and whether the changed bytecode is printed.
         command.Options.Add(options);
         command.Options.Add(disassemble);
-        command.SetAction(
-            result =>
+
+        command.SetAction(result =>
+        {
+            if (!result.GetValue(dryRun))
             {
-                if (!result.GetValue(dryRun))
-                {
-                    Console.Error.WriteLine(value: "jvmbridge: 'patch' only previews for now; add --dry-run.");
+                Console.Error.WriteLine(value: "jvmbridge: 'patch' only previews for now; add --dry-run.");
 
-                    return 1;
-                }
-
-                return Run(
-                    Load(result.GetValue(agent) ?? string.Empty),
-                    result.GetValue(classes) ?? [],
-                    result.GetValue(options) ?? string.Empty,
-                    result.GetValue(disassemble),
-                    Console.Out,
-                    Console.Error
-                );
+                return 1;
             }
-        );
+
+            return Run(Load(result.GetValue(agent) ?? string.Empty),
+                result.GetValue(classes) ?? [],
+                result.GetValue(options) ?? string.Empty,
+                result.GetValue(disassemble),
+                Console.Out,
+                Console.Error);
+        });
 
         return command;
     }
@@ -68,10 +93,10 @@ internal static class PatchCommand
             return 1;
         }
 
-        return RunAgent(CreateAgent(agents[0]), classPaths, options, disassemble, output, error);
+        return Run(CreateAgent(agents[0]), classPaths, options, disassemble, output, error);
     }
 
-    internal static int RunAgent(JavaAgent agent, IReadOnlyList<string> classPaths, string options, bool disassemble, TextWriter output, TextWriter error)
+    internal static int Run(JavaAgent agent, IReadOnlyList<string> classPaths, string options, bool disassemble, TextWriter output, TextWriter error)
     {
         List<ClassInput> classes = [];
 
@@ -84,7 +109,6 @@ internal static class PatchCommand
         using OfflineJvm jvm = new();
 
         AgentContext context = new(agent, jvm.Machine, options, attached: false, agent.GetType().Assembly.GetName().Name);
-
         int status = Configure(context, output);
         IReadOnlyList<ClassPatch> patches = context.RegisteredPatches;
 
@@ -136,7 +160,9 @@ internal static class PatchCommand
         }
         catch (ReflectionTypeLoadException failure)
         {
-            foreach (Exception loader in failure.LoaderExceptions.OfType<Exception>().DistinctBy(static candidate => candidate.Message))
+            foreach (Exception loader in failure.LoaderExceptions
+                .OfType<Exception>()
+                .DistinctBy(static candidate => candidate.Message))
                 error.WriteLine($"jvmbridge: {loader.Message}");
 
             types = [.. failure.Types.OfType<Type>()];
@@ -191,11 +217,11 @@ internal static class PatchCommand
 
             foreach (ClassPatch patch in patches.Where(candidate => candidate.Matches(input.Bytes, hierarchy)))
             {
-                ClassPatchResult result = patch.Apply(current);
+                ClassPatchResult applied = patch.Apply(current);
 
-                output.WriteLine($"{input.Name} <- {patch.ClassName}: {result}");
+                output.WriteLine($"{input.Name} <- {patch.ClassName}: {applied}");
 
-                if (result.Bytes is { } bytes)
+                if (applied.Bytes is { } bytes)
                 {
                     current = bytes;
                     patched = true;

@@ -17,43 +17,40 @@ namespace JvmBridge.IntegrationTests;
 public sealed class LegacyJavaTests
 {
     private const string CiImage = "centos:6@sha256:a93df2e96e07f56ea48f215425c6f1673ab922927894595bb5c0ee4c5a955133";
-
     private const string ImageVariable = "JVMBRIDGE_LEGACY_GLIBC_IMAGE";
-
     private const string Rid = "linux-x64";
-
     private const string Skip = "Publish samples/LegacyAgent for linux-x64 to artifacts/legacy-agent/linux-x64 and set TARGET_RID=linux-x64.";
 
     /// <summary>Gets whether the target is linux-x64, the one platform with pinned Java 6 and 7 JDKs that CI runs, and the sample is published for it or these are CI's tests, which publish it.</summary>
-    public static bool Enabled => (Environment.GetEnvironmentVariable(variable: "TARGET_RID") == Rid && File.Exists(AgentPath(RepositoryContext.Discover()))) || PublishedByTests;
+    /// <value><see langword="true"/> if TARGET_RID is linux-x64 and artifacts/legacy-agent/linux-x64/LegacyAgent.so exists, or CI published the samples and the tests run on linux-x64; otherwise, <see langword="false"/>.</value>
+    public static bool Enabled => (Environment.GetEnvironmentVariable(variable: "TARGET_RID") == Rid
+        && File.Exists(AgentPath(RepositoryContext.Discover())))
+        || PublishedByTests;
 
     /// <summary>Gets whether the agent is published against the glibc 2.12 sysroot and there is an image to run it in.</summary>
+    /// <value><see langword="true"/> if <see cref="Enabled"/> holds and JVMBRIDGE_LEGACY_GLIBC_IMAGE names an image or these are CI's linux-x64 tests, which run the agent in CentOS 6; otherwise, <see langword="false"/>.</value>
     public static bool ImageEnabled => Enabled && Image is not null;
 
     /// <summary>Gets the Java major versions the agent runs on.</summary>
+    /// <value>One row for each of Java 6, 7, 8 and 21; the set is fixed.</value>
     public static IEnumerable<TheoryDataRow<int>> Majors => [new(p1: 6), new(p1: 7), new(p1: 8), new(p1: 21)];
 
     private static string? Image =>
-        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named ? named
-        : PublishedByTests ? CiImage
-        : null;
+        Environment.GetEnvironmentVariable(ImageVariable) is { Length: > 0 } named ? named : PublishedByTests ? CiImage : null;
 
     // CI publishes the samples that every runtime has; this one is for linux-x64 and its own sysroot, so the linux-x64 tests publish it.
     private static bool PublishedByTests => TestTarget.PublishedByCi && RuntimeInformation.RuntimeIdentifier == Rid;
 
     /// <summary>The agent published against the glibc 2.12 sysroot needs no newer glibc and binds every symbol it takes from another library to a version.</summary>
-    [Fact(
-        SkipUnless = nameof(ImageEnabled),
-        Skip = Skip + " Set JVMBRIDGE_LEGACY_GLIBC_IMAGE after publishing it with the glibc 2.12 properties of the glibc-sysroot action."
-    )]
+    [Fact(SkipUnless = nameof(ImageEnabled),
+        Skip = Skip + " Set JVMBRIDGE_LEGACY_GLIBC_IMAGE after publishing it with the glibc 2.12 properties of the glibc-sysroot action.")]
     public async Task TheAgentNeedsNoNewerGlibcThan212Async()
     {
         RepositoryContext repository = RepositoryContext.Discover();
+
         string agent = await AgentAsync(repository, TestContext.Current.CancellationToken);
-
-        ProcessResult symbols = await new ProcessRunner(repository).RunAsync(["readelf", "-V", agent], cancellationToken: TestContext.Current.CancellationToken);
-
-        ProcessResult dynamic = await new ProcessRunner(repository).RunAsync(["readelf", "--dyn-syms", "-W", agent], cancellationToken: TestContext.Current.CancellationToken);
+        ProcessResult symbols = await new ProcessRunner(repository).RunAsync(command: ["readelf", "-V", agent], cancellationToken: TestContext.Current.CancellationToken);
+        ProcessResult dynamic = await new ProcessRunner(repository).RunAsync(command: ["readelf", "--dyn-syms", "-W", agent], cancellationToken: TestContext.Current.CancellationToken);
 
         Version newest = GlibcFloorTests.RequiredGlibc(symbols.Output).Max() ?? new Version(major: 0, minor: 0);
 
@@ -63,6 +60,7 @@ public sealed class LegacyJavaTests
 
     /// <summary>The agent runs the fixture, compiled for Java 6, on each Java through both routes, with every class verified on the -agentpath route; on Java 6 and 7 it also runs in the old-glibc image.</summary>
     /// <param name="major">The Java major version.</param>
+    /// <exception cref="InvalidOperationException"><see cref="ImageEnabled"/> held but no image is named when the old-glibc part starts, which only a change of JVMBRIDGE_LEGACY_GLIBC_IMAGE during the test causes.</exception>
     [Theory(SkipUnless = nameof(Enabled), Skip = Skip)]
     [MemberData(nameof(Majors))]
     public async Task TheAgentRunsOnEveryJavaAsync(int major)
@@ -70,31 +68,35 @@ public sealed class LegacyJavaTests
         RepositoryContext repository = RepositoryContext.Discover();
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         ProcessRunner processes = new(repository);
+
         string home = await PinnedJdk.UnpackAsync(Pinned(major), cancellationToken);
         string fixture = await CompileFixtureAsync(repository, processes, cancellationToken);
         string agent = await AgentAsync(repository, cancellationToken);
 
         using TemporaryDirectory work = new(prefix: "jvmbridge-legacy-");
 
+        // The jar carries the same library that -agentpath loads, so both routes start one build of the agent.
         string jar = Path.Combine(work.Path, path2: "LegacyAgent.jar");
-        string launcher = LauncherJar.Write(jar, [AgentLibrary.FromFile(Rid, agent)]);
+        string launcher = LauncherJar.Write(jar, libraries: [AgentLibrary.FromFile(Rid, agent)]);
         string java = Path.Combine(home, path2: "bin", path3: "java");
+
+        // The logs are named after the major, and the fixture prints the specification version, which Java 8 and earlier report as 1.x.
         string identifier = "legacy-" + major.ToString(CultureInfo.InvariantCulture);
-        string expectedVersion = major < 9 ? "JAVA 1." + major.ToString(CultureInfo.InvariantCulture) : "JAVA " + major.ToString(CultureInfo.InvariantCulture);
 
-        ProcessResult library = await processes.RunAsync(
-            [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "legacy.LegacyFixture"],
+        string expectedVersion = major < 9
+            ? "JAVA 1." + major.ToString(CultureInfo.InvariantCulture)
+            : "JAVA " + major.ToString(CultureInfo.InvariantCulture);
+
+        ProcessResult library = await processes.RunAsync(command: [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-agentpath.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
-        ProcessResult launched = await processes.RunAsync(
-            [java, "-javaagent:" + jar, "-cp", fixture, "legacy.LegacyFixture"],
+        ProcessResult launched = await processes.RunAsync(command: [java, "-javaagent:" + jar, "-cp", fixture, "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-javaagent.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
         string javaMajor = " java=" + major.ToString(CultureInfo.InvariantCulture);
+
         AssertRan(library.Output, expectedVersion, route: "-agentpath", "VM_INIT" + javaMajor);
         AssertRan(launched.Output, expectedVersion, "-javaagent (" + launcher + ")", "ATTACH" + javaMajor);
 
@@ -102,19 +104,30 @@ public sealed class LegacyJavaTests
             return;
 
         string image = Image ?? throw new InvalidOperationException(message: "No image is named.");
-        List<string> container = ["docker", "run", "--rm", "-v", home + ":/jdk:ro", "-v", Path.GetDirectoryName(agent) + ":/a:ro", "-v", work.Path + ":/j:ro", "-v", fixture + ":/f:ro", image];
 
-        ProcessResult oldLibrary = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-agentpath:/a/LegacyAgent.so", "-cp", "/f", "legacy.LegacyFixture"],
+        List<string> container =
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            home + ":/jdk:ro",
+            "-v",
+            Path.GetDirectoryName(agent) + ":/a:ro",
+            "-v",
+            work.Path + ":/j:ro",
+            "-v",
+            fixture + ":/f:ro",
+            image,
+        ];
+
+        ProcessResult oldLibrary = await processes.RunAsync(command: [.. container, "/jdk/bin/java", "-agentpath:/a/LegacyAgent.so", "-cp", "/f", "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-image-agentpath.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
-        ProcessResult oldLaunched = await processes.RunAsync(
-            [.. container, "/jdk/bin/java", "-javaagent:/j/LegacyAgent.jar", "-cp", "/f", "legacy.LegacyFixture"],
+        ProcessResult oldLaunched = await processes.RunAsync(command: [.. container, "/jdk/bin/java", "-javaagent:/j/LegacyAgent.jar", "-cp", "/f", "legacy.LegacyFixture"],
             LogPath(repository, identifier + "-image-javaagent.log"),
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
 
         AssertRan(oldLibrary.Output, expectedVersion, "-agentpath in " + image, "VM_INIT" + javaMajor);
         AssertRan(oldLaunched.Output, expectedVersion, "-javaagent in " + image, "ATTACH" + javaMajor);
@@ -129,18 +142,29 @@ public sealed class LegacyJavaTests
             return agent;
 
         ProcessRunner processes = new(repository);
-        string sysroot = await LegacySysroot.PrepareAsync(repository, processes, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        await processes.RunCheckedAsync(
-            [
-                "dotnet", "publish", repository.PathFromRoot(parts: ["samples", "LegacyAgent"]),
-                "--configuration", "Release", "--runtime", Rid, "--property:SysRoot=" + sysroot, "--property:LinkerFlavor=lld",
-                "--output", Path.Combine(repository.Artifacts, path2: "legacy-agent", Rid)
-            ],
-            LogPath(repository, name: "publish.log"),
-            TimeSpan.FromMinutes(minutes: 15),
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        string sysroot = await LegacySysroot.PrepareAsync(repository, processes, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        await processes
+            .RunCheckedAsync(command:
+        [
+            "dotnet",
+            "publish",
+            repository.PathFromRoot(parts: ["samples", "LegacyAgent"]),
+            "--configuration",
+            "Release",
+            "--runtime",
+            Rid,
+            "--property:SysRoot=" + sysroot,
+            "--property:LinkerFlavor=lld",
+            "--output",
+            Path.Combine(repository.Artifacts, path2: "legacy-agent", Rid),
+        ],
+                LogPath(repository, name: "publish.log"),
+                TimeSpan.FromMinutes(minutes: 15),
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         return agent;
     }
@@ -152,7 +176,21 @@ public sealed class LegacyJavaTests
 
     private static void AssertRan(string output, string expectedVersion, string route, string start)
     {
-        foreach (string marker in new[] { expectedVersion, start, "PATCH_OK", "HELPER_OK", "ADVICE_OK", "TYPED_OK", "requires new HashMap || deposit()", "CONSTRUCTION_OK", "FACTORY_OK", "REMOVAL_OK", "EVENTS_OK", "UNLOAD" })
+        foreach (string marker in new[]
+        {
+            expectedVersion,
+            start,
+            "PATCH_OK",
+            "HELPER_OK",
+            "ADVICE_OK",
+            "TYPED_OK",
+            "requires new HashMap || deposit()",
+            "CONSTRUCTION_OK",
+            "FACTORY_OK",
+            "REMOVAL_OK",
+            "EVENTS_OK",
+            "UNLOAD"
+        })
             Assert.True(output.Contains(marker, StringComparison.Ordinal), $"Missing {marker} with {route}:\n{output}");
     }
 
@@ -164,16 +202,30 @@ public sealed class LegacyJavaTests
         if (File.Exists(Path.Combine(output, path2: "legacy", path3: "LegacyFixture.class")))
             return output;
 
-        string java8 = await PinnedJdk.UnpackAsync(Pinned(major: 8), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string java8 = await PinnedJdk.UnpackAsync(Pinned(major: 8), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
         string compiler = Path.Combine(java8, path2: "bin", path3: "javac");
         string staging = output + ".staging-" + Guid.NewGuid().ToString(format: "N");
+
         FileSystem.EnsureDirectory(staging);
 
-        await processes.RunCheckedAsync(
-            [compiler, "-source", "6", "-target", "6", "-Xlint:-options", "-d", staging, repository.PathFromRoot(parts: ["tests", "Fixtures", "LegacyFixture.java"])],
-            Path.Combine(staging, path2: "javac.log"),
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        await processes
+            .RunCheckedAsync(command:
+        [
+            compiler,
+            "-source",
+            "6",
+            "-target",
+            "6",
+            "-Xlint:-options",
+            "-d",
+            staging,
+            repository.PathFromRoot(parts: ["tests", "Fixtures", "LegacyFixture.java"]),
+        ],
+                Path.Combine(staging, path2: "javac.log"),
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         try
         {

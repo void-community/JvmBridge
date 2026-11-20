@@ -15,7 +15,7 @@ public sealed class ManifestTests
     [Fact]
     public void CompletePinnedManifestIsAccepted()
     {
-        ManifestValidator.ValidateManifest(Configuration(), [AvailableEntry()]);
+        ManifestValidator.ValidateManifest(Configuration(), entries: [AvailableEntry()]);
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ public sealed class ManifestTests
     [Fact]
     public void DuplicateManifestCellsAreRejected()
     {
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(static () => ManifestValidator.ValidateManifest(Configuration(), [AvailableEntry(), AvailableEntry()]));
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(static () => ManifestValidator.ValidateManifest(Configuration(), entries: [AvailableEntry(), AvailableEntry()]));
 
         Assert.Contains(expectedSubstring: "Missing or duplicate", failure.Message, StringComparison.Ordinal);
     }
@@ -43,7 +43,7 @@ public sealed class ManifestTests
             Status = "unavailable"
         };
 
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), [entry]));
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), entries: [entry]));
 
         Assert.Contains(expectedSubstring: "reason", failure.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -53,8 +53,11 @@ public sealed class ManifestTests
     public void UnknownStatusIsRejected()
     {
         JdkEntry entry = AvailableEntry();
+
         entry.Status = "timeout";
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), [entry]));
+
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), entries: [entry]));
+
         Assert.Contains(expectedSubstring: "Unknown", failure.Message, StringComparison.Ordinal);
     }
 
@@ -75,7 +78,7 @@ public sealed class ManifestTests
             Status = "available"
         };
 
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), [entry]));
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => ManifestValidator.ValidateManifest(Configuration(), entries: [entry]));
 
         Assert.Contains(expectedSubstring: "Unpinned", failure.Message, StringComparison.Ordinal);
     }
@@ -101,7 +104,11 @@ public sealed class ManifestTests
         {
             JavaMajors = [17],
             Implementations = ["hotspot"],
-            Targets = [new TargetConfiguration { Rid = "linux-x64", Agent = true }]
+            Targets = [new TargetConfiguration
+            {
+                Rid = "linux-x64",
+                Agent = true
+            }]
         };
     }
 }

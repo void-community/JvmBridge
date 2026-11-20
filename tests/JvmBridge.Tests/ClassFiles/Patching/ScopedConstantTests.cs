@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
 using JvmBridge.ClassFiles.Code;
@@ -10,11 +12,9 @@ namespace JvmBridge.Tests.ClassFiles.Patching;
 public sealed class ScopedConstantTests
 {
     private const string TitleDescriptor = "(Ljava/lang/String;)V";
-
     private const string Window = "test/Window";
 
-    private static readonly byte[] Subject = new ClassFileWriter(Window)
-        .AddMethod(name: "initWindow", TitleDescriptor, Loads)
+    private static readonly byte[] Subject = new ClassFileWriter(Window).AddMethod(name: "initWindow", TitleDescriptor, Loads)
         .AddMethod(name: "initWindow", descriptor: "()V", Loads)
         .AddMethod(name: "render", descriptor: "()V", Loads)
         .ToArray();
@@ -22,15 +22,20 @@ public sealed class ScopedConstantTests
     private static ClassPatch Scoped => ClassPatch.For(Window).Method(name: "initWindow", TitleDescriptor);
 
     /// <summary>A scope without a descriptor covers every overload, and each load counts once.</summary>
+    /// <exception cref="InvalidOperationException">The patch skipped the class, so there are no patched bytes to read.</exception>
     [Fact]
     public void AScopeWithoutADescriptorCoversEveryOverload()
     {
-        ClassPatchResult result = ClassPatch.For(Window).Method(name: "initWindow").ReplaceConstant(oldValue: 10L, newValue: 30L).Apply(Subject);
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.SkippedReason));
+        ClassPatchResult applied = ClassPatch.For(Window)
+            .Method(name: "initWindow")
+            .ReplaceConstant(oldValue: 10L, newValue: 30L)
+            .Apply(Subject);
 
-        Assert.Equal(expected: 2, result.ReplacedConstants);
-        Assert.Equal(["30", "100000", "ten"], LoadedValues(patched, descriptor: "()V"));
-        Assert.Equal(["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.SkippedReason));
+
+        Assert.Equal(expected: 2, applied.ReplacedConstants);
+        Assert.Equal(expectedSpan: ["30", "100000", "ten"], LoadedValues(patched, descriptor: "()V"));
+        Assert.Equal(expectedSpan: ["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
     }
 
     /// <summary>An <c>ldc</c> reaches only the first 256 constants, so a new String that would be constant 300 skips the class instead of changing the load's length.</summary>
@@ -42,22 +47,23 @@ public sealed class ScopedConstantTests
         for (int value = 0; value < 300; value++)
             Assert.True(writer.AddInteger(1_000_000 + value) > 0);
 
-        ClassPatchResult result = Scoped.ReplaceConstant(oldValue: "ten", newValue: "thirty").Apply(writer.ToArray());
+        ClassPatchResult skipped = Scoped.ReplaceConstant(oldValue: "ten", newValue: "thirty").Apply(writer.ToArray());
 
-        Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "ldc", result.SkippedReason, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "first 256 constants", result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains(expectedSubstring: "ldc", skipped.SkippedReason, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "first 256 constants", skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary>After <see cref="ClassPatch.AnyMethod"/> the constant changes for the whole class, as without a scope.</summary>
+    /// <exception cref="InvalidOperationException">The patch skipped the class, so there are no patched bytes to read.</exception>
     [Fact]
     public void AnyMethodReplacesTheConstantInTheWholeClass()
     {
-        ClassPatchResult result = Scoped.AnyMethod().ReplaceConstant(oldValue: 10L, newValue: 30L).Apply(Subject);
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.SkippedReason));
+        ClassPatchResult applied = Scoped.AnyMethod().ReplaceConstant(oldValue: 10L, newValue: 30L).Apply(Subject);
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.SkippedReason));
 
-        Assert.Equal(expected: 1, result.ReplacedConstants);
-        Assert.Equal(["30", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
+        Assert.Equal(expected: 1, applied.ReplacedConstants);
+        Assert.Equal(expectedSpan: ["30", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
     }
 
     /// <summary>A scope that loads no such constant, or names no method, skips the class with the reason.</summary>
@@ -65,46 +71,65 @@ public sealed class ScopedConstantTests
     public void NothingToReplaceSkipsTheClass()
     {
         ClassPatchResult absent = Scoped.ReplaceConstant(oldValue: 99L, newValue: 30L).Apply(Subject);
-        ClassPatchResult missing = ClassPatch.For(Window).Method(name: "absent").ReplaceConstant(oldValue: 10L, newValue: 30L).Apply(Subject);
+
+        ClassPatchResult missing = ClassPatch.For(Window)
+            .Method(name: "absent")
+            .ReplaceConstant(oldValue: 10L, newValue: 30L)
+            .Apply(Subject);
 
         Assert.Equal(expected: "no load of constant long 99 in initWindow(Ljava/lang/String;)V", absent.SkippedReason);
         Assert.Equal(expected: "method absent not found", missing.SkippedReason);
     }
 
     /// <summary>The scoped method loads the new long, int and String, the other methods still load the old ones, and the old entries stay in the constant pool for them.</summary>
+    /// <exception cref="InvalidOperationException">The patch skipped the class, so there are no patched bytes to read.</exception>
     [Fact]
     public void OnlyTheScopedMethodLoadsTheNewValues()
     {
-        ClassPatchResult result = Scoped.ReplaceConstant(oldValue: 10L, newValue: 30L).ReplaceConstant(oldValue: 100_000, newValue: 300_000).ReplaceConstant(oldValue: "ten", newValue: "thirty").Apply(Subject);
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.SkippedReason));
+        ClassPatchResult applied = Scoped.ReplaceConstant(oldValue: 10L, newValue: 30L)
+            .ReplaceConstant(oldValue: 100_000, newValue: 300_000)
+            .ReplaceConstant(oldValue: "ten", newValue: "thirty")
+            .Apply(Subject);
 
-        Assert.Equal(expected: 3, result.ReplacedConstants);
-        Assert.Equal(["30", "300000", "thirty"], LoadedValues(patched, TitleDescriptor));
-        Assert.Equal(["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V"));
-        Assert.Equal(["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
-        Assert.Contains(expected: "initWindow(Ljava/lang/String;)V: 1 load of constant long 10 replaced", result.Details);
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.SkippedReason));
+
+        // All three loads of the scoped method changed.
+        Assert.Equal(expected: 3, applied.ReplacedConstants);
+        Assert.Equal(expectedSpan: ["30", "300000", "thirty"], LoadedValues(patched, TitleDescriptor));
+
+        // The other overload and the other method still load the old values.
+        Assert.Equal(expectedSpan: ["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V"));
+        Assert.Equal(expectedSpan: ["10", "100000", "ten"], LoadedValues(patched, descriptor: "()V", name: "render"));
+
+        // The detail names the method, the constant and how many of its loads changed.
+        Assert.Contains(expected: "initWindow(Ljava/lang/String;)V: 1 load of constant long 10 replaced", applied.Details);
     }
 
     private static string[] LoadedValues(JavaClassFile file, string descriptor, string name = "initWindow")
     {
-        CodeAttribute code = file.FindMethod(name, descriptor)?.Code ?? throw new InvalidOperationException($"{name}{descriptor} has no code.");
+        CodeAttribute code = file.FindMethod(name, descriptor)?.Code
+            ?? throw new InvalidOperationException($"{name}{descriptor} has no code.");
 
         return [.. code.Instructions
             .Where(static instruction => instruction.Opcode is Opcodes.Ldc or Opcodes.LdcW or Opcodes.Ldc2W)
-            .Select(
-                instruction => file.ConstantPool[instruction.ConstantIndex ?? 0] switch
+            .Select(instruction => file.ConstantPool[instruction.ConstantIndex ?? 0] switch
             {
-                LongEntry number => number.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                IntegerEntry number => number.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                LongEntry number => number.Value.ToString(CultureInfo.InvariantCulture),
+                IntegerEntry number => number.Value.ToString(CultureInfo.InvariantCulture),
                 StringEntry text => file.GetUtf8(text.StringIndex),
                 _ => "other",
-            }
-            )];
+            })];
     }
 
     // Loads 10L, 100000 and "ten" with ldc2_w and ldc, and pops them.
     private static CodeBuilder Loads(CodeBuilder code)
     {
-        return code.LConst(value: 10).Op(Opcodes.Pop2).IConst(value: 100_000).Pop().Ldc(value: "ten").Pop().Return();
+        return code.LConst(value: 10)
+            .Op(Opcodes.Pop2)
+            .IConst(value: 100_000)
+            .Pop()
+            .Ldc(value: "ten")
+            .Pop()
+            .Return();
     }
 }

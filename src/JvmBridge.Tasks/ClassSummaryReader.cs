@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
 
 namespace JvmBridge.Tasks;
@@ -24,6 +25,7 @@ internal static class ClassSummaryReader
             throw new InvalidDataException(message: "The bytes are not a class file: the magic number is wrong.");
 
         position += 4;
+
         int count = UInt16(bytes, ref position);
         string?[] utf8 = new string?[count];
 
@@ -34,7 +36,9 @@ internal static class ClassSummaryReader
             if (tag == Utf8Tag)
             {
                 int length = UInt16(bytes, ref position);
+
                 Require(bytes, position, length);
+
                 utf8[index] = Encoding.UTF8.GetString(bytes, position, length);
                 position += length;
             }
@@ -48,10 +52,15 @@ internal static class ClassSummaryReader
         }
 
         int accessFlags = UInt16(bytes, ref position);
+
         position += 4;
+
         int interfaces = UInt16(bytes, ref position);
+
         position += 2 * interfaces;
+
         SkipMembers(bytes, ref position);
+
         int methodCount = UInt16(bytes, ref position);
         List<ClassMethodSummary> methods = [];
 
@@ -60,6 +69,7 @@ internal static class ClassSummaryReader
             int flags = UInt16(bytes, ref position);
             string name = Name(utf8, UInt16(bytes, ref position));
             string descriptor = Name(utf8, UInt16(bytes, ref position));
+
             SkipAttributes(bytes, ref position);
             methods.Add(new ClassMethodSummary(flags, name, descriptor));
         }
@@ -77,7 +87,9 @@ internal static class ClassSummaryReader
     private static int Int32(byte[] bytes, ref int position)
     {
         Require(bytes, position, count: 4);
+
         int value = BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(position));
+
         position += 4;
 
         return value;
@@ -85,7 +97,9 @@ internal static class ClassSummaryReader
 
     private static string Name(string?[] utf8, int index)
     {
-        return index > 0 && index < utf8.Length && utf8[index] is { } value ? value : throw new InvalidDataException($"Constant {index.ToString(System.Globalization.CultureInfo.InvariantCulture)} is not a Utf8 string.");
+        return index > 0 && index < utf8.Length && utf8[index] is { } value
+            ? value
+            : throw new InvalidDataException($"Constant {index.ToString(CultureInfo.InvariantCulture)} is not a Utf8 string.");
     }
 
     private static int PayloadLength(int tag)
@@ -96,7 +110,7 @@ internal static class ClassSummaryReader
             5 or 6 => 8,
             7 or 8 or 16 or 19 or 20 => 2,
             15 => 3,
-            _ => throw new InvalidDataException($"Unknown constant pool tag {tag.ToString(System.Globalization.CultureInfo.InvariantCulture)}.")
+            _ => throw new InvalidDataException($"Unknown constant pool tag {tag.ToString(CultureInfo.InvariantCulture)}.")
         };
     }
 
@@ -113,8 +127,11 @@ internal static class ClassSummaryReader
         for (int attribute = 0; attribute < attributes; attribute++)
         {
             position += 2;
+
             int length = Int32(bytes, ref position);
+
             Require(bytes, position, length);
+
             position += length;
         }
     }
@@ -126,6 +143,7 @@ internal static class ClassSummaryReader
         for (int member = 0; member < members; member++)
         {
             position += 6;
+
             SkipAttributes(bytes, ref position);
         }
     }
@@ -133,7 +151,9 @@ internal static class ClassSummaryReader
     private static int UInt16(byte[] bytes, ref int position)
     {
         Require(bytes, position, count: 2);
+
         int value = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(position));
+
         position += 2;
 
         return value;

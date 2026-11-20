@@ -36,11 +36,14 @@ public sealed class GeneratorTests
     [Fact]
     public void GeneratesAllAgentExportsIntoConsumerAssembly()
     {
-        GeneratorDriverRunResult result = Generate(source: "public class Agent : JvmBridge.Agents.JavaAgent { }");
-        Assert.True(result.Diagnostics.IsEmpty);
-        Assert.True(result.Results.Length is 1);
-        Assert.True(result.Results[index: 0].GeneratedSources.Length is 1);
-        string source = result.Results[index: 0].GeneratedSources[index: 0].SourceText.ToString();
+        GeneratorDriverRunResult run = Generate(source: "public class Agent : JvmBridge.Agents.JavaAgent { }");
+
+        Assert.True(run.Diagnostics.IsEmpty);
+        Assert.True(run.Results.Length is 1);
+        Assert.True(run.Results[index: 0].GeneratedSources.Length is 1);
+
+        string source = run.Results[index: 0].GeneratedSources[index: 0].SourceText.ToString();
+
         Assert.Contains(expectedSubstring: "Agent_OnLoad", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Agent_OnAttach", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Agent_OnUnload", source, StringComparison.Ordinal);
@@ -53,20 +56,22 @@ public sealed class GeneratorTests
     [Fact]
     public void IgnoresAbstractBasesAndFindsIndirectSubclasses()
     {
-        GeneratorDriverRunResult result = Generate(source: "public abstract class Base : JvmBridge.Agents.JavaAgent {} public class Agent : Base {}");
-        Assert.True(result.Diagnostics.IsEmpty);
-        Assert.True(result.Results.Length is 1);
-        Assert.True(result.Results[index: 0].GeneratedSources.Length is 1);
+        GeneratorDriverRunResult run = Generate(source: "public abstract class Base : JvmBridge.Agents.JavaAgent {} public class Agent : Base {}");
+
+        Assert.True(run.Diagnostics.IsEmpty);
+        Assert.True(run.Results.Length is 1);
+        Assert.True(run.Results[index: 0].GeneratedSources.Length is 1);
     }
 
     /// <summary>Verifies that repeated base lists on partial declarations identify one agent.</summary>
     [Fact]
     public void PartialDeclarationsGenerateOneAgent()
     {
-        GeneratorDriverRunResult result = Generate(source: "public partial class Agent : JvmBridge.Agents.JavaAgent {} public partial class Agent : JvmBridge.Agents.JavaAgent {}");
-        Assert.True(result.Diagnostics.IsEmpty);
-        Assert.True(result.Results.Length is 1);
-        Assert.True(result.Results[index: 0].GeneratedSources.Length is 1);
+        GeneratorDriverRunResult run = Generate(source: "public partial class Agent : JvmBridge.Agents.JavaAgent {} public partial class Agent : JvmBridge.Agents.JavaAgent {}");
+
+        Assert.True(run.Diagnostics.IsEmpty);
+        Assert.True(run.Results.Length is 1);
+        Assert.True(run.Results[index: 0].GeneratedSources.Length is 1);
     }
 
     /// <summary>
@@ -84,6 +89,7 @@ public sealed class GeneratorTests
     public void RejectsInvalidAgents(string source)
     {
         ImmutableArray<Diagnostic> diagnostics = Generate(source).Diagnostics;
+
         Assert.True(ContainsDiagnostic(diagnostics, identifier: "JVMB001"));
     }
 
@@ -94,6 +100,7 @@ public sealed class GeneratorTests
     public void RequiresAgentProjectConfiguration()
     {
         ImmutableArray<Diagnostic> diagnostics = Generate(source: "public class Agent : JvmBridge.Agents.JavaAgent {}", enabled: false).Diagnostics;
+
         Assert.True(ContainsDiagnostic(diagnostics, identifier: "JVMB001"));
     }
 
@@ -122,48 +129,58 @@ public sealed class GeneratorTests
     private static CSharpCompilation CreateCompilation(string source)
     {
         List<MetadataReference> references = RuntimeReferences.Create();
+
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
-        return CSharpCompilation.Create(
-            assemblyName: "TestAgent",
-            [CSharpSyntaxTree.ParseText(source)],
+        return CSharpCompilation.Create(assemblyName: "TestAgent",
+            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true)
-        );
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
     }
 
     private static GeneratorDriverRunResult Generate(string source, bool enabled = true)
     {
         CSharpCompilation compilation = CreateCompilation(source);
-        GeneratorDriver driver = CSharpGeneratorDriver.Create([new AgentGenerator().AsSourceGenerator()], optionsProvider: new OptionsProvider(enabled));
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out ImmutableArray<Diagnostic> generatorDiagnostics);
-        GeneratorDriverRunResult result = driver.GetRunResult();
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators: [new AgentGenerator().AsSourceGenerator()],
+            optionsProvider: new OptionsProvider(enabled));
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation,
+            out Compilation output,
+            out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+        GeneratorDriverRunResult run = driver.GetRunResult();
 
         if (!ContainsError(generatorDiagnostics))
             Assert.False(ContainsError(output.GetDiagnostics()));
 
-        return result;
+        return run;
     }
 
     private static void VerifyAbiInspector(bool enabled)
     {
         CSharpCompilation compilation = CreateCompilation(string.Empty);
 
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            [new AbiInspectorGenerator().AsSourceGenerator()],
-            optionsProvider: new OptionsProvider(enabled, property: "build_property.JvmBridgeAbiInspector")
-        );
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators: [new AbiInspectorGenerator().AsSourceGenerator()],
+            optionsProvider: new OptionsProvider(enabled, property: "build_property.JvmBridgeAbiInspector"));
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out ImmutableArray<Diagnostic> diagnostics, TestContext.Current.CancellationToken);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation,
+            out Compilation output,
+            out ImmutableArray<Diagnostic> diagnostics,
+            TestContext.Current.CancellationToken);
+
         Assert.False(ContainsError(diagnostics));
         Assert.False(ContainsError(output.GetDiagnostics(TestContext.Current.CancellationToken)));
-        GeneratorDriverRunResult result = driver.GetRunResult();
-        Assert.True(result.Results[index: 0].GeneratedSources.Length == (enabled ? 1 : 0));
+
+        GeneratorDriverRunResult run = driver.GetRunResult();
+
+        Assert.True(run.Results[index: 0].GeneratedSources.Length == (enabled ? 1 : 0));
 
         if (!enabled)
             return;
 
-        string source = result.Results[index: 0].GeneratedSources[index: 0].SourceText.ToString();
+        string source = run.Results[index: 0].GeneratedSources[index: 0].SourceText.ToString();
+
         Assert.Contains(expectedSubstring: "offset.jvmtiHeapCallbacks.reserved15", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "sizeof(global::JvmBridge.Native.jvalue)", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "capability.can_retransform_classes", source, StringComparison.Ordinal);
@@ -182,6 +199,7 @@ public sealed class GeneratorTests
     private sealed class OptionsProvider(bool enabled, string property = "build_property.JvmBridgeAgent") : AnalyzerConfigOptionsProvider
     {
         public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(enabled, property);
+
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
         {
             return GlobalOptions;

@@ -22,7 +22,8 @@ internal static class ClassFileFixtures
 
     internal static ClassMember GetField(this JavaClassFile file, string name)
     {
-        return file.Fields.FirstOrDefault(field => field.Name == name) ?? throw new InvalidOperationException($"The class has no field {name}.");
+        return file.Fields.FirstOrDefault(field => field.Name == name)
+            ?? throw new InvalidOperationException($"The class has no field {name}.");
     }
 
     internal static ClassMember GetMethod(this JavaClassFile file, string name)
@@ -37,7 +38,8 @@ internal static class ClassFileFixtures
 
     internal static byte[] Read(string resource)
     {
-        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource) ?? throw new InvalidOperationException($"Missing embedded fixture {resource}.");
+        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException($"Missing embedded fixture {resource}.");
 
         using MemoryStream copy = new();
 

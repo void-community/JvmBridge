@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
@@ -12,15 +13,24 @@ namespace JvmBridge.Tests.Agents;
 [Collection(FakeJvm.CollectionName)]
 public sealed class PatchEngineTests
 {
-    private static readonly JavaMethod StringLength = JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I");
+    private static readonly JavaMethod StringLength = JavaMethod.Virtual(owner: "java/lang/String",
+        name: "length",
+        descriptor: "()I");
 
-    private static readonly JavaMethod StringIsEmpty = JavaMethod.Virtual(owner: "java/lang/String", name: "isEmpty", descriptor: "()Z");
+    private static readonly JavaMethod StringIsEmpty = JavaMethod.Virtual(owner: "java/lang/String",
+        name: "isEmpty",
+        descriptor: "()Z");
 
     private static byte[] Annotated => ClassFileFixtures.Read(resource: "ClassFiles.Annotated.class");
 
-    private static JavaMethod Hook => JavaMethod.Static(owner: "pkg/Hooks", name: "before", descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V");
+    private static JavaMethod Hook => JavaMethod.Static(owner: "pkg/Hooks",
+        name: "before",
+        descriptor: "(Ljava/lang/Object;Ljava/lang/String;)V");
 
-    private static ClassPatch LengthAdvice => ClassPatch.For(className: "fixture/Sample").Method(name: "length", descriptor: "(Ljava/lang/String;)I").Before(Hook).After(JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: "(Ljava/lang/Object;I)I"));
+    private static ClassPatch LengthAdvice => ClassPatch.For(className: "fixture/Sample")
+        .Method(name: "length", descriptor: "(Ljava/lang/String;)I")
+        .Before(Hook)
+        .After(JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: "(Ljava/lang/Object;I)I"));
 
     /// <summary>Registering a patch twice keeps one copy, so its edits run once per class.</summary>
     [Fact]
@@ -34,9 +44,10 @@ public sealed class PatchEngineTests
 
         context.Patches.Add(patch);
         context.Patches.Add(patch);
-        byte[]? result = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
 
-        Assert.NotNull(result);
+        byte[]? transformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+
+        Assert.NotNull(transformed);
         Assert.Equal(expected: 1, runs);
     }
 
@@ -49,21 +60,24 @@ public sealed class PatchEngineTests
         using FakeJvm jvm = new();
 
         ClassPatch getter = ClassPatch.For(className: "fixture/Sample").AddFieldGetter(field: "count", name: "agent$count");
-
         AgentContext late = jvm.CreateContext(name: "late");
 
         late.Patches.Add(getter);
-        byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
+        byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
         AgentContext context = jvm.CreateContext(name: "getter");
 
         context.Patches.Add(getter);
+
         byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
         byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
         PatchReport report = context.Patches.Withdraw(getter);
         byte[]? withoutPatch = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
+        // A class that was loaded before the agent cannot get the method.
         Assert.Null(loadedBefore);
+
+        // A class that got the method at definition keeps it through retransformation, with or without the patch.
         Assert.Contains(expected: "agent$count", MethodNames(defined));
         Assert.Equal(defined, retransformed);
         Assert.NotNull(report.NotRetransformedReason);
@@ -86,21 +100,28 @@ public sealed class PatchEngineTests
             AgentContext late = jvm.CreateContext(name: "late");
 
             late.Patches.Add(LengthAdvice);
-            byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
+            byte[]? loadedBefore = Transform(late, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
             AgentContext added = jvm.CreateContext(name: "added");
 
             added.Patches.Add(LengthAdvice);
+
             byte[]? defined = Transform(added, name: "fixture/Sample", ClassFileFixtures.Sample);
-            ClassPatch size = ClassPatch.For(className: "fixture/Sample").Method(name: "size", descriptor: "(Ljava/util/List;)I").Before(Hook);
+
+            ClassPatch size = ClassPatch.For(className: "fixture/Sample")
+                .Method(name: "size", descriptor: "(Ljava/util/List;)I")
+                .Before(Hook);
 
             added.Patches.Add(size);
+
             byte[]? retransformed = Transform(added, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
             Assert.Null(loadedBefore);
             Assert.Equal(MethodNames(defined), MethodNames(retransformed));
             Assert.DoesNotContain(expected: "size$jvmbridge$body", MethodNames(retransformed));
-            Assert.Equal(expected: 2, lines.Count(line => line.Message.Contains(value: "loaded already and was not advised", StringComparison.Ordinal)));
+
+            Assert.Equal(expected: 2,
+                lines.Count(line => line.Message.Contains(value: "loaded already and was not advised", StringComparison.Ordinal)));
         }
         finally
         {
@@ -117,6 +138,7 @@ public sealed class PatchEngineTests
         AgentContext context = jvm.CreateContext(name: "advice");
 
         context.Patches.Add(LengthAdvice);
+
         byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
         byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
@@ -132,9 +154,12 @@ public sealed class PatchEngineTests
         using FakeJvm jvm = new();
 
         AgentContext matchingFirst = jvm.CreateContext(name: "matching-first");
+
         matchingFirst.Patch(ClassPatch.ForPackage(package: "fixture").ReplaceConstant(oldValue: "hello", newValue: "one"));
         matchingFirst.Patch(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "one", newValue: "two"));
+
         AgentContext namedFirst = jvm.CreateContext(name: "named-first");
+
         namedFirst.Patch(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "one", newValue: "two"));
         namedFirst.Patch(ClassPatch.ForPackage(package: "fixture").ReplaceConstant(oldValue: "hello", newValue: "one"));
 
@@ -167,20 +192,21 @@ public sealed class PatchEngineTests
             context.Patches.Add(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "bye"));
 
             byte[]? independent = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
-
             AgentContext mentioning = jvm.CreateContext(name: "mentioning");
 
             mentioning.DefineClass(helper, ClassLoaderTarget.PatchedClassLoader);
-            mentioning.Patches.Add(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "jvmbridge/test/LoaderHelper"));
+
+            mentioning.Patches
+                .Add(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "jvmbridge/test/LoaderHelper"));
 
             byte[]? dependent = Transform(mentioning, name: "fixture/Sample", ClassFileFixtures.Sample);
 
             Assert.Contains(expected: "bye", Strings(independent));
             Assert.Null(dependent);
-            Assert.Contains(
-                lines,
-                line => line.Message.Contains(value: "skipped fixture/Sample: helper jvmbridge/test/LoaderHelper", StringComparison.Ordinal)
-            );
+
+            Assert.Contains(lines,
+                line => line.Message
+                    .Contains(value: "skipped fixture/Sample: helper jvmbridge/test/LoaderHelper", StringComparison.Ordinal));
         }
         finally
         {
@@ -195,9 +221,13 @@ public sealed class PatchEngineTests
         using FakeJvm jvm = new();
 
         AgentContext plain = jvm.CreateContext(name: "plain");
+
         plain.Patch(ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "bye"));
+
         AgentContext hierarchical = jvm.CreateContext(name: "hierarchical");
-        hierarchical.Patch(ClassPatch.ForSubclassesOf(superType: "java/lang/Runnable").ReplaceConstant(oldValue: "item", newValue: "entry"));
+
+        hierarchical.Patch(ClassPatch.ForSubclassesOf(superType: "java/lang/Runnable")
+            .ReplaceConstant(oldValue: "item", newValue: "entry"));
 
         byte[]? untouched = Transform(plain, name: "fixture/Annotated", Annotated);
         byte[]? learned = Transform(hierarchical, name: "fixture/Annotated", Annotated);
@@ -230,30 +260,31 @@ public sealed class PatchEngineTests
                 .After(JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: "(Ljava/lang/Object;I)I"));
 
             context.Patches.Add(patch);
-            byte[]? patched = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
 
+            byte[]? patched = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
             LogLine line = Assert.Single(lines, candidate => candidate.Source == "once-logged");
 
             Assert.Contains(expected: "length$jvmbridge$body", MethodNames(patched));
-            Assert.StartsWith(
-                expectedStartString: "patched fixture/Sample (agent$count(I)V: setter of field count added; length(Ljava/lang/String;)I: After advice added",
+
+            Assert.StartsWith(expectedStartString: "patched fixture/Sample (agent$count(I)V: setter of field count added; length(Ljava/lang/String;)I: After advice added",
                 line.Message,
-                StringComparison.Ordinal
-            );
+                StringComparison.Ordinal);
 
             AgentContext unmet = jvm.CreateContext(name: "unmet");
 
-            unmet.Patches.Add(
-                ClassPatch.For(className: "fixture/Sample").Method(name: "length", descriptor: "(Ljava/lang/String;)I").When(static body => body.Calls(StringIsEmpty)).Before(Hook)
-            );
+            unmet.Patches
+                .Add(ClassPatch.For(className: "fixture/Sample")
+                    .Method(name: "length", descriptor: "(Ljava/lang/String;)I")
+                    .When(static body => body.Calls(StringIsEmpty))
+                    .Before(Hook));
+
             byte[]? unchanged = Transform(unmet, name: "fixture/Sample", ClassFileFixtures.Sample);
 
             Assert.Null(unchanged);
-            Assert.StartsWith(
-                expectedStartString: "skipped fixture/Sample: length(Ljava/lang/String;)I: requires isEmpty()",
+
+            Assert.StartsWith(expectedStartString: "skipped fixture/Sample: length(Ljava/lang/String;)I: requires isEmpty()",
                 Assert.Single(lines, candidate => candidate.Source == "unmet").Message,
-                StringComparison.Ordinal
-            );
+                StringComparison.Ordinal);
         }
         finally
         {
@@ -276,28 +307,27 @@ public sealed class PatchEngineTests
 
             string name = "quiet-" + Guid.NewGuid().ToString(format: "N");
             AgentContext context = jvm.CreateContext(name);
-            context.LogLevel = AgentLogLevel.Debug;
-            context.Patch(
-                ClassPatch.ForPackage(package: "fixture").Method(name: "absent").RedirectInvocation(JavaMethod.Static(owner: "a/B", name: "c", descriptor: "()V"), toOwner: "x/Y")
-            );
-            context.Patch(
-                ClassPatch.For(className: "fixture/Sample").Method(name: "absent").RedirectInvocation(JavaMethod.Static(owner: "a/B", name: "c", descriptor: "()V"), toOwner: "x/Y")
-            );
 
-            byte[]? result = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
+            context.LogLevel = AgentLogLevel.Debug;
+
+            context.Patch(ClassPatch.ForPackage(package: "fixture")
+                .Method(name: "absent")
+                .RedirectInvocation(JavaMethod.Static(owner: "a/B", name: "c", descriptor: "()V"), toOwner: "x/Y"));
+
+            context.Patch(ClassPatch.For(className: "fixture/Sample")
+                .Method(name: "absent")
+                .RedirectInvocation(JavaMethod.Static(owner: "a/B", name: "c", descriptor: "()V"), toOwner: "x/Y"));
+
+            byte[]? transformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
             LogLine[] own = [.. lines.Where(line => line.Source == name)];
 
-            Assert.Null(result);
-            Assert.Equal(
-                expected: 1,
-                own.Count(line => line.Level == AgentLogLevel.Debug && line.Message.StartsWith(value: "skipped fixture/Sample", StringComparison.Ordinal))
-            );
-            Assert.Equal(
-                expected: 1,
-                own.Count(
-                    line => line.Level == AgentLogLevel.Information && line.Message.StartsWith(value: "skipped fixture/Sample", StringComparison.Ordinal)
-                )
-            );
+            Assert.Null(transformed);
+
+            Assert.Equal(expected: 1,
+                own.Count(line => line.Level == AgentLogLevel.Debug && line.Message.StartsWith(value: "skipped fixture/Sample", StringComparison.Ordinal)));
+
+            Assert.Equal(expected: 1,
+                own.Count(line => line.Level == AgentLogLevel.Information && line.Message.StartsWith(value: "skipped fixture/Sample", StringComparison.Ordinal)));
         }
         finally
         {
@@ -312,18 +342,18 @@ public sealed class PatchEngineTests
         using FakeJvm jvm = new();
 
         AgentContext context = jvm.CreateContext(name: "removal");
-
         ClassPatch advice = LengthAdvice;
 
         context.Patches.Add(advice);
+
         byte[]? defined = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
         PatchReport report = context.Patches.Withdraw(advice);
         byte[]? retransformed = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample, isRetransformation: true);
 
         Assert.NotNull(report.NotRetransformedReason);
         Assert.Equal(MethodNames(defined), MethodNames(retransformed));
-        Assert.Equal(
-            expected: """
+
+        Assert.Equal(expected: """
               method public static length(Ljava/lang/String;)I
                 max_stack=1 max_locals=1
                   0: aload_0
@@ -331,8 +361,9 @@ public sealed class PatchEngineTests
                   4: ireturn
 
             """,
-            System.Text.RegularExpressions.Regex.Replace(ClassFileDisassembler.Disassemble(retransformed ?? [], method: "length"), pattern: "#\\d+", replacement: "#__")
-        );
+            Regex.Replace(ClassFileDisassembler.Disassemble(retransformed ?? [], method: "length"),
+                pattern: "#\\d+",
+                replacement: "#__"));
     }
 
     /// <summary>A removed patch no longer applies, removing it twice says it was not registered, and a patch that was never registered is a no-op.</summary>
@@ -343,6 +374,7 @@ public sealed class PatchEngineTests
 
         AgentContext context = jvm.CreateContext(name: "remove");
         ClassPatch patch = ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "bye");
+
         context.Patch(patch);
 
         byte[]? before = Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample);
@@ -352,7 +384,11 @@ public sealed class PatchEngineTests
 
         Assert.NotNull(before);
         Assert.Null(after);
-        Assert.Contains(expectedSubstring: "retransformation was not enabled", removed.NotRetransformedReason, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "retransformation was not enabled",
+            removed.NotRetransformedReason,
+            StringComparison.Ordinal);
+
         Assert.Equal(expected: "the patch was not registered", again.NotRetransformedReason);
     }
 
@@ -365,13 +401,18 @@ public sealed class PatchEngineTests
         AgentContext context = jvm.CreateContext(name: "report");
         ClassPatch early = ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "hello", newValue: "early");
         ClassPatch late = ClassPatch.For(className: "fixture/Sample").ReplaceConstant(oldValue: "early", newValue: "late");
-
         PatchReport registered = context.PatchNow(early);
+
         context.EventsEnabled = true;
+
         PatchReport afterEvents = context.PatchNow(late);
 
         Assert.Contains(expectedSubstring: "registered", registered.NotRetransformedReason, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "TryEnableRetransformation", afterEvents.NotRetransformedReason, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "TryEnableRetransformation",
+            afterEvents.NotRetransformedReason,
+            StringComparison.Ordinal);
+
         Assert.Empty(afterEvents.Classes);
         Assert.Contains(expected: "late", Strings(Transform(context, name: "fixture/Sample", ClassFileFixtures.Sample)));
     }
@@ -393,7 +434,12 @@ public sealed class PatchEngineTests
     private static byte[]? Transform(AgentContext context, string name, byte[] bytes, bool isRetransformation = false)
     {
         ClassFile file = new(name, isRetransformation, bytes);
-        ClassTransformContext callback = new(environment: null, loader: 0, protectionDomain: 0, classBeingRedefined: 0, canUseJni: false);
+
+        ClassTransformContext callback = new(environment: null,
+            loader: 0,
+            protectionDomain: 0,
+            classBeingRedefined: 0,
+            canUseJni: false);
 
         return context.Patches.Transform(file, callback);
     }

@@ -11,28 +11,28 @@ public sealed class ConstructionEditTests
 {
     private const string Holder = "test/Holder";
 
-    private static readonly JavaMethod AutoReload = JavaMethod.Virtual(owner: "test/Builder", name: "autoreload", descriptor: "()Ltest/Builder;");
+    private static readonly JavaMethod AutoReload = JavaMethod.Virtual(owner: "test/Builder",
+        name: "autoreload",
+        descriptor: "()Ltest/Builder;");
 
-    private static readonly JavaMethod AutoSave = JavaMethod.Virtual(owner: "test/Builder", name: "autosave", descriptor: "()Ltest/Builder;");
+    private static readonly JavaMethod AutoSave = JavaMethod.Virtual(owner: "test/Builder",
+        name: "autosave",
+        descriptor: "()Ltest/Builder;");
 
-    private static readonly JavaMethod NewKeySet = JavaMethod.Static(
-        owner: "java/util/concurrent/ConcurrentHashMap",
+    private static readonly JavaMethod NewKeySet = JavaMethod.Static(owner: "java/util/concurrent/ConcurrentHashMap",
         name: "newKeySet",
-        descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;"
-    );
+        descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;");
 
     // static void fill() { items = new ArrayList(); other = new ArrayList(4); names = new HashSet(); copy = new ArrayList(new ArrayList()); }
     // static Builder chain(Builder builder) { return builder.autosave().autoreload(); }
     private static readonly byte[] Subject = new ClassFileWriter(Holder)
-        .AddMethod(
-            name: "fill",
+        .AddMethod(name: "fill",
             descriptor: "()V",
-            static code => Store(
-                code.New(className: "java/util/ArrayList").Dup().InvokeSpecial(owner: "java/util/ArrayList", name: "<init>", descriptor: "()V"),
+            static code => Store(code.New(className: "java/util/ArrayList")
+                .Dup()
+                .InvokeSpecial(owner: "java/util/ArrayList", name: "<init>", descriptor: "()V"),
                 field: "items",
-                type: "Ljava/util/List;"
-            )
-                .New(className: "java/util/ArrayList")
+                type: "Ljava/util/List;").New(className: "java/util/ArrayList")
                 .Dup()
                 .IConst(value: 4)
                 .InvokeSpecial(owner: "java/util/ArrayList", name: "<init>", descriptor: "(I)V")
@@ -48,13 +48,10 @@ public sealed class ConstructionEditTests
                 .InvokeSpecial(owner: "java/util/ArrayList", name: "<init>", descriptor: "()V")
                 .InvokeSpecial(owner: "java/util/ArrayList", name: "<init>", descriptor: "(Ljava/util/Collection;)V")
                 .PutStatic(Holder, name: "copy", descriptor: "Ljava/util/List;")
-                .Return()
-        )
-        .AddMethod(
-            name: "chain",
+                .Return())
+        .AddMethod(name: "chain",
             descriptor: "(Ltest/Builder;)Ltest/Builder;",
-            static code => code.ALoad(slot: 0).Invoke(AutoSave).Invoke(AutoReload).AReturn()
-        )
+            static code => code.ALoad(slot: 0).Invoke(AutoSave).Invoke(AutoReload).AReturn())
         .ToArray();
 
     /// <summary>A factory whose object would go into a field of a primitive type, which no object fits, makes the patch skip the class with both types named.</summary>
@@ -62,47 +59,58 @@ public sealed class ConstructionEditTests
     public void AFactoryMustFitTheField()
     {
         byte[] primitive = new ClassFileWriter(Holder)
-            .AddMethod(
-                name: "count",
+            .AddMethod(name: "count",
                 descriptor: "()V",
-                static code => code.New(className: "java/util/HashSet").Dup().InvokeSpecial(owner: "java/util/HashSet", name: "<init>", descriptor: "()V").PutStatic(Holder, name: "size", descriptor: "I").Return()
-            )
+                static code => code.New(className: "java/util/HashSet")
+                    .Dup()
+                    .InvokeSpecial(owner: "java/util/HashSet", name: "<init>", descriptor: "()V")
+                    .PutStatic(Holder, name: "size", descriptor: "I")
+                    .Return())
             .ToArray();
 
-        ClassPatchResult result = ClassPatch.For(Holder).ReplaceConstruction(fromClass: "java/util/HashSet", NewKeySet, storedIn: "size").Apply(primitive);
+        ClassPatchResult skipped = ClassPatch.For(Holder)
+            .ReplaceConstruction(fromClass: "java/util/HashSet", NewKeySet, storedIn: "size")
+            .Apply(primitive);
 
-        Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "which the field size of type I cannot hold", result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+
+        Assert.Contains(expectedSubstring: "which the field size of type I cannot hold",
+            skipped.SkippedReason,
+            StringComparison.Ordinal);
     }
 
     /// <summary>A construction that takes arguments has no factory equivalent, so a factory replacement leaves it alone and says that nothing matched.</summary>
     [Fact]
     public void AFactoryOnlyReplacesConstructionsWithoutArguments()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).ReplaceConstruction(fromClass: "java/util/ArrayList", NewKeySet, storedIn: "other").Apply(Subject);
+        ClassPatchResult skipped = ClassPatch.For(Holder)
+            .ReplaceConstruction(fromClass: "java/util/ArrayList", NewKeySet, storedIn: "other")
+            .Apply(Subject);
 
-        Assert.False(result.Changed);
-        Assert.Equal(expected: "no construction of java/util/ArrayList stored in other", result.SkippedReason);
+        Assert.False(skipped.Changed);
+        Assert.Equal(expected: "no construction of java/util/ArrayList stored in other", skipped.SkippedReason);
     }
 
     /// <summary>A factory turns <c>new; dup; invokespecial</c> into <c>invokestatic</c> and four <c>nop</c>s, so the object it returns goes into the field as the constructed one did.</summary>
     [Fact]
     public void AFactoryReplacesAConstructionWithoutArguments()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).ReplaceConstruction(fromClass: "java/util/HashSet", NewKeySet, storedIn: "names").Apply(Subject);
-        JavaClassFile file = JavaClassFile.Read(result.Bytes ?? []);
+        ClassPatchResult patched = ClassPatch.For(Holder)
+            .ReplaceConstruction(fromClass: "java/util/HashSet", NewKeySet, storedIn: "names")
+            .Apply(Subject);
+
+        JavaClassFile file = JavaClassFile.Read(patched.Bytes ?? []);
         IReadOnlyList<Instruction> instructions = Code(file, name: "fill").Instructions;
         int call = Index(instructions, instruction => file.Invokes(instruction, NewKeySet));
 
-        Assert.Equal(expected: 1, result.ReplacedConstructions);
-        Assert.Equal(
-            ["new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in names"],
-            result.Details.Select(static detail => detail[(detail.IndexOf(value: ' ', StringComparison.Ordinal) + 1)..])
-        );
-        Assert.Equal(
-            [Opcodes.InvokeStatic, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.PutStatic],
-            instructions.Skip(call).Take(count: 6).Select(static instruction => instruction.Opcode)
-        );
+        Assert.Equal(expected: 1, patched.ReplacedConstructions);
+
+        Assert.Equal(expected: ["new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in names"],
+            patched.Details.Select(static detail => detail[(detail.IndexOf(value: ' ', StringComparison.Ordinal) + 1)..]));
+
+        Assert.Equal(expected: [Opcodes.InvokeStatic, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.PutStatic],
+            instructions.Skip(call).Take(count: 6).Select(static instruction => instruction.Opcode));
+
         Assert.DoesNotContain(instructions, instruction => file.ReferencesClass(instruction, className: "java/util/HashSet"));
     }
 
@@ -110,11 +118,18 @@ public sealed class ConstructionEditTests
     [Fact]
     public void NestedConstructionsKeepTheirConstructors()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/LinkedList", storedIn: "copy").Apply(Subject);
-        string text = ClassFileDisassembler.Disassemble(result.Bytes ?? [], method: "fill");
+        ClassPatchResult patched = ClassPatch.For(Holder)
+            .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/LinkedList", storedIn: "copy")
+            .Apply(Subject);
 
-        Assert.Equal(expected: 1, result.ReplacedConstructions);
-        Assert.Contains(expectedSubstring: "java/util/LinkedList.<init>:(Ljava/util/Collection;)V", text, StringComparison.Ordinal);
+        string text = ClassFileDisassembler.Disassemble(patched.Bytes ?? [], method: "fill");
+
+        Assert.Equal(expected: 1, patched.ReplacedConstructions);
+
+        Assert.Contains(expectedSubstring: "java/util/LinkedList.<init>:(Ljava/util/Collection;)V",
+            text,
+            StringComparison.Ordinal);
+
         Assert.Contains(expectedSubstring: "java/util/ArrayList.<init>:()V", text, StringComparison.Ordinal);
     }
 
@@ -122,13 +137,11 @@ public sealed class ConstructionEditTests
     [Fact]
     public void RemovalNeedsACallThatReturnsItsReceiver()
     {
-        ArgumentException arguments = Assert.Throws<ArgumentException>(
-            static () => ClassPatch.For(Holder).RemoveInvocation(JavaMethod.Virtual(owner: "test/Builder", name: "depth", descriptor: "(I)Ltest/Builder;"))
-        );
+        ArgumentException arguments = Assert.Throws<ArgumentException>(static () => ClassPatch.For(Holder)
+            .RemoveInvocation(JavaMethod.Virtual(owner: "test/Builder", name: "depth", descriptor: "(I)Ltest/Builder;")));
 
-        ArgumentException isStatic = Assert.Throws<ArgumentException>(
-            static () => ClassPatch.For(Holder).RemoveInvocation(JavaMethod.Static(owner: "test/Builder", name: "create", descriptor: "()Ltest/Builder;"))
-        );
+        ArgumentException isStatic = Assert.Throws<ArgumentException>(static () => ClassPatch.For(Holder)
+            .RemoveInvocation(JavaMethod.Static(owner: "test/Builder", name: "create", descriptor: "()Ltest/Builder;")));
 
         Assert.Contains(expectedSubstring: "()Ltest/Builder;", arguments.Message, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "static", isStatic.Message, StringComparison.Ordinal);
@@ -138,25 +151,34 @@ public sealed class ConstructionEditTests
     [Fact]
     public void RemovesCallsThatReturnTheirReceiver()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).Method(name: "chain").RemoveInvocation(AutoSave).RemoveInvocation(AutoReload).Apply(Subject);
-        IReadOnlyList<Instruction> instructions = Code(JavaClassFile.Read(result.Bytes ?? []), name: "chain").Instructions;
+        ClassPatchResult patched = ClassPatch.For(Holder)
+            .Method(name: "chain")
+            .RemoveInvocation(AutoSave)
+            .RemoveInvocation(AutoReload)
+            .Apply(Subject);
 
-        Assert.Equal(expected: 2, result.RemovedInvocations);
-        Assert.Equal(
-            [Opcodes.ALoad0, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.AReturn],
-            instructions.Select(static instruction => instruction.Opcode)
-        );
-        Assert.Contains(result.Details, static detail => detail == "chain: 1 invocation of test/Builder.autosave removed");
+        IReadOnlyList<Instruction> instructions = Code(JavaClassFile.Read(patched.Bytes ?? []), name: "chain").Instructions;
+
+        Assert.Equal(expected: 2, patched.RemovedInvocations);
+
+        Assert.Equal(expected: [Opcodes.ALoad0, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.Nop, Opcodes.AReturn],
+            instructions.Select(static instruction => instruction.Opcode));
+
+        Assert.Contains(patched.Details, static detail => detail == "chain: 1 invocation of test/Builder.autosave removed");
     }
 
     /// <summary>Without a field, every construction of the class in the scope is replaced, each keeping its own constructor descriptor.</summary>
     [Fact]
     public void ReplacesEveryConstructionWithoutAField()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).Method(name: "fill").ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/Vector").Apply(Subject);
-        string text = ClassFileDisassembler.Disassemble(result.Bytes ?? [], method: "fill");
+        ClassPatchResult patched = ClassPatch.For(Holder)
+            .Method(name: "fill")
+            .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/Vector")
+            .Apply(Subject);
 
-        Assert.Equal(expected: 4, result.ReplacedConstructions);
+        string text = ClassFileDisassembler.Disassemble(patched.Bytes ?? [], method: "fill");
+
+        Assert.Equal(expected: 4, patched.ReplacedConstructions);
         Assert.DoesNotContain(expectedSubstring: "java/util/ArrayList", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "java/util/Vector.<init>:(I)V", text, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "java/util/Vector.<init>:(Ljava/util/Collection;)V", text, StringComparison.Ordinal);
@@ -166,16 +188,21 @@ public sealed class ConstructionEditTests
     [Fact]
     public void ReplacesTheConstructionStoredInAField()
     {
-        ClassPatchResult result = ClassPatch.For(Holder).ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/concurrent/CopyOnWriteArrayList", storedIn: "items").Apply(Subject);
-        JavaClassFile file = JavaClassFile.Read(result.Bytes ?? []);
+        ClassPatchResult patched = ClassPatch.For(Holder)
+            .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/concurrent/CopyOnWriteArrayList", storedIn: "items")
+            .Apply(Subject);
+
+        JavaClassFile file = JavaClassFile.Read(patched.Bytes ?? []);
         IReadOnlyList<Instruction> instructions = Code(file, name: "fill").Instructions;
 
-        Assert.Equal(expected: 1, result.ReplacedConstructions);
-        Assert.Equal(
-            expected: 1,
-            instructions.Count(instruction => file.ReferencesClass(instruction, className: "java/util/concurrent/CopyOnWriteArrayList"))
-        );
-        Assert.Equal(expected: 3, instructions.Count(instruction => file.ReferencesClass(instruction, className: "java/util/ArrayList")));
+        Assert.Equal(expected: 1, patched.ReplacedConstructions);
+
+        Assert.Equal(expected: 1,
+            instructions.Count(instruction => file.ReferencesClass(instruction,
+                className: "java/util/concurrent/CopyOnWriteArrayList")));
+
+        Assert.Equal(expected: 3,
+            instructions.Count(instruction => file.ReferencesClass(instruction, className: "java/util/ArrayList")));
     }
 
     private static CodeAttribute Code(JavaClassFile file, string name)

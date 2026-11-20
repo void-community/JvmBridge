@@ -8,12 +8,12 @@ internal sealed class RepositoryContext
     }
 
     public string Artifacts => Path.Combine(Root, path2: "artifacts");
-
     public string Root { get; }
 
     public static RepositoryContext Discover()
     {
-        string? root = (FindRoot(Directory.GetCurrentDirectory()) ?? FindRoot(AppContext.BaseDirectory)) ?? throw new InvalidOperationException(message: "Could not locate the JvmBridge repository root.");
+        string? root = (FindRoot(Directory.GetCurrentDirectory()) ?? FindRoot(AppContext.BaseDirectory))
+            ?? throw new InvalidOperationException(message: "Could not locate the JvmBridge repository root.");
 
         return new RepositoryContext(root);
     }
@@ -35,7 +35,11 @@ internal sealed class RepositoryContext
         while (directory is not null)
         {
             bool hasSolution = File.Exists(Path.Combine(directory.FullName, path2: "JvmBridge.slnx"));
-            bool hasBuildProject = File.Exists(Path.Combine(directory.FullName, path2: "src", path3: "JvmBridge.Build", path4: "JvmBridge.Build.csproj"));
+
+            bool hasBuildProject = File.Exists(Path.Combine(directory.FullName,
+                path2: "src",
+                path3: "JvmBridge.Build",
+                path4: "JvmBridge.Build.csproj"));
 
             if (hasSolution && hasBuildProject)
                 return directory.FullName;

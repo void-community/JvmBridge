@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 using JvmBridge.Launcher;
 
 using Microsoft.Build.Framework;
@@ -15,22 +13,15 @@ namespace JvmBridge.Tasks;
 public sealed class PackAgentJar : BuildTask
 {
     /// <summary>Gets or sets the jars whose libraries go into the new jar.</summary>
-    [SuppressMessage(
-        "Performance",
-        "CA1819:Properties should not return arrays",
-        Justification = "MSBuild passes an item list to a task as ITaskItem[]."
-    )]
-    public ITaskItem[] Jars { get; set; } = [];
+    /// <value>The full path of each jar on a line of its own, as text because MSBuild hands an item list only to an array; empty, the default, for none.</value>
+    public string Jars { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the native libraries, each with the <c>Rid</c> metadata of the platform it runs on.</summary>
-    [SuppressMessage(
-        "Performance",
-        "CA1819:Properties should not return arrays",
-        Justification = "MSBuild passes an item list to a task as ITaskItem[]."
-    )]
-    public ITaskItem[] Libraries { get; set; } = [];
+    /// <summary>Gets or sets the native libraries, each with the runtime identifier of the platform it runs on.</summary>
+    /// <value>One line for each library: its full path, a tab, and its runtime identifier; empty, the default, for none.</value>
+    public string Libraries { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the jar to write.</summary>
+    /// <value>The path of the new jar, which replaces a file that is already there; empty until MSBuild sets it, and required.</value>
     [Required]
     public string OutputFile { get; set; } = string.Empty;
 
@@ -41,10 +32,11 @@ public sealed class PackAgentJar : BuildTask
 
         try
         {
-            foreach (ITaskItem library in Libraries)
+            foreach (string library in Lines(Libraries))
             {
-                string path = library.GetMetadata(metadataName: "FullPath");
-                string rid = library.GetMetadata(metadataName: "Rid");
+                string[] fields = library.Split(separator: '\t');
+                string path = fields[0];
+                string rid = fields.Length > 1 ? fields[1] : string.Empty;
 
                 if (!File.Exists(path))
                     return Fail($"The agent library for {rid} does not exist: {path}");
@@ -52,10 +44,8 @@ public sealed class PackAgentJar : BuildTask
                 libraries.Add(AgentLibrary.FromFile(rid, path));
             }
 
-            foreach (ITaskItem jar in Jars)
+            foreach (string path in Lines(Jars))
             {
-                string path = jar.GetMetadata(metadataName: "FullPath");
-
                 if (!File.Exists(path))
                     return Fail($"The jar does not exist: {path}");
 
@@ -65,10 +55,8 @@ public sealed class PackAgentJar : BuildTask
             IReadOnlyList<AgentLibrary> combined = LauncherJar.Combine(libraries);
             string launcher = LauncherJar.Write(OutputFile, combined);
 
-            Log.LogMessage(
-                MessageImportance.High,
-                $"JvmBridge: {OutputFile} (launcher {launcher}) holds the agent for {string.Join(separator: ", ", combined.Select(static library => library.Rid).Order(StringComparer.Ordinal))}."
-            );
+            Log.LogMessage(MessageImportance.High,
+                $"JvmBridge: {OutputFile} (launcher {launcher}) holds the agent for {string.Join(separator: ", ", combined.Select(static library => library.Rid).Order(StringComparer.Ordinal))}.");
 
             return true;
         }
@@ -78,10 +66,14 @@ public sealed class PackAgentJar : BuildTask
         }
     }
 
+    private static string[] Lines(string items)
+    {
+        return items.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
     private bool Fail(string message)
     {
-        Log.LogError(
-            subcategory: null,
+        Log.LogError(subcategory: null,
             errorCode: "JVMB014",
             helpKeyword: null,
             file: null,
@@ -89,8 +81,7 @@ public sealed class PackAgentJar : BuildTask
             columnNumber: 0,
             endLineNumber: 0,
             endColumnNumber: 0,
-            "The agent jar could not be written: " + message
-        );
+            "The agent jar could not be written: " + message);
 
         return false;
     }

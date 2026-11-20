@@ -8,7 +8,10 @@ namespace JvmBridge.Tests.ClassFiles;
 public sealed class ClassFileEditorTests
 {
     private const string SortDescriptor = "(Ljava/util/List;Ljava/util/Comparator;)V";
-    private static readonly JavaMethod CollectionsSort = JavaMethod.Static(owner: "java/util/Collections", name: "sort", SortDescriptor);
+
+    private static readonly JavaMethod CollectionsSort = JavaMethod.Static(owner: "java/util/Collections",
+        name: "sort",
+        SortDescriptor);
 
     /// <summary>An add that needs two slots when one is left fails without changing the class.</summary>
     [Fact]
@@ -21,7 +24,6 @@ public sealed class ClassFileEditorTests
 
         byte[] full = writer.ToArray();
         ClassFileEditor editor = new(full);
-
         InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => Assert.True(editor.AddClass(name: "new/Cls") > 0));
 
         Assert.Contains(expectedSubstring: "full", failure.Message, StringComparison.Ordinal);
@@ -35,7 +37,12 @@ public sealed class ClassFileEditorTests
     {
         byte[] original = ClassFileFixtures.Sample;
         ClassFileEditor editor = new(original);
-        int existing = JavaClassFile.Read(original).ConstantPool.OfType<Utf8Entry>().Single(entry => entry.Value == "sortTwice").Index;
+
+        int existing = JavaClassFile.Read(original)
+            .ConstantPool
+            .OfType<Utf8Entry>()
+            .Single(entry => entry.Value == "sortTwice")
+            .Index;
 
         Assert.Equal(existing, editor.AddUtf8(value: "sortTwice"));
         Assert.Equal(original, editor.ToArray());
@@ -45,7 +52,9 @@ public sealed class ClassFileEditorTests
 
         Assert.Equal(method, editor.AddMethodReference(owner: "fixture/Helper", name: "sort", SortDescriptor));
         Assert.Equal(length, editor.ToArray().Length);
-        Assert.Equal(expected: 1, editor.Model.CountOf<ClassEntry>(entry => editor.Model.GetClassName(entry.Index) == "fixture/Helper"));
+
+        Assert.Equal(expected: 1,
+            editor.Model.CountOf<ClassEntry>(entry => editor.Model.GetClassName(entry.Index) == "fixture/Helper"));
     }
 
     /// <summary>An explicit descriptor overrides the derived one.</summary>
@@ -54,16 +63,20 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
-        int replaced = editor.ReplaceInvocation(
-            JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
+        int replaced = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
             toOwner: "fixture/Helper",
             toName: "touch",
-            toDescriptor: "(Ljava/lang/Object;)V"
-        );
+            toDescriptor: "(Ljava/lang/Object;)V");
 
         Assert.Equal(expected: 1, replaced);
+
         MemberReference call = Assert.Single(StaticCalls(editor, method: "length"));
-        Assert.Equal(new MemberReference(ConstantTag.Methodref, Owner: "fixture/Helper", Name: "touch", Descriptor: "(Ljava/lang/Object;)V"), call);
+
+        Assert.Equal(new MemberReference(ConstantTag.Methodref,
+                Owner: "fixture/Helper",
+                Name: "touch",
+                Descriptor: "(Ljava/lang/Object;)V"),
+            call);
     }
 
     /// <summary>Appending constants leaves every existing entry, instruction and byte of code where it was.</summary>
@@ -74,9 +87,12 @@ public sealed class ClassFileEditorTests
         JavaClassFile before = JavaClassFile.Read(original);
         ClassFileEditor editor = new(original);
 
+        // One constant of each shape: a reference that brings entries of its own, a long that takes two indices, and a string.
         int method = editor.AddMethodReference(owner: "fixture/Helper", name: "sort", SortDescriptor);
         int wide = editor.AddLong(value: 42);
         int text = editor.AddString(value: "new");
+
+        // The edited class is read back from its bytes, as a JVM would get it.
         byte[] edited = editor.ToArray();
         JavaClassFile after = JavaClassFile.Read(edited);
 
@@ -91,10 +107,9 @@ public sealed class ClassFileEditorTests
             CodeAttribute newCode = after.GetCode(member.Name);
 
             Assert.Equal(oldCode.Instructions, newCode.Instructions);
-            Assert.Equal(
-                original.AsSpan(oldCode.CodeOffset, oldCode.CodeLength).ToArray(),
-                edited.AsSpan(newCode.CodeOffset, newCode.CodeLength).ToArray()
-            );
+
+            Assert.Equal(original.AsSpan(oldCode.CodeOffset, oldCode.CodeLength).ToArray(),
+                edited.AsSpan(newCode.CodeOffset, newCode.CodeLength).ToArray());
         }
     }
 
@@ -105,13 +120,17 @@ public sealed class ClassFileEditorTests
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
         editor.SetAccess(accessFlags: 0x0001);
+
         int fields = editor.SetFieldAccess(name: "count", descriptor: null, accessFlags: 0x0001);
         int methods = editor.SetMethodAccess(name: "count", descriptor: "()I", accessFlags: 0x0011);
         int missing = editor.SetMethodAccess(name: "count", descriptor: "()V", accessFlags: 0x0001);
 
+        // Each call says how many members it changed, which is none when no method has the descriptor.
         Assert.Equal(expected: 1, fields);
         Assert.Equal(expected: 1, methods);
         Assert.Equal(expected: 0, missing);
+
+        // The class, the field and the method have the flags they were given.
         Assert.Equal(expected: 0x0001, editor.Model.AccessFlags);
         Assert.Equal(expected: 0x0001, editor.Model.GetField(name: "count").AccessFlags);
         Assert.Equal(expected: 0x0011, editor.Model.GetMethod(name: "count").AccessFlags);
@@ -124,18 +143,24 @@ public sealed class ClassFileEditorTests
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         int codeLength = editor.Model.GetCode(name: "size").CodeLength;
 
-        int replaced = editor.ReplaceInvocation(JavaMethod.Interface(owner: "java/util/List", name: "size", descriptor: "()I"), toOwner: "fixture/Helper", toName: "listSize");
+        int replaced = editor.ReplaceInvocation(JavaMethod.Interface(owner: "java/util/List", name: "size", descriptor: "()I"),
+            toOwner: "fixture/Helper",
+            toName: "listSize");
 
         Assert.Equal(expected: 1, replaced);
+
         CodeAttribute code = editor.Model.GetCode(name: "size");
         Instruction[] instructions = [.. code.Instructions];
         byte[] opcodes = [.. instructions.Skip(count: 1).Take(count: 3).Select(static instruction => instruction.Opcode)];
+
         Assert.Equal(codeLength, code.CodeLength);
-        Assert.Equal([Opcodes.InvokeStatic, Opcodes.Nop, Opcodes.Nop], opcodes);
-        Assert.Equal(
-            new MemberReference(ConstantTag.Methodref, Owner: "fixture/Helper", Name: "listSize", Descriptor: "(Ljava/util/List;)I"),
-            editor.Model.GetMemberReference(instructions[1].ConstantIndex ?? 0)
-        );
+        Assert.Equal(expectedSpan: [Opcodes.InvokeStatic, Opcodes.Nop, Opcodes.Nop], opcodes);
+
+        Assert.Equal(new MemberReference(ConstantTag.Methodref,
+                Owner: "fixture/Helper",
+                Name: "listSize",
+                Descriptor: "(Ljava/util/List;)I"),
+            editor.Model.GetMemberReference(instructions[1].ConstantIndex ?? 0));
     }
 
     /// <summary>An added long or double constant uses two constant pool indices, so the next constant lands two indices further on, as the JVM expects.</summary>
@@ -143,14 +168,16 @@ public sealed class ClassFileEditorTests
     public void LongAndDoubleConstantsTakeTwoSlots()
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
-
         int wide = editor.AddLong(1L << 40);
         int narrow = editor.AddInteger(value: 7);
         int doubled = editor.AddDouble(value: 1.25);
 
+        // The index after a long is unusable, so the next constant is two further on, and one after a constant of one slot.
         Assert.Equal(wide + 2, narrow);
         Assert.Equal(narrow + 1, doubled);
         Assert.Null(editor.Model.ConstantPool[wide + 1]);
+
+        // Both wide constants read back with the value they were added with.
         Assert.Equal(1L << 40, editor.Model.GetEntry<LongEntry>(wide).Value);
         Assert.Equal(expected: 1.25, editor.Model.GetEntry<DoubleEntry>(doubled).Value);
     }
@@ -162,8 +189,17 @@ public sealed class ClassFileEditorTests
         byte[] original = ClassFileFixtures.Sample;
         ClassFileEditor editor = new(original);
 
-        int wrongKind = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/util/Collections", name: "sort", SortDescriptor), toOwner: "fixture/Helper");
-        int wrongName = editor.ReplaceInvocation(JavaMethod.Static(owner: "java/util/Collections", name: "shuffle", descriptor: "(Ljava/util/List;)V"), toOwner: "fixture/Helper");
+        // Each search misses the call to Collections.sort in one way: the kind of call, the name, and the method that is searched.
+        int wrongKind = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/util/Collections",
+                name: "sort",
+                SortDescriptor),
+            toOwner: "fixture/Helper");
+
+        int wrongName = editor.ReplaceInvocation(JavaMethod.Static(owner: "java/util/Collections",
+                name: "shuffle",
+                descriptor: "(Ljava/util/List;)V"),
+            toOwner: "fixture/Helper");
+
         int wrongMethod = editor.ReplaceInvocation(CollectionsSort, toOwner: "fixture/Helper", methodName: "greeting");
 
         Assert.Equal(expected: 0, wrongKind + wrongName + wrongMethod);
@@ -177,9 +213,13 @@ public sealed class ClassFileEditorTests
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         byte[] original = editor.ToArray();
 
+        // Flags below zero and above 16 bits for the class, and below zero for a method.
         ArgumentOutOfRangeException negative = Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetAccess(accessFlags: -1));
         ArgumentOutOfRangeException tooLarge = Assert.Throws<ArgumentOutOfRangeException>(() => editor.SetAccess(accessFlags: 0x10000));
-        ArgumentOutOfRangeException method = Assert.Throws<ArgumentOutOfRangeException>(() => Assert.True(editor.SetMethodAccess(name: "length", descriptor: null, accessFlags: -2) > 0));
+
+        ArgumentOutOfRangeException method = Assert.Throws<ArgumentOutOfRangeException>(() => Assert.True(editor.SetMethodAccess(name: "length",
+            descriptor: null,
+            accessFlags: -2) > 0));
 
         Assert.Equal(expected: "value", negative.ParamName);
         Assert.Equal(expected: "value", tooLarge.ParamName);
@@ -192,14 +232,32 @@ public sealed class ClassFileEditorTests
     public void RejectsConstantsOfTheWrongKindForAnInstruction()
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
+
+        // Constants the pool can hold but the instructions below cannot reference.
         int utf8 = editor.AddUtf8(value: "text");
         int wide = editor.AddLong(value: 5);
         int concrete = editor.AddMethodReference(owner: "java/util/List", name: "size", descriptor: "()I");
-        Instruction call = editor.Model.GetCode(name: "size").Instructions.Single(instruction => instruction.Opcode == Opcodes.InvokeInterface);
 
-        ArgumentException text = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "size", methodDescriptor: null, call.Offset, utf8));
-        ArgumentException methodRef = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "size", methodDescriptor: null, call.Offset, concrete));
-        ArgumentException loadLong = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "limit", methodDescriptor: null, instructionOffset: 0, wide));
+        Instruction call = editor.Model
+            .GetCode(name: "size")
+            .Instructions
+            .Single(instruction => instruction.Opcode == Opcodes.InvokeInterface);
+
+        // Each rewrite points an instruction at a constant of a kind that instruction cannot use.
+        ArgumentException text = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "size",
+            methodDescriptor: null,
+            call.Offset,
+            utf8));
+
+        ArgumentException methodRef = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "size",
+            methodDescriptor: null,
+            call.Offset,
+            concrete));
+
+        ArgumentException loadLong = Assert.Throws<ArgumentException>(() => editor.RewriteConstantOperand(methodName: "limit",
+            methodDescriptor: null,
+            instructionOffset: 0,
+            wide));
 
         Assert.Contains(expectedSubstring: "Utf8", text.Message, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "Methodref", methodRef.Message, StringComparison.Ordinal);
@@ -210,7 +268,7 @@ public sealed class ClassFileEditorTests
     [Fact]
     public void RejectsMalformedInput()
     {
-        ClassFormatException failure = Assert.Throws<ClassFormatException>(static () => new ClassFileEditor([0xca, 0xfe]));
+        ClassFormatException failure = Assert.Throws<ClassFormatException>(static () => new ClassFileEditor(bytes: [0xca, 0xfe]));
 
         Assert.False(string.IsNullOrWhiteSpace(failure.Message));
     }
@@ -225,9 +283,20 @@ public sealed class ClassFileEditorTests
         for (int value = 0; value < 300; value++)
             last = editor.AddInteger(1000 + value);
 
-        ArgumentOutOfRangeException tooHigh = Assert.Throws<ArgumentOutOfRangeException>(() => editor.RewriteConstantOperand(methodName: "limit", methodDescriptor: null, instructionOffset: 0, last));
-        ClassFormatException noOperand = Assert.Throws<ClassFormatException>(() => editor.RewriteConstantOperand(methodName: "limit", methodDescriptor: null, instructionOffset: 1, constantIndex: 1));
-        ClassFormatException noMethod = Assert.Throws<ClassFormatException>(() => editor.RewriteConstantOperand(methodName: "missing", methodDescriptor: null, instructionOffset: 0, constantIndex: 1));
+        ArgumentOutOfRangeException tooHigh = Assert.Throws<ArgumentOutOfRangeException>(() => editor.RewriteConstantOperand(methodName: "limit",
+            methodDescriptor: null,
+            instructionOffset: 0,
+            last));
+
+        ClassFormatException noOperand = Assert.Throws<ClassFormatException>(() => editor.RewriteConstantOperand(methodName: "limit",
+            methodDescriptor: null,
+            instructionOffset: 1,
+            constantIndex: 1));
+
+        ClassFormatException noMethod = Assert.Throws<ClassFormatException>(() => editor.RewriteConstantOperand(methodName: "missing",
+            methodDescriptor: null,
+            instructionOffset: 0,
+            constantIndex: 1));
 
         Assert.Equal(expected: "constantIndex", tooHigh.ParamName);
         Assert.Contains(expectedSubstring: "no instruction", noOperand.Message, StringComparison.Ordinal);
@@ -241,13 +310,30 @@ public sealed class ClassFileEditorTests
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         byte[] original = editor.ToArray();
 
-        bool overflowing = editor.ReplaceCode(methodName: "greeting", methodDescriptor: null, int.MaxValue, [0x12], [0x12]);
-        bool negative = editor.ReplaceCode(methodName: "greeting", methodDescriptor: null, codeOffset: -1, [0x12], [0x12]);
-        ClassFormatException invalid = Assert.Throws<ClassFormatException>(() => Assert.True(editor.ReplaceCode(methodName: "greeting", methodDescriptor: null, codeOffset: 0, [0x12], [0xff])));
+        // Offsets outside the code match nothing, and a replacement byte that is no opcode is refused.
+        bool overflowing = editor.ReplaceCode(methodName: "greeting",
+            methodDescriptor: null,
+            int.MaxValue,
+            expected: [0x12],
+            replacement: [0x12]);
+
+        bool negative = editor.ReplaceCode(methodName: "greeting",
+            methodDescriptor: null,
+            codeOffset: -1,
+            expected: [0x12],
+            replacement: [0x12]);
+
+        ClassFormatException invalid = Assert.Throws<ClassFormatException>(() => Assert.True(editor.ReplaceCode(methodName: "greeting",
+            methodDescriptor: null,
+            codeOffset: 0,
+            expected: [0x12],
+            replacement: [0xff])));
 
         Assert.False(overflowing);
         Assert.False(negative);
         Assert.Contains(expectedSubstring: "does not leave valid code", invalid.Message, StringComparison.Ordinal);
+
+        // The refused replacement left the class as it was, and the editor still takes edits.
         Assert.Equal(original, editor.ToArray());
         Assert.True(editor.AddUtf8(value: "still usable") > 0);
     }
@@ -258,13 +344,14 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
-        int replaced = editor.ReplaceInvocation(
-            JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
+        int replaced = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
             toOwner: "fixture/IHelper",
-            ownerIsInterface: true
-        );
+            ownerIsInterface: true);
 
-        Instruction call = editor.Model.GetCode(name: "length").Instructions.Single(static instruction => instruction.Opcode == Opcodes.InvokeStatic);
+        Instruction call = editor.Model
+            .GetCode(name: "length")
+            .Instructions
+            .Single(static instruction => instruction.Opcode == Opcodes.InvokeStatic);
 
         Assert.Equal(expected: 1, replaced);
         Assert.Equal(ConstantTag.InterfaceMethodref, editor.Model.GetMemberReference(call.ConstantIndex ?? 0).Kind);
@@ -278,14 +365,32 @@ public sealed class ClassFileEditorTests
         int codeLength = editor.Model.GetCode(name: "length").CodeLength;
         byte[] original = editor.ToArray();
 
-        bool mismatch = editor.ReplaceCode(methodName: "length", methodDescriptor: null, codeOffset: 0, [0xff], [0x00]);
+        bool mismatch = editor.ReplaceCode(methodName: "length",
+            methodDescriptor: null,
+            codeOffset: 0,
+            expected: [0xff],
+            replacement: [0x00]);
 
         Assert.False(mismatch);
         Assert.Equal(original, editor.ToArray());
 
-        bool replaced = editor.ReplaceCode(methodName: "length", methodDescriptor: null, codeOffset: 1, [Opcodes.InvokeVirtual], [Opcodes.Nop]);
-        bool outside = editor.ReplaceCode(methodName: "length", methodDescriptor: null, codeLength, [0x00], [0x00]);
-        ArgumentException lengths = Assert.Throws<ArgumentException>(() => Assert.True(editor.ReplaceCode(methodName: "length", methodDescriptor: null, codeOffset: 0, [0x2a], [0x2a, 0x00])));
+        bool replaced = editor.ReplaceCode(methodName: "length",
+            methodDescriptor: null,
+            codeOffset: 1,
+            expected: [Opcodes.InvokeVirtual],
+            replacement: [Opcodes.Nop]);
+
+        bool outside = editor.ReplaceCode(methodName: "length",
+            methodDescriptor: null,
+            codeLength,
+            expected: [0x00],
+            replacement: [0x00]);
+
+        ArgumentException lengths = Assert.Throws<ArgumentException>(() => Assert.True(editor.ReplaceCode(methodName: "length",
+            methodDescriptor: null,
+            codeOffset: 0,
+            expected: [0x2a],
+            replacement: [0x2a, 0x00])));
 
         Assert.True(replaced);
         Assert.False(outside);
@@ -299,19 +404,29 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
+        // The class has a string and an integer constant of each width with these values.
         int strings = editor.ReplaceString(oldValue: "hello", newValue: "goodbye");
         int integers = editor.ReplaceInteger(oldValue: 100000, newValue: 7);
         int longs = editor.ReplaceLong(oldValue: 5000000000L, newValue: 9);
+
+        // It has a float and a double constant with these values as well.
         int floats = editor.ReplaceFloat(oldValue: 2.5f, newValue: 0.5f);
         int doubles = editor.ReplaceDouble(oldValue: 3.5, newValue: 0.25);
+
+        // It has no such string, and the class is then read back from its bytes for the checks.
         int absent = editor.ReplaceString(oldValue: "absent", newValue: "x");
         JavaClassFile file = JavaClassFile.Read(editor.ToArray());
 
+        // Each constant that was there counts as one replacement, and the absent one as none.
         Assert.Equal(expected: 5, strings + integers + longs + floats + doubles);
         Assert.Equal(expected: 0, absent);
+
+        // The string changed where it is stored, and a longer string that starts with the old text did not.
         Assert.Contains(expected: "goodbye", file.GetStrings());
         Assert.Contains(expected: "hello again", file.GetStrings());
         Assert.DoesNotContain(expected: "hello", file.GetStrings());
+
+        // Every numeric constant now has its new value.
         Assert.Equal(expected: 1, file.CountOf<IntegerEntry>(static entry => entry.Value == 7));
         Assert.Equal(expected: 1, file.CountOf<LongEntry>(static entry => entry.Value == 9));
         Assert.Equal(expected: 1, file.CountOf<FloatEntry>(static entry => entry.Value == 0.5f));
@@ -324,10 +439,16 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
-        int replaced = editor.ReplaceInvocation(CollectionsSort, toOwner: "fixture/Helper", methodName: "sortOnce", methodDescriptor: SortDescriptor);
+        int replaced = editor.ReplaceInvocation(CollectionsSort,
+            toOwner: "fixture/Helper",
+            methodName: "sortOnce",
+            methodDescriptor: SortDescriptor);
 
         Assert.Equal(expected: 1, replaced);
-        Assert.All(StaticCalls(editor, method: "sortTwice"), static call => Assert.Equal(expected: "java/util/Collections", call.Owner));
+
+        Assert.All(StaticCalls(editor, method: "sortTwice"),
+            static call => Assert.Equal(expected: "java/util/Collections", call.Owner));
+
         Assert.All(StaticCalls(editor, method: "sortOnce"), static call => Assert.Equal(expected: "fixture/Helper", call.Owner));
     }
 
@@ -337,19 +458,19 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         int[] lengthsBefore = AllInstructionLengths(editor);
-
         int replaced = editor.ReplaceInvocation(CollectionsSort, toOwner: "fixture/Helper");
 
         Assert.Equal(expected: 3, replaced);
         Assert.Equal(lengthsBefore, AllInstructionLengths(editor));
+
         MemberReference expected = new(ConstantTag.Methodref, Owner: "fixture/Helper", Name: "sort", SortDescriptor);
-        Assert.All(StaticCalls(editor, method: "sortTwice").Concat(StaticCalls(editor, method: "sortOnce")), call => Assert.Equal(expected, call));
-        Assert.Equal(
-            expected: 1,
-            editor.Model.CountOf<MemberReferenceEntry>(
-                entry => editor.Model.GetMemberReference(entry.Index) == new MemberReference(ConstantTag.Methodref, Owner: "java/util/Collections", Name: "sort", SortDescriptor)
-            )
-        );
+
+        Assert.All(StaticCalls(editor, method: "sortTwice").Concat(StaticCalls(editor, method: "sortOnce")),
+            call => Assert.Equal(expected, call));
+
+        Assert.Equal(expected: 1,
+            editor.Model
+                .CountOf<MemberReferenceEntry>(entry => editor.Model.GetMemberReference(entry.Index) == new MemberReference(ConstantTag.Methodref, Owner: "java/util/Collections", Name: "sort", SortDescriptor)));
     }
 
     /// <summary>A pool that is full is reported instead of corrupting the class.</summary>
@@ -362,7 +483,6 @@ public sealed class ClassFileEditorTests
             Assert.True(writer.AddInteger(value) > 0);
 
         ClassFileEditor editor = new(writer.ToArray());
-
         InvalidOperationException narrow = Assert.Throws<InvalidOperationException>(() => Assert.True(editor.AddInteger(value: -1) > 0));
         InvalidOperationException wide = Assert.Throws<InvalidOperationException>(() => Assert.True(editor.AddLong(value: -1) > 0));
 
@@ -376,20 +496,22 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         MemberReference reference = new(ConstantTag.Methodref, Owner: "java/util/Collections", Name: "sort", SortDescriptor);
-
         int retargeted = editor.RetargetMemberReference(reference, toOwner: "fixture/Helper", toName: "stableSort");
         int again = editor.RetargetMemberReference(reference, toOwner: "x/Y");
 
         Assert.Equal(expected: 1, retargeted);
         Assert.Equal(expected: 0, again);
-        Assert.All(
-            StaticCalls(editor, method: "sortTwice").Concat(StaticCalls(editor, method: "sortOnce")),
-            call => Assert.Equal(new MemberReference(ConstantTag.Methodref, Owner: "fixture/Helper", Name: "stableSort", SortDescriptor), call)
-        );
-        Assert.Equal(
-            expected: 0,
-            editor.Model.CountOf<MemberReferenceEntry>(entry => editor.Model.GetMemberReference(entry.Index).Owner == "java/util/Collections")
-        );
+
+        Assert.All(StaticCalls(editor, method: "sortTwice").Concat(StaticCalls(editor, method: "sortOnce")),
+            call => Assert.Equal(new MemberReference(ConstantTag.Methodref,
+                    Owner: "fixture/Helper",
+                    Name: "stableSort",
+                    SortDescriptor),
+                call));
+
+        Assert.Equal(expected: 0,
+            editor.Model
+                .CountOf<MemberReferenceEntry>(entry => editor.Model.GetMemberReference(entry.Index).Owner == "java/util/Collections"));
     }
 
     /// <summary>One operand of one instruction can be pointed at another constant.</summary>
@@ -403,9 +525,14 @@ public sealed class ClassFileEditorTests
 
         Instruction load = editor.Model.GetCode(name: "greeting").Instructions[index: 0];
         Instruction untouched = editor.Model.GetCode(name: "other").Instructions[index: 0];
+
         Assert.Equal(replacement, load.ConstantIndex);
-        Assert.Equal(expected: "replacement", editor.Model.GetUtf8(editor.Model.GetEntry<StringEntry>(load.ConstantIndex ?? 0).StringIndex));
-        Assert.Equal(expected: "hello again", editor.Model.GetUtf8(editor.Model.GetEntry<StringEntry>(untouched.ConstantIndex ?? 0).StringIndex));
+
+        Assert.Equal(expected: "replacement",
+            editor.Model.GetUtf8(editor.Model.GetEntry<StringEntry>(load.ConstantIndex ?? 0).StringIndex));
+
+        Assert.Equal(expected: "hello again",
+            editor.Model.GetUtf8(editor.Model.GetEntry<StringEntry>(untouched.ConstantIndex ?? 0).StringIndex));
     }
 
     /// <summary>Pointing an invokeinterface at another method updates its argument count, which the JVM verifies against the descriptor.</summary>
@@ -415,16 +542,23 @@ public sealed class ClassFileEditorTests
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
         CodeAttribute code = editor.Model.GetCode(name: "size");
         Instruction call = code.Instructions.Single(static instruction => instruction.Opcode == Opcodes.InvokeInterface);
-        int offer = editor.AddInterfaceMethodReference(owner: "java/util/concurrent/BlockingQueue", name: "offer", descriptor: "(Ljava/lang/Object;JLjava/util/concurrent/TimeUnit;)Z");
+
+        int offer = editor.AddInterfaceMethodReference(owner: "java/util/concurrent/BlockingQueue",
+            name: "offer",
+            descriptor: "(Ljava/lang/Object;JLjava/util/concurrent/TimeUnit;)Z");
 
         editor.RewriteConstantOperand(methodName: "size", methodDescriptor: null, call.Offset, offer);
 
         byte[] edited = editor.ToArray();
+
         Assert.Equal(expected: 5, edited[editor.Model.GetCode(name: "size").CodeOffset + call.Offset + 3]);
-        Assert.Equal(
-            offer,
-            editor.Model.GetCode(name: "size").Instructions.Single(static instruction => instruction.Opcode == Opcodes.InvokeInterface).ConstantIndex
-        );
+
+        Assert.Equal(offer,
+            editor.Model
+                .GetCode(name: "size")
+                .Instructions
+                .Single(static instruction => instruction.Opcode == Opcodes.InvokeInterface)
+                .ConstantIndex);
     }
 
     /// <summary>A virtual call passes its receiver as the first parameter of the static replacement.</summary>
@@ -433,24 +567,39 @@ public sealed class ClassFileEditorTests
     {
         ClassFileEditor editor = new(ClassFileFixtures.Sample);
 
-        int replaced = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"), toOwner: "fixture/Helper");
+        int replaced = editor.ReplaceInvocation(JavaMethod.Virtual(owner: "java/lang/String", name: "length", descriptor: "()I"),
+            toOwner: "fixture/Helper");
 
         Assert.Equal(expected: 1, replaced);
-        Instruction call = editor.Model.GetCode(name: "length").Instructions.Single(static instruction => instruction.Opcode == Opcodes.InvokeStatic);
+
+        Instruction call = editor.Model
+            .GetCode(name: "length")
+            .Instructions
+            .Single(static instruction => instruction.Opcode == Opcodes.InvokeStatic);
+
         Assert.Equal(expected: 3, call.Length);
-        Assert.Equal(
-            new MemberReference(ConstantTag.Methodref, Owner: "fixture/Helper", Name: "length", Descriptor: "(Ljava/lang/String;)I"),
-            editor.Model.GetMemberReference(call.ConstantIndex ?? 0)
-        );
+
+        Assert.Equal(new MemberReference(ConstantTag.Methodref,
+                Owner: "fixture/Helper",
+                Name: "length",
+                Descriptor: "(Ljava/lang/String;)I"),
+            editor.Model.GetMemberReference(call.ConstantIndex ?? 0));
     }
 
     private static int[] AllInstructionLengths(ClassFileEditor editor)
     {
-        return [.. editor.Model.Methods.SelectMany(static method => method.Code?.Instructions ?? []).Select(static instruction => instruction.Length)];
+        return [.. editor.Model
+            .Methods
+            .SelectMany(static method => method.Code?.Instructions ?? [])
+            .Select(static instruction => instruction.Length)];
     }
 
     private static MemberReference[] StaticCalls(ClassFileEditor editor, string method)
     {
-        return [.. editor.Model.GetCode(method).Instructions.Where(instruction => instruction.Opcode == Opcodes.InvokeStatic).Select(instruction => editor.Model.GetMemberReference(instruction.ConstantIndex ?? 0))];
+        return [.. editor.Model
+            .GetCode(method)
+            .Instructions
+            .Where(instruction => instruction.Opcode == Opcodes.InvokeStatic)
+            .Select(instruction => editor.Model.GetMemberReference(instruction.ConstantIndex ?? 0))];
     }
 }

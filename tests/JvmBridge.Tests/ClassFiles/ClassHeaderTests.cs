@@ -13,7 +13,6 @@ public sealed class ClassHeaderTests
     {
         byte[] bytes = ClassFileFixtures.Sample;
         JavaClassFile model = JavaClassFile.Read(bytes);
-
         ClassHeader header = ClassHeader.Read(bytes, includeAnnotations: true);
 
         Assert.Equal(model.Name, header.Name);
@@ -27,10 +26,11 @@ public sealed class ClassHeaderTests
     public void HandlesTwoSlotConstants()
     {
         ClassFileWriter writer = new(name: "pkg/Wide", superName: "java/util/ArrayList");
+
+        // Two constants of two slots each, and one after them that the walk only reaches when it counted both.
         int first = writer.AddLong(1L << 40);
         int second = writer.AddDouble(value: 2.5);
         int third = writer.AddString(value: "after");
-
         ClassHeader header = ClassHeader.Read(writer.ToArray(), includeAnnotations: true);
 
         Assert.Equal(first + 2, second);
@@ -47,8 +47,8 @@ public sealed class ClassHeaderTests
 
         Assert.Equal(expected: "fixture/Annotated", header.Name);
         Assert.Equal(expected: "java/util/AbstractList", header.SuperName);
-        Assert.Equal(["java/io/Serializable", "java/lang/Runnable"], header.Interfaces);
-        Assert.Equal(["java/lang/Deprecated", "fixture/Annotated$Visible", "fixture/Annotated$Hidden"], header.Annotations);
+        Assert.Equal(expected: ["java/io/Serializable", "java/lang/Runnable"], header.Interfaces);
+        Assert.Equal(expected: ["java/lang/Deprecated", "fixture/Annotated$Visible", "fixture/Annotated$Hidden"], header.Annotations);
     }
 
     /// <summary>Annotations are only read on request, so the common case does not walk the members.</summary>
@@ -67,14 +67,19 @@ public sealed class ClassHeaderTests
     {
         byte[] valid = ClassFileFixtures.Sample;
         byte[] wrongMagic = [.. valid];
+
         wrongMagic[0] = 0;
 
+        // A wrong magic number, a class that is cut short and no bytes at all are refused, and no header comes back.
         Assert.False(ClassHeader.TryRead(wrongMagic, includeAnnotations: true, out ClassHeader? first));
         Assert.Null(first);
         Assert.False(ClassHeader.TryRead(valid.AsSpan(start: 0, length: 40), includeAnnotations: false, out _));
-        Assert.False(ClassHeader.TryRead([], includeAnnotations: false, out _));
+        Assert.False(ClassHeader.TryRead(bytes: [], includeAnnotations: false, out _));
+
+        // The bytes the malformed ones were made from are read.
         Assert.True(ClassHeader.TryRead(valid, includeAnnotations: true, out ClassHeader? header));
         Assert.Equal(expected: "fixture/Sample", header?.Name);
+
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => ClassHeader.Read(wrongMagic, includeAnnotations: false));
 
         Assert.Contains(expectedSubstring: "magic", failure.Message, StringComparison.Ordinal);

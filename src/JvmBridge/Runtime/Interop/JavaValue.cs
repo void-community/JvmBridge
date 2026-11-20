@@ -11,6 +11,7 @@ public static unsafe class JavaValue
     public static jvalue Boolean(bool value)
     {
         jvalue result = default;
+
         result.z = value ? (byte)1 : (byte)0;
 
         return result;
@@ -22,6 +23,7 @@ public static unsafe class JavaValue
     public static jvalue Byte(sbyte value)
     {
         jvalue result = default;
+
         result.b = value;
 
         return result;
@@ -33,6 +35,7 @@ public static unsafe class JavaValue
     public static jvalue Char(char value)
     {
         jvalue result = default;
+
         result.c = value;
 
         return result;
@@ -44,6 +47,7 @@ public static unsafe class JavaValue
     public static jvalue Double(double value)
     {
         jvalue result = default;
+
         result.d = value;
 
         return result;
@@ -55,6 +59,7 @@ public static unsafe class JavaValue
     public static jvalue Float(float value)
     {
         jvalue result = default;
+
         result.f = value;
 
         return result;
@@ -66,6 +71,7 @@ public static unsafe class JavaValue
     public static jvalue Int(int value)
     {
         jvalue result = default;
+
         result.i = value;
 
         return result;
@@ -77,6 +83,7 @@ public static unsafe class JavaValue
     public static jvalue Long(long value)
     {
         jvalue result = default;
+
         result.j = value;
 
         return result;
@@ -88,6 +95,7 @@ public static unsafe class JavaValue
     public static jvalue Object(nint value)
     {
         jvalue result = default;
+
         result.l = (_jobject*)value;
 
         return result;
@@ -99,6 +107,7 @@ public static unsafe class JavaValue
     public static jvalue Short(short value)
     {
         jvalue result = default;
+
         result.s = value;
 
         return result;

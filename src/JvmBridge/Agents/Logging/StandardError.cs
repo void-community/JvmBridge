@@ -48,6 +48,7 @@ internal static unsafe class StandardError
         if (address == 0)
         {
             address = NativeLibrary.GetExport(NativeLibrary.GetMainProgramHandle(), name: "write");
+
             Volatile.Write(ref s_write, address);
         }
 

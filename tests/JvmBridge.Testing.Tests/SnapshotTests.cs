@@ -2,6 +2,8 @@ using JvmBridge.ClassFiles;
 
 using Xunit;
 
+using SystemPath = System.IO.Path;
+
 namespace JvmBridge.Testing.Tests;
 
 /// <summary>Verifies the snapshot assertion on disassembled classes.</summary>
@@ -14,7 +16,7 @@ public sealed class SnapshotTests
         {
             ClassFileWriter writer = new(name: "pkg/Subject");
             int abs = writer.AddMethodReference(owner: "java/lang/Math", name: "abs", descriptor: "(I)I");
-            byte[] code = [0x1a, 0xb8, (byte)(abs >> 8), (byte)abs, 0xac];
+            byte[] code = [0x1a, 0xb8, byte.CreateTruncating(abs >> 8), byte.CreateTruncating(abs), 0xac];
 
             return writer.AddMethod(name: "run", descriptor: "(I)I", maxStack: 1, maxLocals: 1, code).ToArray();
         }
@@ -27,11 +29,10 @@ public sealed class SnapshotTests
         using TemporaryFolder folder = new();
 
         string snapshot = Path.Combine(folder.Path, path2: "run.txt");
+
         File.WriteAllText(snapshot, ClassFileDisassembler.Disassemble(Subject, method: "run"));
         File.WriteAllText(snapshot + ".received", contents: "stale");
-
         ClassFileAssert.MatchesSnapshot(Subject, snapshot, method: "run");
-
         Assert.False(File.Exists(snapshot + ".received"));
     }
 
@@ -42,11 +43,16 @@ public sealed class SnapshotTests
         using TemporaryFolder folder = new();
 
         string snapshot = Path.Combine(folder.Path, path2: "run.txt");
-        File.WriteAllText(snapshot, contents: "  method public static run(I)I\n    max_stack=1 max_locals=1\n      0: aload_0\n");
+
+        File.WriteAllText(snapshot,
+            contents: "  method public static run(I)I\n    max_stack=1 max_locals=1\n      0: aload_0\n");
 
         Exception? failure = Record.Exception(() => ClassFileAssert.MatchesSnapshot(Subject, snapshot, method: "run"));
 
-        Assert.Contains(expectedSubstring: "line 3 expected \"0: aload_0\" but was \"0: iload_0\"", failure?.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "line 3 expected \"0: aload_0\" but was \"0: iload_0\"",
+            failure?.Message,
+            StringComparison.Ordinal);
+
         Assert.Contains(expectedSubstring: "iload_0", File.ReadAllText(snapshot + ".received"), StringComparison.Ordinal);
     }
 
@@ -57,7 +63,6 @@ public sealed class SnapshotTests
         using TemporaryFolder folder = new();
 
         string snapshot = Path.Combine(folder.Path, path2: "missing.txt");
-
         Exception? failure = Record.Exception(() => ClassFileAssert.MatchesSnapshot(Subject, snapshot));
 
         Assert.Contains(expectedSubstring: "There is no snapshot", failure?.Message, StringComparison.Ordinal);
@@ -84,7 +89,6 @@ public sealed class SnapshotTests
         try
         {
             Environment.SetEnvironmentVariable(variable: "JVMBRIDGE_UPDATE_SNAPSHOTS", value: "1");
-
             ClassFileAssert.MatchesSnapshot(Subject, snapshot, method: "run");
         }
         finally
@@ -99,7 +103,8 @@ public sealed class SnapshotTests
     {
         internal TemporaryFolder()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jvmbridge-snapshots-" + Guid.NewGuid().ToString(format: "N"));
+            Path = SystemPath.Combine(SystemPath.GetTempPath(), "jvmbridge-snapshots-" + Guid.NewGuid().ToString(format: "N"));
+
             Directory.CreateDirectory(Path).Refresh();
         }
 

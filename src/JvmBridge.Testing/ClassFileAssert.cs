@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
 
@@ -45,16 +47,13 @@ public static class ClassFileAssert
     /// <param name="classPath">Jars and class directories of the application, for example from <see cref="PinnedArtifact.GetPathAsync"/>; their own dependencies need not be there.</param>
     /// <param name="patches">The patches the agent registers, or none.</param>
     /// <param name="cancellationToken">Cancels the check.</param>
-    /// <returns>A task that fails the test with one line per reference that does not link.</returns>
-    public static Task LinksAsync(
-        Jdk jdk,
+    public static Task LinksAsync(Jdk jdk,
         JavaClassDefinition helper,
         IEnumerable<string> classPath,
         IEnumerable<ClassPatch>? patches = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
-        return LinksAsync(jdk, helper, classPath, patches ?? [], [], cancellationToken);
+        return LinksAsync(jdk, helper, classPath, patches ?? [], exportedPackages: [], cancellationToken);
     }
 
     /// <summary>
@@ -67,15 +66,13 @@ public static class ClassFileAssert
     /// <param name="patches">The patches the agent registers.</param>
     /// <param name="exportedPackages">The packages the agent passes to <c>AgentContext.ExportPackage</c> or <c>AgentContext.OpenPackage</c> for this helper, as <c>module/package</c>, for example <c>java.base/sun/nio/ch</c>.</param>
     /// <param name="cancellationToken">Cancels the check.</param>
-    /// <returns>A task that fails the test with one line per reference that does not link.</returns>
-    public static async Task LinksAsync(
-        Jdk jdk,
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/>, <paramref name="helper"/>, <paramref name="classPath"/>, <paramref name="patches"/> or <paramref name="exportedPackages"/> is <see langword="null"/>.</exception>
+    public static async Task LinksAsync(Jdk jdk,
         JavaClassDefinition helper,
         IEnumerable<string> classPath,
         IEnumerable<ClassPatch> patches,
         IEnumerable<string> exportedPackages,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jdk);
         ArgumentNullException.ThrowIfNull(helper);
@@ -83,7 +80,8 @@ public static class ClassFileAssert
         ArgumentNullException.ThrowIfNull(patches);
         ArgumentNullException.ThrowIfNull(exportedPackages);
 
-        IReadOnlyList<string> problems = await HelperLinks.FindProblemsAsync(jdk, helper, classPath, patches, exportedPackages, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        IReadOnlyList<string> problems = await HelperLinks.FindProblemsAsync(jdk, helper, classPath, patches, exportedPackages, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (problems.Count > 0)
             Assert.Fail($"{helper.Name} does not link:" + Environment.NewLine + string.Join(Environment.NewLine, problems));
@@ -96,10 +94,13 @@ public static class ClassFileAssert
     /// <param name="classBytes">The class-file bytes, for example the <c>Bytes</c> of a patch result.</param>
     /// <param name="snapshot">The snapshot file.</param>
     /// <param name="method">A method to disassemble, by name or as <c>name(descriptor)</c>, or <see langword="null"/> for the whole class.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="classBytes"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="snapshot"/> is <see langword="null"/> or empty.</exception>
     public static void MatchesSnapshot(byte[] classBytes, string snapshot, string? method = null)
     {
         ArgumentNullException.ThrowIfNull(classBytes);
         ArgumentException.ThrowIfNullOrEmpty(snapshot);
+
         string path = Path.IsPathRooted(snapshot) ? snapshot : Path.Combine(FindProjectDirectory(), snapshot);
         string received = ClassFileDisassembler.Disassemble(classBytes, method).ReplaceLineEndings(replacementText: "\n");
 
@@ -122,16 +123,18 @@ public static class ClassFileAssert
 
         Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".").Refresh();
         File.WriteAllText(path + ".received", received);
-        Assert.Fail(
-            expected is null ? $"There is no snapshot at {path}. The disassembly was written to {path}.received; copy it over or set JVMBRIDGE_UPDATE_SNAPSHOTS=1." : $"The disassembly differs from the snapshot {path}: {FirstDifference(expected, received)}. The received text is in {path}.received."
-        );
+        Assert.Fail(expected is null ? $"There is no snapshot at {path}. The disassembly was written to {path}.received; copy it over or set JVMBRIDGE_UPDATE_SNAPSHOTS=1." : $"The disassembly differs from the snapshot {path}: {FirstDifference(expected, received)}. The received text is in {path}.received.");
     }
 
     private static MemberReference[] CallsIn(byte[] classBytes, string method)
     {
         ArgumentNullException.ThrowIfNull(classBytes);
+
         JavaClassFile file = JavaClassFile.Read(classBytes);
-        ClassMember member = file.FindMethod(method) ?? throw new XunitException($"The class {file.Name} has no method {method}.");
+
+        ClassMember member = file.FindMethod(method)
+            ?? throw new XunitException($"The class {file.Name} has no method {method}.");
+
         CodeAttribute code = member.Code ?? throw new XunitException($"{method} has no code.");
 
         return
@@ -144,7 +147,9 @@ public static class ClassFileAssert
 
     private static string Describe(MemberReference[] calls)
     {
-        return calls.Length == 0 ? "nothing" : string.Join(separator: ", ", calls.Select(static call => call.Owner + "." + call.Name + call.Descriptor));
+        return calls.Length == 0
+            ? "nothing"
+            : string.Join(separator: ", ", calls.Select(static call => call.Owner + "." + call.Name + call.Descriptor));
     }
 
     private static string FindProjectDirectory()
@@ -173,7 +178,7 @@ public static class ClassFileAssert
             string receivedLine = index < receivedLines.Length ? receivedLines[index] : "(end)";
 
             if (expectedLine != receivedLine)
-                return $"line {(index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)} expected \"{expectedLine.Trim()}\" but was \"{receivedLine.Trim()}\"";
+                return $"line {(index + 1).ToString(CultureInfo.InvariantCulture)} expected \"{expectedLine.Trim()}\" but was \"{receivedLine.Trim()}\"";
         }
 
         return "the texts differ";

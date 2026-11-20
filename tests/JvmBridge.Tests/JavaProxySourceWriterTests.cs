@@ -11,8 +11,8 @@ namespace JvmBridge.Tests;
 /// <summary>Verifies the typed C# proxies generated for Java classes.</summary>
 public sealed class JavaProxySourceWriterTests
 {
-    private static JavaProxyClass Service => new(
-        name: "com/acme/Service",
+    private static JavaProxyClass Service => new(name: "com/acme/Service",
+        members:
         [
             new JavaProxyMember(name: "<init>", descriptor: "()V", isStatic: false),
             new JavaProxyMember(name: "<init>", descriptor: "(Ljava/lang/String;I)V", isStatic: false),
@@ -23,18 +23,18 @@ public sealed class JavaProxySourceWriterTests
             new JavaProxyMember(name: "handle", descriptor: "()V", isStatic: false),
             new JavaProxyMember(name: "service", descriptor: "()V", isStatic: false),
             new JavaProxyMember(name: "send", descriptor: "(Ljava/lang/Object;)V", isStatic: false),
-            new JavaProxyMember(name: "send", descriptor: "(Ljava/lang/Runnable;)V", isStatic: false)
-        ]
-    );
+            new JavaProxyMember(name: "send", descriptor: "(Ljava/lang/Runnable;)V", isStatic: false),
+        ]);
 
     /// <summary>Every kind of member generates code that compiles against the package, including overloads that differ only in the Java type of an object argument.</summary>
     [Fact]
     public void GeneratesCodeThatCompiles()
     {
-        string source = JavaProxySourceWriter.Generate([Service, new JavaProxyClass(name: "Plain", [new JavaProxyMember(name: "ping", descriptor: "()Z", isStatic: true)])]);
-
+        string source = JavaProxySourceWriter.Generate(classes: [Service, new JavaProxyClass(name: "Plain", members: [new JavaProxyMember(name: "ping", descriptor: "()Z", isStatic: true)])]);
         CSharpCompilation compilation = Compile(source);
-        Diagnostic[] errors = [.. compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
+
+        Diagnostic[] errors = [.. compilation.GetDiagnostics(TestContext.Current.CancellationToken)
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
 
         Assert.Empty(errors);
     }
@@ -43,49 +43,45 @@ public sealed class JavaProxySourceWriterTests
     [Fact]
     public void MapsDescriptorsToCSharpTypes()
     {
-        string source = JavaProxySourceWriter.Generate([Service]);
+        string source = JavaProxySourceWriter.Generate(classes: [Service]);
 
-        Assert.Contains(
-            expectedSubstring: "public static int Parse(global::JvmBridge.Runtime.JavaEnvironment environment, string? argument0)",
+        Assert.Contains(expectedSubstring: "public static int Parse(global::JvmBridge.Runtime.JavaEnvironment environment, string? argument0)",
             source,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(
-            expectedSubstring: "public string? Name(global::JvmBridge.Runtime.JavaEnvironment environment)",
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "public string? Name(global::JvmBridge.Runtime.JavaEnvironment environment)",
             source,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(
-            expectedSubstring: "public global::JvmBridge.Runtime.JavaLocalReference Child(global::JvmBridge.Runtime.JavaEnvironment environment, long argument0, bool argument1)",
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "public global::JvmBridge.Runtime.JavaLocalReference Child(global::JvmBridge.Runtime.JavaEnvironment environment, long argument0, bool argument1)",
             source,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(
-            expectedSubstring: "public void Run(global::JvmBridge.Runtime.JavaEnvironment environment, nint argument0, double argument1, char argument2)",
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "public void Run(global::JvmBridge.Runtime.JavaEnvironment environment, nint argument0, double argument1, char argument2)",
             source,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(
-            expectedSubstring: "public static global::JvmBridge.Runtime.JavaLocalReference New(global::JvmBridge.Runtime.JavaEnvironment environment, string? argument0, int argument1)",
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "public static global::JvmBridge.Runtime.JavaLocalReference New(global::JvmBridge.Runtime.JavaEnvironment environment, string? argument0, int argument1)",
             source,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 
     /// <summary>The proxy lives in a namespace named after the package, with the class as a struct that wraps a reference.</summary>
     [Fact]
     public void PlacesProxiesInPackageNamespaces()
     {
-        string source = JavaProxySourceWriter.Generate([Service]);
+        string source = JavaProxySourceWriter.Generate(classes: [Service]);
 
         Assert.Contains(expectedSubstring: "namespace JavaProxies.Com.Acme", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "internal readonly struct Service", source, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "public const string ClassName = \"com/acme/Service\";", source, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "namespace JavaProxies",
-            JavaProxySourceWriter.Generate([new JavaProxyClass(name: "Plain", [])]),
-            StringComparison.Ordinal
-        );
+
+        Assert.Contains(expectedSubstring: "public const string ClassName = \"com/acme/Service\";",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "namespace JavaProxies",
+            JavaProxySourceWriter.Generate(classes: [new JavaProxyClass(name: "Plain", members: [])]),
+            StringComparison.Ordinal);
     }
 
     /// <summary>The text description that the build task passes produces the same source as the objects do.</summary>
@@ -93,20 +89,21 @@ public sealed class JavaProxySourceWriterTests
     public void ReadsTheTextDescription()
     {
         string description = "class\tcom/acme/Service\nmember\t<init>\t()V\tinstance\nmember\tparse\t(Ljava/lang/String;)I\tstatic\n";
-
         string fromText = JavaProxySourceWriter.GenerateFromText(description);
 
-        string fromObjects = JavaProxySourceWriter.Generate(
-            [
-                new JavaProxyClass(
-                    name: "com/acme/Service",
-                    [new JavaProxyMember(name: "<init>", descriptor: "()V", isStatic: false), new JavaProxyMember(name: "parse", descriptor: "(Ljava/lang/String;)I", isStatic: true)]
-                )
-            ]
-        );
+        string fromObjects = JavaProxySourceWriter.Generate(classes: [
+                new JavaProxyClass(name: "com/acme/Service",
+                    members:
+                    [
+                        new JavaProxyMember(name: "<init>", descriptor: "()V", isStatic: false),
+                        new JavaProxyMember(name: "parse", descriptor: "(Ljava/lang/String;)I", isStatic: true),
+                    ])
+            ]);
 
         Assert.Equal(fromObjects, fromText);
+
         ArgumentException failure = Assert.Throws<ArgumentException>(static () => JavaProxySourceWriter.GenerateFromText(description: "nonsense"));
+
         Assert.Contains(expectedSubstring: "nonsense", failure.Message, StringComparison.Ordinal);
     }
 
@@ -114,7 +111,7 @@ public sealed class JavaProxySourceWriterTests
     [Fact]
     public void RenamesClashingMembers()
     {
-        string source = JavaProxySourceWriter.Generate([Service]);
+        string source = JavaProxySourceWriter.Generate(classes: [Service]);
 
         Assert.Contains(expectedSubstring: "public void Handle_(", source, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "public void Service_(", source, StringComparison.Ordinal);
@@ -125,13 +122,14 @@ public sealed class JavaProxySourceWriterTests
     private static CSharpCompilation Compile(string source)
     {
         List<MetadataReference> references = RuntimeReferences.Create();
+
         references.Add(MetadataReference.CreateFromFile(typeof(JavaAgent).Assembly.Location));
 
-        return CSharpCompilation.Create(
-            "Proxies" + Guid.NewGuid().ToString(format: "N"),
-            [CSharpSyntaxTree.ParseText(source)],
+        return CSharpCompilation.Create("Proxies" + Guid.NewGuid().ToString(format: "N"),
+            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false, nullableContextOptions: NullableContextOptions.Enable)
-        );
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
+                allowUnsafe: false,
+                nullableContextOptions: NullableContextOptions.Enable));
     }
 }

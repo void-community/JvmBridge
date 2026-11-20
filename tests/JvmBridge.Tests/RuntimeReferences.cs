@@ -11,9 +11,12 @@ internal static class RuntimeReferences
     /// <returns>The references, to which a test adds its own.</returns>
     internal static List<MetadataReference> Create()
     {
-        string directory = Path.GetDirectoryName(typeof(string).Assembly.Location) ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
+        string directory = Path.GetDirectoryName(typeof(string).Assembly.Location)
+            ?? throw new InvalidOperationException(message: "Runtime assembly directory unavailable.");
 
-        return [.. Directory.EnumerateFiles(directory, searchPattern: "*.dll").Where(IsAssembly).Select(static path => MetadataReference.CreateFromFile(path))];
+        return [.. Directory.EnumerateFiles(directory, searchPattern: "*.dll")
+            .Where(IsAssembly)
+            .Select(static path => MetadataReference.CreateFromFile(path))];
     }
 
     private static bool IsAssembly(string path)

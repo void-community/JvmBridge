@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 using JvmBridge.Build.Infrastructure;
 using JvmBridge.Build.Models;
@@ -17,21 +18,26 @@ public sealed class Jdk
 {
     private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Homes = new(StringComparer.Ordinal);
 
-    /// <summary>Initializes a JDK request.</summary>
+    /// <summary>Initializes a new instance of the <see cref="Jdk"/> class. Initializes a JDK request.</summary>
     /// <param name="major">The Java major version, for example 8 or 17. Java 6 and 7 are pinned Zulu builds for linux-x64 and win-x64, and Java 7 also for win-x86 and osx-x64.</param>
     /// <param name="implementation">The JVM implementation, <c>hotspot</c> or <c>openj9</c>.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="major"/> is less than 6.</exception>
+    /// <exception cref="ArgumentException"><paramref name="implementation"/> is <see langword="null"/> or empty.</exception>
     public Jdk(int major, string implementation = "hotspot")
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(major, other: 6);
         ArgumentException.ThrowIfNullOrEmpty(implementation);
+
         Major = major;
         Implementation = implementation;
     }
 
     /// <summary>Gets the JVM implementation.</summary>
+    /// <value><c>hotspot</c> or <c>openj9</c>, as the constructor was given it.</value>
     public string Implementation { get; }
 
     /// <summary>Gets the Java major version.</summary>
+    /// <value>The version the constructor was given, which is 6 or later.</value>
     public int Major { get; }
 
     /// <summary>
@@ -41,15 +47,21 @@ public sealed class Jdk
     /// <param name="release">The Java release to compile for, 8 by default. Releases 6 and 7 need a JDK that still compiles for them: Java 8 to 11 for 6, Java 8 to 19 for 7.</param>
     /// <param name="cancellationToken">Cancels the compilation.</param>
     /// <returns>The directory of class files, to use as a class path.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="release"/> is less than 6 or greater than <see cref="Major"/>.</exception>
+    /// <exception cref="InvalidOperationException"><c>javac</c> failed; the message holds its output.</exception>
     public async Task<string> CompileAsync(string sources, int? release = null, CancellationToken cancellationToken = default)
     {
         int target = release ?? 8;
+
         ArgumentOutOfRangeException.ThrowIfLessThan(target, other: 6);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(target, Major);
+
         string home = await GetHomeAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        string[] files = SourceGlob.Resolve(sources, [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]);
+
+        string[] files = SourceGlob.Resolve(sources, roots: [AppContext.BaseDirectory, Directory.GetCurrentDirectory()]);
         string output = Directory.CreateTempSubdirectory(prefix: "jvmbridge-classes-").FullName;
         string javac = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "javac.exe" : "javac");
+
         // javac 8 and older have no --release; javac 9 to 11 compile for Java 6 and later, 12 to 19 for 7 and later, 20 and later for 8 and later.
         string version = target.ToString(CultureInfo.InvariantCulture);
         List<string> arguments = Major <= 8 ? ["-source", version, "-target", version] : ["--release", version];
@@ -58,12 +70,15 @@ public sealed class Jdk
         if (Major >= 7)
             arguments.Add(item: "-Xlint:-options");
 
-        arguments.AddRange(["-encoding", "UTF-8", "-d", output, "-cp", output]);
+        arguments.AddRange(collection: ["-encoding", "UTF-8", "-d", output, "-cp", output]);
         arguments.AddRange(files);
 
-        JavaRun run = await ProcessExecution.RunAsync(javac, arguments, new Dictionary<string, string>(), TimeSpan.FromMinutes(minutes: 2), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        JavaRun run = await ProcessExecution.RunAsync(javac, arguments, new Dictionary<string, string>(), TimeSpan.FromMinutes(minutes: 2), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        return run.ExitCode == 0 ? output : throw new InvalidOperationException("javac failed:" + Environment.NewLine + run.Output);
+        return run.ExitCode == 0
+            ? output
+            : throw new InvalidOperationException("javac failed:" + Environment.NewLine + run.Output);
     }
 
     /// <summary>Gets the JDK's home directory, downloading and unpacking the pinned archive on first use. The test is skipped when this platform has no pinned JDK for the version.</summary>
@@ -72,7 +87,10 @@ public sealed class Jdk
     public Task<string> GetHomeAsync(CancellationToken cancellationToken = default)
     {
         string key = Implementation + "-" + Major.ToString(CultureInfo.InvariantCulture);
-        Lazy<Task<string>> pending = Homes.GetOrAdd(key, static (name, jdk) => new Lazy<Task<string>>(() => jdk.ResolveHomeAsync()), this);
+
+        Lazy<Task<string>> pending = Homes.GetOrAdd(key,
+            static (name, jdk) => new Lazy<Task<string>>(() => jdk.ResolveHomeAsync()),
+            this);
 
         return pending.Value.WaitAsync(cancellationToken);
     }
@@ -85,13 +103,11 @@ public sealed class Jdk
     /// <param name="cancellationToken">Cancels the run and ends the program.</param>
     /// <returns>The exit code and combined output.</returns>
     /// <exception cref="TimeoutException">The program was still running when <see cref="JavaRunOptions.Timeout"/> ran out, and was ended.</exception>
-    public async Task<JavaRun> RunAsync(
-        string mainClass,
+    public async Task<JavaRun> RunAsync(string mainClass,
         string classPath,
         PublishedAgent? agent = null,
         JavaRunOptions? options = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         JavaProcess process = await StartAsync(mainClass, classPath, agent, options, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
@@ -113,18 +129,20 @@ public sealed class Jdk
     /// <param name="options">Further options, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Cancels waiting for the JDK.</param>
     /// <returns>The running program, which ends when it is disposed.</returns>
-    public async Task<JavaProcess> StartAsync(
-        string mainClass,
+    /// <exception cref="ArgumentException"><paramref name="mainClass"/> or <paramref name="classPath"/> is <see langword="null"/> or empty.</exception>
+    public async Task<JavaProcess> StartAsync(string mainClass,
         string classPath,
         PublishedAgent? agent = null,
         JavaRunOptions? options = null,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(mainClass);
         ArgumentException.ThrowIfNullOrEmpty(classPath);
+
         JavaRunOptions settings = options ?? new JavaRunOptions();
+
         string home = await GetHomeAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         string java = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "java.exe" : "java");
         List<string> arguments = [];
 
@@ -136,7 +154,7 @@ public sealed class Jdk
         if (agent is not null)
             arguments.Add(AgentArgument(agent, settings.AgentOptions));
 
-        arguments.AddRange(["-cp", classPath, mainClass]);
+        arguments.AddRange(collection: ["-cp", classPath, mainClass]);
         arguments.AddRange(settings.Arguments);
 
         Dictionary<string, string> environment = [];
@@ -194,24 +212,25 @@ public sealed class Jdk
         if (!File.Exists(java))
             throw new InvalidOperationException($"{variable} names {home}, which has no bin/{Path.GetFileName(java)}, so it is not a JDK. {advice}");
 
-        JavaRun probe = await ProcessExecution.RunAsync(
-            java,
-            ["-XshowSettings:properties", "-version"],
-            new Dictionary<string, string>(),
-            TimeSpan.FromMinutes(minutes: 1),
-            CancellationToken.None
-        )
+        JavaRun probe = await ProcessExecution
+            .RunAsync(java,
+                arguments: ["-XshowSettings:properties", "-version"],
+                new Dictionary<string, string>(),
+                TimeSpan.FromMinutes(minutes: 1),
+                CancellationToken.None)
             .ConfigureAwait(continueOnCapturedContext: false);
 
-        InstalledJdk found = InstalledJdk.Parse(probe.Output) ?? throw new InvalidOperationException(
-            $"{variable} names {home}, whose java did not report its version (exit code {probe.ExitCode.ToString(CultureInfo.InvariantCulture)}). {advice}"
-        );
+        InstalledJdk found = InstalledJdk.Parse(probe.Output)
+            ?? throw new InvalidOperationException($"{variable} names {home}, whose java did not report its version (exit code {probe.ExitCode.ToString(CultureInfo.InvariantCulture)}). {advice}");
 
         if (found.Major == Major && found.Implementation == Implementation)
             return;
 
         string specific = SpecificVariable();
-        string alternative = found.Major == Major && variable != specific ? $" For a {found} JDK beside it, set {specific} for this one." : string.Empty;
+
+        string alternative = found.Major == Major && variable != specific
+            ? $" For a {found} JDK beside it, set {specific} for this one."
+            : string.Empty;
 
         throw new InvalidOperationException($"{variable} names {home}, which is {found}, but this test needs {this}. {advice}{alternative}");
     }
@@ -231,7 +250,9 @@ public sealed class Jdk
             return installed;
         }
 
-        string runtimeIdentifier = Environment.GetEnvironmentVariable(variable: "TARGET_RID") ?? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string runtimeIdentifier = Environment.GetEnvironmentVariable(variable: "TARGET_RID")
+            ?? RuntimeInformation.RuntimeIdentifier;
+
         JdkEntry? entry = PinnedJdk.Find(Major, Implementation, runtimeIdentifier, includeLegacy: true);
 
         if (entry is not { Status: "available", Sha256.Length: >= 12 })

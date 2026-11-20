@@ -134,6 +134,7 @@ public sealed class ClassFileEditor : IConstantPool
             foreach (int index in matches)
             {
                 MemberReferenceEntry entry = Model.GetEntry<MemberReferenceEntry>(index);
+
                 WriteUInt16(entry.Offset + 1, owner);
                 WriteUInt16(entry.Offset + 3, nameAndType);
             }
@@ -167,7 +168,9 @@ public sealed class ClassFileEditor : IConstantPool
             foreach (int site in sites)
             {
                 byte original = _bytes[site];
+
                 _bytes[site] = Opcodes.InvokeStatic;
+
                 WriteUInt16(site + 1, target);
                 if (original == Opcodes.InvokeInterface)
                 {
@@ -236,6 +239,7 @@ public sealed class ClassFileEditor : IConstantPool
     public int ReplaceConstruction(string fromClass, JavaMethod factory, string? storedIn = null, string? methodName = null, string? methodDescriptor = null, bool ownerIsInterface = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(fromClass);
+
         string result = FactoryResult(factory);
 
         return Atomically(() =>
@@ -257,6 +261,7 @@ public sealed class ClassFileEditor : IConstantPool
             foreach (Construction site in sites)
             {
                 _bytes[site.New] = Opcodes.InvokeStatic;
+
                 WriteUInt16(site.New + 1, target);
                 _bytes.AsSpan(site.New + 3, length: 4).Fill(Opcodes.Nop);
             }
@@ -313,6 +318,7 @@ public sealed class ClassFileEditor : IConstantPool
         if (instruction.Opcode == Opcodes.Ldc)
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThan(constantIndex, byte.MaxValue);
+
             _bytes[at + 1] = (byte)constantIndex;
         }
         else
@@ -341,9 +347,16 @@ public sealed class ClassFileEditor : IConstantPool
         if (!_bytes.AsSpan(at, expected.Length).SequenceEqual(expected))
             return false;
         byte[] candidate = (byte[])_bytes.Clone();
+
         replacement.CopyTo(candidate.AsSpan(at, expected.Length));
-        try { _ = JavaClassFile.Read(candidate); }
-        catch (ClassFormatException exception) { throw new ClassFormatException($"The replacement does not leave valid code in {method.Name}{method.Descriptor}: {exception.Message}", exception); }
+        try
+        {
+            _ = JavaClassFile.Read(candidate);
+        }
+        catch (ClassFormatException exception)
+        {
+            throw new ClassFormatException($"The replacement does not leave valid code in {method.Name}{method.Descriptor}: {exception.Message}", exception);
+        }
         _bytes = candidate;
         _model = null;
         return true;
@@ -362,6 +375,7 @@ public sealed class ClassFileEditor : IConstantPool
 
         // The stack starts deep enough for instructions that consume values the replaced code left, which only the caller can know about.
         CodeBuilder builder = new(this, parameterSlots: 0, initialDepth: ushort.MaxValue);
+
         CodeBuilder.RequireSame(builder, code(builder));
 
         return builder.HasBranches ? throw new ArgumentException("Assembled code cannot branch: a branch target would need a stack map frame, which the editor does not write.", nameof(code)) : builder.ToArray();
@@ -375,6 +389,7 @@ public sealed class ClassFileEditor : IConstantPool
     {
         ArgumentNullException.ThrowIfNull(oldValue);
         ArgumentNullException.ThrowIfNull(newValue);
+
         int[] matches = [.. Model.ConstantPool.OfType<StringEntry>().Where(entry => Model.GetUtf8(entry.StringIndex) == oldValue).Select(entry => entry.Index)];
         if (matches.Length == 0)
             return 0;
@@ -413,6 +428,7 @@ public sealed class ClassFileEditor : IConstantPool
     public void SetAccess(int accessFlags)
     {
         WriteUInt16(Model.AccessFlagsOffset, accessFlags);
+
         _model = null;
     }
 
@@ -457,6 +473,7 @@ public sealed class ClassFileEditor : IConstantPool
             CopyBody(name, descriptor, movedBodyName);
 
             CodeBuilder builder = new(this, Opcodes.CountArgumentSlots(descriptor) + (isStatic ? 0 : 1));
+
             CodeBuilder.RequireSame(builder, code(builder));
 
             if (builder.HasBranches)
@@ -510,8 +527,14 @@ public sealed class ClassFileEditor : IConstantPool
 
         int parameterSlots;
 
-        try { parameterSlots = MethodDescriptor.Parse(descriptor).Parameters.Sum(MethodDescriptor.Slots); }
-        catch (ClassFormatException exception) { throw new ArgumentException(exception.Message, nameof(descriptor), exception); }
+        try
+        {
+            parameterSlots = MethodDescriptor.Parse(descriptor).Parameters.Sum(MethodDescriptor.Slots);
+        }
+        catch (ClassFormatException exception)
+        {
+            throw new ArgumentException(exception.Message, nameof(descriptor), exception);
+        }
 
         if (Model.FindMethod(name, descriptor) is not null)
             throw new InvalidOperationException($"The class already declares {name}{descriptor}.");
@@ -520,6 +543,7 @@ public sealed class ClassFileEditor : IConstantPool
         {
             int major = Model.MajorVersion;
             CodeBuilder builder = new(this, parameterSlots + ((accessFlags & StaticFlag) == 0 ? 1 : 0));
+
             CodeBuilder.RequireSame(builder, code(builder));
 
             if (builder.HasBranches && major >= FramesVersion)
@@ -546,13 +570,18 @@ public sealed class ClassFileEditor : IConstantPool
 
             int count = BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]);
 
+            // Everything up to the methods, with one more method counted, and the methods the class has.
             result.Write(original[..Model.MethodsCountOffset]);
             WriteUInt16To(result, count + 1);
             result.Write(original[(Model.MethodsCountOffset + 2)..Model.MethodsEnd]);
+
+            // The new method: its flags, name and descriptor, and one attribute.
             WriteUInt16To(result, accessFlags);
             WriteUInt16To(result, nameIndex);
             WriteUInt16To(result, descriptorIndex);
             WriteUInt16To(result, value: 1);
+
+            // That attribute is its code; the rest of the class follows as it was.
             result.Write(AdviceStub.CodeAttribute(codeNameIndex, code));
             result.Write(original[Model.MethodsEnd..]);
 
@@ -568,6 +597,7 @@ public sealed class ClassFileEditor : IConstantPool
     internal StubCode Build(int parameterSlots, Func<CodeBuilder, CodeBuilder> code)
     {
         CodeBuilder builder = new(this, parameterSlots);
+
         CodeBuilder.RequireSame(builder, code(builder));
 
         return builder.HasBranches ? throw new InvalidOperationException(message: "Added methods are straight-line code.") : new StubCode(builder.MaxStack, builder.MaxLocals, builder.ToArray());
@@ -675,16 +705,20 @@ public sealed class ClassFileEditor : IConstantPool
         ReadOnlySpan<byte> original = _bytes;
         using MemoryStream result = new();
 
+        // Everything up to the methods, with one more method counted, and the methods the class has.
         result.Write(original[..Model.MethodsCountOffset]);
         WriteUInt16To(result, BinaryPrimitives.ReadUInt16BigEndian(original[Model.MethodsCountOffset..]) + 1);
         result.Write(original[(Model.MethodsCountOffset + 2)..Model.MethodsEnd]);
+
+        // The copy is private and synthetic, stays static when the original is, and keeps the original's descriptor.
         WriteUInt16To(result, (method.AccessFlags & 0x0008) | 0x0002 | 0x1000);
         WriteUInt16To(result, bodyNameIndex);
         result.Write(original.Slice(method.AccessFlagsOffset + 4, length: 2));
+
+        // Its only attribute is the original's Code, byte for byte; the rest of the class follows as it was.
         WriteUInt16To(result, value: 1);
         result.Write(original[method.CodeAttributeStart..method.CodeAttributeEnd]);
         result.Write(original[Model.MethodsEnd..]);
-
         Replace(result.ToArray());
     }
 
@@ -703,7 +737,6 @@ public sealed class ClassFileEditor : IConstantPool
         result.Write(original[..method.CodeAttributeStart]);
         result.Write(AdviceStub.CodeAttribute(codeNameIndex, code));
         result.Write(original[method.CodeAttributeEnd..]);
-
         Replace(result.ToArray());
     }
 
@@ -724,7 +757,10 @@ public sealed class ClassFileEditor : IConstantPool
     {
         byte[] snapshot = (byte[])_bytes.Clone();
 
-        try { edit(); }
+        try
+        {
+            edit();
+        }
         catch (Exception)
         {
             _bytes = snapshot;
@@ -739,7 +775,10 @@ public sealed class ClassFileEditor : IConstantPool
     {
         byte[] snapshot = (byte[])_bytes.Clone();
 
-        try { return edit(); }
+        try
+        {
+            return edit();
+        }
         catch (Exception)
         {
             _bytes = snapshot;
@@ -759,10 +798,12 @@ public sealed class ClassFileEditor : IConstantPool
             throw new InvalidOperationException("The constant pool is full (65535 slots).");
         int end = Model.ConstantPoolEnd;
         byte[] result = new byte[_bytes.Length + entry.Length];
+
         _bytes.AsSpan(0, end).CopyTo(result);
         entry.CopyTo(result, end);
         _bytes.AsSpan(end).CopyTo(result.AsSpan(end + entry.Length));
         BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(8), (ushort)(index + slots));
+
         _bytes = result;
         _model = null;
         return index;
@@ -917,7 +958,9 @@ public sealed class ClassFileEditor : IConstantPool
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(value, ushort.MaxValue);
+
         BinaryPrimitives.WriteUInt16BigEndian(_bytes.AsSpan(offset), (ushort)value);
+
         _model = null;
     }
 

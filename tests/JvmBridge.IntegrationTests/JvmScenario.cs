@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -16,43 +17,46 @@ namespace JvmBridge.IntegrationTests;
 
 internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner processRunner, FixtureCompiler fixtures, NativeAbiVerifier abiVerifier)
 {
-    private readonly RepositoryContext _repository = repository;
-    private readonly ProcessRunner _processRunner = processRunner;
-    private readonly FixtureCompiler _fixtures = fixtures;
     private readonly NativeAbiVerifier _abiVerifier = abiVerifier;
+    private readonly FixtureCompiler _fixtures = fixtures;
+    private readonly ProcessRunner _processRunner = processRunner;
+    private readonly RepositoryContext _repository = repository;
 
     internal async Task<JsonObject> ExerciseAsync(string home, JdkEntry entry, string rid, string compiler, CancellationToken cancellationToken)
     {
         string distribution = entry.Distribution ?? throw new InvalidOperationException(message: "Missing JDK distribution.");
         string identifier = $"{entry.Implementation}-{entry.Java}-{distribution}";
         string directory = Path.Combine(_repository.Artifacts, path2: "results", rid, identifier);
+
         FileSystem.EnsureDirectory(directory);
 
-        string agent = Path.Combine(
-            _repository.Artifacts,
+        // The published agent library and host of the target, and the java of the JDK under test, are what the scenario starts.
+        string agent = Path.Combine(_repository.Artifacts,
             path2: "agent",
             rid,
-            rid.StartsWith(value: "win-", StringComparison.Ordinal) ? "HelloAgent.dll" : rid.StartsWith(value: "osx-", StringComparison.Ordinal) ? "HelloAgent.dylib" : "HelloAgent.so"
-        );
+            rid.StartsWith(value: "win-", StringComparison.Ordinal) ? "HelloAgent.dll" : rid.StartsWith(value: "osx-", StringComparison.Ordinal) ? "HelloAgent.dylib" : "HelloAgent.so");
 
-        string host = Path.Combine(_repository.Artifacts, path2: "host", rid, rid.StartsWith(value: "win-", StringComparison.Ordinal) ? "JavaHost.exe" : "JavaHost");
+        string host = Path.Combine(_repository.Artifacts,
+            path2: "host",
+            rid,
+            rid.StartsWith(value: "win-", StringComparison.Ordinal) ? "JavaHost.exe" : "JavaHost");
+
         string java = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "java.exe" : "java");
+
+        // Every process below gets these variables, among them the VM options that the compatibility configuration has for this cell.
         Dictionary<string, string?> environment = [];
         CompatibilityConfiguration configuration = Compatibility.Configuration;
         TargetConfiguration target = configuration.Targets.First(value => value.Rid == rid);
 
         List<string> vmOptions = [.. configuration.VmOptionRules
-            .Where(
-                rule => rule.Java == entry.Java && rule.Implementation == entry.Implementation && rule.Architecture == target.Arch && (rule.Os is null || rule.Os == target.Os)
-            )
+            .Where(rule => rule.Java == entry.Java && rule.Implementation == entry.Implementation && rule.Architecture == target.Arch && (rule.Os is null || rule.Os == target.Os))
             .SelectMany(rule => rule.Options)];
 
         if (vmOptions.Count > 0)
         {
-            environment.Add(
-                key: "JAVA_TOOL_OPTIONS",
-                string.Join(separator: ' ', new[] { Environment.GetEnvironmentVariable(variable: "JAVA_TOOL_OPTIONS") ?? string.Empty }.Concat(vmOptions)).Trim()
-            );
+            environment.Add(key: "JAVA_TOOL_OPTIONS",
+                string.Join(separator: ' ', new[] { Environment.GetEnvironmentVariable(variable: "JAVA_TOOL_OPTIONS") ?? string.Empty }.Concat(vmOptions))
+                    .Trim());
         }
 
         if (entry.Implementation == "hotspot" && !OperatingSystem.IsWindows())
@@ -67,7 +71,8 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         string fixture = Path.Combine(directory, path2: "classes");
         string precompiled = Path.Combine(_repository.Artifacts, path2: "fixtures");
 
-        bool hasFixtures = File.Exists(Path.Combine(precompiled, path2: "BridgeFixture.class")) && File.Exists(Path.Combine(precompiled, path2: "AttachFixture.class"));
+        bool hasFixtures = File.Exists(Path.Combine(precompiled, path2: "BridgeFixture.class"))
+            && File.Exists(Path.Combine(precompiled, path2: "AttachFixture.class"));
 
         if (hasFixtures)
         {
@@ -78,54 +83,73 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         }
         else
         {
-            await _fixtures.CompileAsync(home, fixture, entry.Java, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await _fixtures.CompileAsync(home, fixture, entry.Java, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
 
-        Dictionary<string, long> managed = ParseLongDictionary(
-            (await _processRunner.RunAsync([host, "--abi"], Path.Combine(directory, path2: "abi-managed.json"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Output
-        );
+        ProcessResult managedRun = await _processRunner.RunAsync(command: [host, "--abi"], Path.Combine(directory, path2: "abi-managed.json"), cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        Dictionary<string, long> managed = ParseLongDictionary(managedRun.Output);
 
         Dictionary<string, long> native = await CompileProbeAsync(home, directory, compiler, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         NativeAbiVerifier.Verify(native, managed);
-        string jvm = FindLibrary(home, OperatingSystem.IsWindows() ? "jvm.dll" : OperatingSystem.IsMacOS() ? "libjvm.dylib" : "libjvm.so");
+
+        string jvm = FindLibrary(home,
+            OperatingSystem.IsWindows() ? "jvm.dll" : OperatingSystem.IsMacOS() ? "libjvm.dylib" : "libjvm.so");
 
         if (OperatingSystem.IsWindows())
         {
-            environment.Add(
-                key: "PATH",
-                Path.Combine(home, path2: "bin") + Path.PathSeparator.ToString() + (Environment.GetEnvironmentVariable(variable: "PATH") ?? string.Empty)
-            );
+            environment.Add(key: "PATH",
+                Path.Combine(home, path2: "bin") + Path.PathSeparator.ToString() + (Environment.GetEnvironmentVariable(variable: "PATH") ?? string.Empty));
         }
         else if (!OperatingSystem.IsMacOS())
         {
-            DirectoryInfo parent = Directory.GetParent(jvm) ?? throw new InvalidOperationException(message: "JVM library has no parent directory.");
-            List<string> search = [parent.FullName, parent.Parent?.FullName ?? parent.FullName, Path.Combine(home, path2: "lib"), Environment.GetEnvironmentVariable(variable: "LD_LIBRARY_PATH") ?? string.Empty];
+            DirectoryInfo parent = Directory.GetParent(jvm)
+                ?? throw new InvalidOperationException(message: "JVM library has no parent directory.");
+
+            List<string> search =
+            [
+                parent.FullName,
+                parent.Parent?.FullName ?? parent.FullName,
+                Path.Combine(home, path2: "lib"),
+                Environment.GetEnvironmentVariable(variable: "LD_LIBRARY_PATH") ?? string.Empty,
+            ];
+
             environment.Add(key: "LD_LIBRARY_PATH", string.Join(Path.PathSeparator, search));
         }
 
         string nativeProbe = Path.Combine(directory, OperatingSystem.IsWindows() ? "abi.exe" : "abi");
 
-        ProcessResult nativeRun = await _processRunner.RunAsync(
-            [nativeProbe, jvm],
-            Path.Combine(directory, path2: "native-invocation.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult nativeRun = await _processRunner
+            .RunAsync(command: [nativeProbe, jvm],
+                Path.Combine(directory, path2: "native-invocation.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        string baselineLine = nativeRun.Output.Split(separator: '\n').FirstOrDefault(line => line.StartsWith(value: "{\"create\":", StringComparison.Ordinal)) ?? throw new InvalidOperationException(message: "Native invocation did not report its JVM result.");
-        Dictionary<string, int> baseline = JsonSerializer.Deserialize<Dictionary<string, int>>(baselineLine, JsonFile.Options) ?? throw new InvalidOperationException(message: "Invalid native invocation result.");
+        string baselineLine = nativeRun.Output
+            .Split(separator: '\n')
+            .FirstOrDefault(line => line.StartsWith(value: "{\"create\":", StringComparison.Ordinal))
+            ?? throw new InvalidOperationException(message: "Native invocation did not report its JVM result.");
+
+        Dictionary<string, int> baseline = JsonSerializer.Deserialize<Dictionary<string, int>>(baselineLine, JsonFile.Options)
+            ?? throw new InvalidOperationException(message: "Invalid native invocation result.");
+
         int destroy = baseline.GetValueOrDefault(key: "destroy");
 
-        ProcessResult hosted = await _processRunner.RunAsync(
-            [host, jvm, destroy.ToString(System.Globalization.CultureInfo.InvariantCulture)],
-            Path.Combine(directory, path2: "host.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult hosted = await _processRunner
+            .RunAsync(command: [host, jvm, destroy.ToString(CultureInfo.InvariantCulture)],
+                Path.Combine(directory, path2: "host.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        string destroyMarker = "DESTROY_RESULT=" + destroy.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string destroyMarker = "DESTROY_RESULT=" + destroy.ToString(CultureInfo.InvariantCulture);
 
-        bool hostedJvmMatchesBaseline = hosted.Output.Contains(value: "HOST_OK", StringComparison.Ordinal) && hosted.Output.Contains(destroyMarker, StringComparison.Ordinal);
+        bool hostedJvmMatchesBaseline = hosted.Output.Contains(value: "HOST_OK", StringComparison.Ordinal)
+            && hosted.Output.Contains(destroyMarker, StringComparison.Ordinal);
 
         if (!hostedJvmMatchesBaseline)
             throw new InvalidOperationException(message: "Embedded JVM behavior differs from the native invocation baseline");
@@ -136,104 +160,144 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         {
             for (int attempt = 1; attempt <= 200; attempt++)
             {
-                ProcessResult repeated = await _processRunner.RunAsync(
-                    [host, jvm, destroy.ToString(System.Globalization.CultureInfo.InvariantCulture)],
-                    Path.Combine(directory, $"host-repeat-{attempt}.log"),
-                    environment: environment,
-                    cancellationToken: cancellationToken
-                ).ConfigureAwait(continueOnCapturedContext: false);
+                ProcessResult repeated = await _processRunner
+                    .RunAsync(command: [host, jvm, destroy.ToString(CultureInfo.InvariantCulture)],
+                        Path.Combine(directory, $"host-repeat-{attempt}.log"),
+                        environment: environment,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
 
-                bool repeatedJvmMatchesBaseline = repeated.Output.Contains(value: "HOST_LOOKUP_CAPTURED", StringComparison.Ordinal) && repeated.Output.Contains(value: "HOST_OK", StringComparison.Ordinal) && repeated.Output.Contains(destroyMarker, StringComparison.Ordinal);
+                bool repeatedJvmMatchesBaseline = repeated.Output
+                    .Contains(value: "HOST_LOOKUP_CAPTURED", StringComparison.Ordinal)
+                    && repeated.Output.Contains(value: "HOST_OK", StringComparison.Ordinal)
+                    && repeated.Output.Contains(destroyMarker, StringComparison.Ordinal);
 
                 if (!repeatedJvmMatchesBaseline)
                     throw new InvalidOperationException($"Embedded JVM regression failed on attempt {attempt}.");
             }
         }
 
-        ProcessResult plain = await _processRunner.RunAsync(
-            [java, "-Xcheck:jni", "-cp", fixture, "BridgeFixture", "baseline"],
-            Path.Combine(directory, path2: "java-baseline.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult plain = await _processRunner
+            .RunAsync(command: [java, "-Xcheck:jni", "-cp", fixture, "BridgeFixture", "baseline"],
+                Path.Combine(directory, path2: "java-baseline.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (!plain.Output.Contains(value: "JAVA_BASELINE_OK", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "Uninstrumented Java baseline failed");
 
-        ProcessResult result = await _processRunner.RunAsync(
-            [java, "-Xcheck:jni", "-agentpath:" + agent, "-cp", fixture, "BridgeFixture"],
-            Path.Combine(directory, path2: "startup.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult startup = await _processRunner
+            .RunAsync(command: [java, "-Xcheck:jni", "-agentpath:" + agent, "-cp", fixture, "BridgeFixture"],
+                Path.Combine(directory, path2: "startup.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        foreach (string marker in new[] { "AGENT_OK", "SIGNAL_EXCEPTIONS_OK", "VM_INIT", "REGISTER_NATIVES", "TRANSFORM", "VM_DEATH", "UNLOAD", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "HelloAgent: patched BridgeFixture$PatchTarget (length(Ljava/lang/String;)I: 1 invocation of java/lang/String.length redirected; sorted", "MATCHER_PATCH_OK", "JAVA_BASE_PATCH_OK", "ADVICE_OK", "EVENTS_OK", "INTEROP_OK" })
+        foreach (string marker in new[]
         {
-            if (!result.Output.Contains(marker, StringComparison.Ordinal))
+            "AGENT_OK",
+            "SIGNAL_EXCEPTIONS_OK",
+            "VM_INIT",
+            "REGISTER_NATIVES",
+            "TRANSFORM",
+            "VM_DEATH",
+            "UNLOAD",
+            "BOOTSTRAP_NULL_LOADER_OK",
+            "BOOTSTRAP_CALLBACK_NULL_LOADER",
+            "LOADER_ISOLATION_OK",
+            "LOADER_METADATA_OK",
+            "MEMBER_INSPECTION_OK",
+            "SELECTED_CODE_SOURCE",
+            "OTHER_CODE_SOURCE",
+            "SELECTED_TRANSFORM",
+            "HELPER_INSTALLED",
+            "HELPER_DUPLICATE_REJECTED",
+            "HELPER_LOADER_VISIBILITY_OK",
+            "HELPER_CALLS_OK",
+            "HELPER_TWIN_OK",
+            "HELPER_NULL_OK",
+            "HELPER_THREAD_OK",
+            "WEAK_REFERENCE_OK",
+            "PATCH_OK",
+            "PATCH_BOOTSTRAP_HELPER_OK",
+            "PATCH_LOADER_HELPERS_OK",
+            "HelloAgent: patched BridgeFixture$PatchTarget (length(Ljava/lang/String;)I: 1 invocation of java/lang/String.length redirected; sorted",
+            "MATCHER_PATCH_OK",
+            "JAVA_BASE_PATCH_OK",
+            "ADVICE_OK",
+            "EVENTS_OK",
+            "INTEROP_OK"
+        })
+        {
+            if (!startup.Output.Contains(marker, StringComparison.Ordinal))
                 throw new InvalidOperationException("Missing " + marker + " in " + identifier);
         }
 
         // Java 9 and later have modules, so the helpers of BridgeFixture$ModuleTarget need the packages the agent exports to them; before, there is nothing to export.
         string moduleMarker = entry.Java >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE";
-        bool modulesFailed = !result.Output.Contains(moduleMarker, StringComparison.Ordinal) || result.Output.Contains(value: "could not export", StringComparison.Ordinal);
+
+        bool modulesFailed = !startup.Output.Contains(moduleMarker, StringComparison.Ordinal)
+            || startup.Output.Contains(value: "could not export", StringComparison.Ordinal);
 
         if (modulesFailed)
             throw new InvalidOperationException("The module exports of the helpers did not work in " + identifier);
 
         await ModuleExportTestAsync(java, agent, fixture, directory, entry.Java, environment, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        bool missingSelectedRetransformation = !result.Output.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
-            || !result.Output.Contains(value: "SELECTED_RETRANSFORM", StringComparison.Ordinal);
+        bool missingSelectedRetransformation = !startup.Output
+            .Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
+            || !startup.Output.Contains(value: "SELECTED_RETRANSFORM", StringComparison.Ordinal);
 
-        if (result.Output.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) && missingSelectedRetransformation)
+        if (startup.Output.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) && missingSelectedRetransformation)
             throw new InvalidOperationException("Selected loader retransformation did not run in " + identifier);
 
         Dictionary<string, int> plainWarnings = Warnings(plain.Output);
 
-        Dictionary<string, int> introduced = Warnings(result.Output)
-            .Where(value => value.Value > plainWarnings.GetValueOrDefault(value.Key))
+        Dictionary<string, int> introduced = Warnings(startup.Output).Where(value => value.Value > plainWarnings.GetValueOrDefault(value.Key))
             .ToDictionary(value => value.Key, value => value.Value - plainWarnings.GetValueOrDefault(value.Key));
 
-        if (introduced.Count > 0 || result.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
+        if (introduced.Count > 0 || startup.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
             throw new InvalidOperationException("Agent introduced JNI diagnostics: " + JsonSerializer.Serialize(introduced, JsonFile.Options));
 
-        await RedirectedLogTestAsync(java, agent, fixture, directory, environment, result.Output, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await RedirectedLogTestAsync(java, agent, fixture, directory, environment, startup.Output, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        bool helperInstalledOncePerLoader = result.Output.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
-        bool calledOnThreads = result.Output.Split(separator: "HELPER_THREAD_OK", StringSplitOptions.None).Length >= 4;
+        bool helperInstalledOncePerLoader = startup.Output.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
+        bool calledOnThreads = startup.Output.Split(separator: "HELPER_THREAD_OK", StringSplitOptions.None).Length >= 4;
 
         if (!helperInstalledOncePerLoader || !calledOnThreads)
             throw new InvalidOperationException(message: "Helper registration was not idempotent or callback did not run on both application threads and the isolated loader.");
 
-        ProcessResult failed = await _processRunner.RunAsync(
-            [java, "-agentpath:" + agent + "=fail-start", "-version"],
-            Path.Combine(directory, path2: "failed-start.log"),
-            environment: environment,
-            expectedExitCode: null,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult failed = await _processRunner
+            .RunAsync(command: [java, "-agentpath:" + agent + "=fail-start", "-version"],
+                Path.Combine(directory, path2: "failed-start.log"),
+                environment: environment,
+                expectedExitCode: null,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (failed.ExitCode == 0 || !failed.Output.Contains(value: "Intentional initialization failure", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "Agent initialization failure was not propagated");
 
-        ProcessResult callback = await _processRunner.RunAsync(
-            [java, "-agentpath:" + agent + "=fail-callback", "-cp", fixture, "BridgeFixture"],
-            Path.Combine(directory, path2: "failed-callback.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult callback = await _processRunner
+            .RunAsync(command: [java, "-agentpath:" + agent + "=fail-callback", "-cp", fixture, "BridgeFixture"],
+                Path.Combine(directory, path2: "failed-callback.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        bool callbackFailed = !callback.Output.Contains(value: "Intentional callback failure", StringComparison.Ordinal) || !callback.Output.Contains(value: "AGENT_OK", StringComparison.Ordinal);
+        bool callbackFailed = !callback.Output.Contains(value: "Intentional callback failure", StringComparison.Ordinal)
+            || !callback.Output.Contains(value: "AGENT_OK", StringComparison.Ordinal);
 
         if (callbackFailed)
             throw new InvalidOperationException(message: "Callback exception was not contained");
 
-        ProcessResult helperFailure = await _processRunner.RunAsync(
-            [java, "-Xcheck:jni", "-agentpath:" + agent + "=fail-helper", "-cp", fixture, "BridgeFixture"],
-            Path.Combine(directory, path2: "failed-helper.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult helperFailure = await _processRunner
+            .RunAsync(command: [java, "-Xcheck:jni", "-agentpath:" + agent + "=fail-helper", "-cp", fixture, "BridgeFixture"],
+                Path.Combine(directory, path2: "failed-helper.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         bool contained = helperFailure.Output.Contains(value: "HELPER_CALLBACK_CONTAINED", StringComparison.Ordinal)
             && helperFailure.Output.Contains(value: "AGENT_OK", StringComparison.Ordinal);
@@ -244,24 +308,52 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (!contained || unexpectedFailure)
             throw new InvalidOperationException(message: "Helper callback exception was not contained under checked JNI.");
 
-        await AttachTestAsync(java, agent, fixture, home, directory, entry.Java, environment, entry.Implementation, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        await DeliveryTestAsync(java, agent, rid, fixture, directory, entry.Implementation, environment, plainWarnings, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await AttachTestAsync(java,
+            agent,
+            fixture,
+            home,
+            directory,
+            entry.Java,
+            environment,
+            entry.Implementation,
+            plainWarnings,
+            cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        await DeliveryTestAsync(java,
+            agent,
+            rid,
+            fixture,
+            directory,
+            entry.Implementation,
+            environment,
+            plainWarnings,
+            cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         JsonObject outcome = JsonFile.ToObject(entry);
+
+        // A failed check throws before this point, so reaching it means the whole cell passed.
         outcome.SetProperty(propertyName: "status", value: "passed");
+
+        // Each part that ran is recorded by name, so a reader of the record sees what the status covers.
         outcome.SetProperty(propertyName: "abi", value: "passed");
         outcome.SetProperty(propertyName: "startup", value: "passed");
         outcome.SetProperty(propertyName: "attach", value: "passed");
         outcome.SetProperty(propertyName: "delivery", value: "passed");
+
+        // The embedded JVM was judged against the native baseline, so that baseline's destroy result is recorded with it.
         outcome.SetProperty(propertyName: "host", value: "passed");
         outcome.SetProperty(propertyName: "nativeDestroyResult", JsonValue.Create(destroy));
+
+        // What the cell ran with: its VM options, the JNI warnings that Java prints without the agent, and whether the JVM could retransform.
         JsonNode?[] optionNodes = [.. vmOptions.Select(value => (JsonNode?)JsonValue.Create(value))];
+
         outcome.SetProperty(propertyName: "vmOptions", new JsonArray(optionNodes));
-        outcome.SetProperty(propertyName: "baselineJniWarnings", JsonSerializer.SerializeToNode(plainWarnings, JsonFile.Options));
-        outcome.SetProperty(
-            propertyName: "retransformation",
-            result.Output.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) ? "passed" : "unavailable"
-        );
+
+        outcome.SetProperty(propertyName: "baselineJniWarnings",
+            JsonSerializer.SerializeToNode(plainWarnings, JsonFile.Options));
+
+        outcome.SetProperty(propertyName: "retransformation",
+            startup.Output.Contains(value: "RETRANSFORM_OK", StringComparison.Ordinal) ? "passed" : "unavailable");
 
         return outcome;
     }
@@ -287,12 +379,14 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
     private static string FindLibrary(string home, string name)
     {
-        return Directory.EnumerateFiles(home, name, SearchOption.AllDirectories).FirstOrDefault() ?? throw new InvalidOperationException("Missing " + name + " in " + home);
+        return Directory.EnumerateFiles(home, name, SearchOption.AllDirectories).FirstOrDefault()
+            ?? throw new InvalidOperationException("Missing " + name + " in " + home);
     }
 
     private static Dictionary<string, long> ParseLongDictionary(string value)
     {
-        return JsonSerializer.Deserialize<Dictionary<string, long>>(value.Trim(), JsonFile.Options) ?? throw new InvalidOperationException(message: "Invalid ABI JSON.");
+        return JsonSerializer.Deserialize<Dictionary<string, long>>(value.Trim(), JsonFile.Options)
+            ?? throw new InvalidOperationException(message: "Invalid ABI JSON.");
     }
 
     private static async Task ReleaseTargetAsync(Process process, CancellationToken cancellationToken)
@@ -317,9 +411,8 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new TimeoutException(
-                "The attach target did not print " + string.Join(separator: " or ", markers) + " within " + timeout.TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + " seconds."
-            );
+            throw new TimeoutException("The attach target did not print " + string.Join(separator: " or ", markers) + " within " + timeout.TotalSeconds
+                .ToString(CultureInfo.InvariantCulture) + " seconds.");
         }
 
         throw new InvalidOperationException("The attach target exited before it printed " + string.Join(separator: " or ", markers) + ".");
@@ -333,7 +426,9 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         {
             string value = line.Trim();
 
-            bool diagnostic = value.Contains(value: "JNI WARNING", StringComparison.Ordinal) || value.Contains(value: "WARNING in native method", StringComparison.Ordinal) || Regex.IsMatch(value, pattern: "JVMJNCK[0-9]+[WE]", RegexOptions.CultureInvariant);
+            bool diagnostic = value.Contains(value: "JNI WARNING", StringComparison.Ordinal)
+                || value.Contains(value: "WARNING in native method", StringComparison.Ordinal)
+                || Regex.IsMatch(value, pattern: "JVMJNCK[0-9]+[WE]", RegexOptions.CultureInvariant);
 
             if (!diagnostic)
                 continue;
@@ -344,8 +439,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         return warnings;
     }
 
-    private async Task AttachTestAsync(
-        string java,
+    private async Task AttachTestAsync(string java,
         string agent,
         string fixture,
         string home,
@@ -354,8 +448,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         IReadOnlyDictionary<string, string?> environment,
         string implementation,
         IReadOnlyDictionary<string, int> baselineWarnings,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         ProcessStartInfo processStartInformation = new()
         {
@@ -388,14 +481,20 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             }
         }
 
-        using Process process = new() { StartInfo = processStartInformation };
+        using Process process = new()
+        {
+            StartInfo = processStartInformation
+        };
 
         if (!process.Start())
             throw new InvalidOperationException(message: "Could not start the attach target.");
 
+        // Both streams are kept whole for the log; the lines of standard output also go to the channel that the markers are awaited on.
         ConcurrentQueue<string> output = new();
         ConcurrentQueue<string> errors = new();
         Channel<string> events = Channel.CreateUnbounded<string>();
+
+        // The streams are read from the start, so the target never waits on a full pipe.
         Task outputReader = CaptureAttachAsync(process.StandardOutput, output, events.Writer);
         Task errorReader = CaptureAttachAsync(process.StandardError, errors, writer: null);
 
@@ -421,51 +520,53 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             if (major == 8)
                 classpath += Path.PathSeparator.ToString() + Path.Combine(home, path2: "lib", path3: "tools.jar");
 
-            await LoadAgentAsync(
-                java,
+            await LoadAgentAsync(java,
                 classpath,
                 process.Id,
                 agent,
                 options: null,
                 Path.Combine(directory, path2: "attach-controller.log"),
                 environment,
-                cancellationToken
-            ).ConfigureAwait(continueOnCapturedContext: false);
+                cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
             await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             // On a JVM that can retransform, the fixture pauses twice so that the running agent can be told to remove its patch and to register it again.
             // Loading the agent library once more with a command is how a running agent is controlled.
             TimeSpan pause = TimeSpan.FromSeconds(seconds: 90);
-            string paused = await WaitForMarkerAsync(events.Reader, ["UNPATCH_READY", "AGENT_OK"], pause, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            string paused = await WaitForMarkerAsync(events.Reader,
+                markers: ["UNPATCH_READY", "AGENT_OK"],
+                pause,
+                cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             if (paused == "UNPATCH_READY")
             {
-                await LoadAgentAsync(
-                    java,
+                await LoadAgentAsync(java,
                     classpath,
                     process.Id,
                     agent,
                     options: "unpatch",
                     Path.Combine(directory, path2: "attach-command-unpatch.log"),
                     environment,
-                    cancellationToken
-                ).ConfigureAwait(continueOnCapturedContext: false);
+                    cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
                 await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-                string repatch = await WaitForMarkerAsync(events.Reader, ["REPATCH_READY"], pause, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+                string repatch = await WaitForMarkerAsync(events.Reader, markers: ["REPATCH_READY"], pause, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
                 if (repatch != "REPATCH_READY")
                     throw new InvalidOperationException(message: "The attach target did not pause before registering the patch again.");
 
-                await LoadAgentAsync(
-                    java,
+                await LoadAgentAsync(java,
                     classpath,
                     process.Id,
                     agent,
                     options: "patch",
                     Path.Combine(directory, path2: "attach-command-patch.log"),
                     environment,
-                    cancellationToken
-                ).ConfigureAwait(continueOnCapturedContext: false);
+                    cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
                 await ReleaseTargetAsync(process, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
 
@@ -486,7 +587,36 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             string targetOutput = string.Concat(output.Concat(errors));
 
-            string[] requiredMarkers = ["AGENT_OK", "BOOTSTRAP_NULL_LOADER_OK", "BOOTSTRAP_CALLBACK_NULL_LOADER", "LOADER_ISOLATION_OK", "LOADER_METADATA_OK", "MEMBER_INSPECTION_OK", "SELECTED_CODE_SOURCE", "OTHER_CODE_SOURCE", "SELECTED_TRANSFORM", "ATTACH", "HELPER_INSTALLED", "HELPER_DUPLICATE_REJECTED", "HELPER_LOADER_VISIBILITY_OK", "HELPER_CALLS_OK", "HELPER_TWIN_OK", "HELPER_NULL_OK", "HELPER_THREAD_OK", "WEAK_REFERENCE_OK", "PATCH_BOOTSTRAP_HELPER_OK", "PATCH_LOADER_HELPERS_OK", "MATCHER_PATCH_OK", "JAVA_BASE_PATCH_OK", "ADVICE_OK", "EVENTS_OK", "INTEROP_OK", "HelloAgent: patched BridgeFixture$PatchTarget"];
+            string[] requiredMarkers =
+            [
+                "AGENT_OK",
+                "BOOTSTRAP_NULL_LOADER_OK",
+                "BOOTSTRAP_CALLBACK_NULL_LOADER",
+                "LOADER_ISOLATION_OK",
+                "LOADER_METADATA_OK",
+                "MEMBER_INSPECTION_OK",
+                "SELECTED_CODE_SOURCE",
+                "OTHER_CODE_SOURCE",
+                "SELECTED_TRANSFORM",
+                "ATTACH",
+                "HELPER_INSTALLED",
+                "HELPER_DUPLICATE_REJECTED",
+                "HELPER_LOADER_VISIBILITY_OK",
+                "HELPER_CALLS_OK",
+                "HELPER_TWIN_OK",
+                "HELPER_NULL_OK",
+                "HELPER_THREAD_OK",
+                "WEAK_REFERENCE_OK",
+                "PATCH_BOOTSTRAP_HELPER_OK",
+                "PATCH_LOADER_HELPERS_OK",
+                "MATCHER_PATCH_OK",
+                "JAVA_BASE_PATCH_OK",
+                "ADVICE_OK",
+                "EVENTS_OK",
+                "INTEROP_OK",
+                "HelloAgent: patched BridgeFixture$PatchTarget",
+            ];
+
             bool missingOutput = requiredMarkers.Any(marker => !targetOutput.Contains(marker, StringComparison.Ordinal));
 
             bool missingRetransformation = !targetOutput.Contains(value: "LOADER_RETRANSFORM_OK", StringComparison.Ordinal)
@@ -508,7 +638,8 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             if (introducedWarning || targetOutput.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
                 throw new InvalidOperationException("Late attachment introduced JNI diagnostics: " + targetOutput);
 
-            bool helperInstalledOncePerLoader = targetOutput.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None).Length == 4;
+            bool helperInstalledOncePerLoader = targetOutput.Split(separator: "HELPER_INSTALLED", StringSplitOptions.None)
+                .Length == 4;
 
             if (process.ExitCode != 0 || missingOutput || !helperInstalledOncePerLoader)
                 throw new InvalidOperationException(message: "Late attachment failed");
@@ -519,7 +650,9 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
 
             try
             {
-                await Task.WhenAll(outputReader, errorReader).WaitAsync(TimeSpan.FromSeconds(seconds: 5), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+                await Task.WhenAll(outputReader, errorReader)
+                    .WaitAsync(TimeSpan.FromSeconds(seconds: 5), CancellationToken.None)
+                    .ConfigureAwait(continueOnCapturedContext: false);
             }
             catch (TimeoutException)
             {
@@ -534,7 +667,9 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
     private async Task<Dictionary<string, long>> CompileProbeAsync(string home, string directory, string compiler, CancellationToken cancellationToken)
     {
         string source = Path.Combine(directory, path2: "abi.c");
+
         TextFile.Write(source, _abiVerifier.CreateProbeSource(Path.Combine(home, path2: "include")));
+
         string binary = Path.Combine(directory, OperatingSystem.IsWindows() ? "abi.exe" : "abi");
         string headerPlatform = OperatingSystem.IsWindows() ? "win32" : OperatingSystem.IsMacOS() ? "darwin" : "linux";
         string[] includes = [Path.Combine(home, path2: "include"), Path.Combine(home, path2: "include", headerPlatform)];
@@ -553,17 +688,19 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         }
 
         if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.X64)
-            command.AddRange(["-Wl,-pagezero_size,0x100000"]);
+            command.AddRange(collection: ["-Wl,-pagezero_size,0x100000"]);
 
-        await _processRunner.RunCheckedAsync(command, Path.Combine(directory, path2: "abi-build.log"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        string output = (await _processRunner.RunAsync([binary], Path.Combine(directory, path2: "abi-native.json"), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Output;
+        await _processRunner.RunCheckedAsync(command, Path.Combine(directory, path2: "abi-build.log"), cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        return ParseLongDictionary(output);
+        ProcessResult probe = await _processRunner.RunAsync(command: [binary], Path.Combine(directory, path2: "abi-native.json"), cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        return ParseLongDictionary(probe.Output);
     }
 
     // The agent library started from a jar by java -javaagent, the same jar named twice, and two copies of the library started with -agentpath.
-    private async Task DeliveryTestAsync(
-        string java,
+    private async Task DeliveryTestAsync(string java,
         string agent,
         string rid,
         string fixture,
@@ -571,18 +708,17 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         string implementation,
         IReadOnlyDictionary<string, string?> environment,
         IReadOnlyDictionary<string, int> plainWarnings,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         string jar = Path.Combine(directory, path2: "hello.jar");
-        string launcher = LauncherJar.Write(jar, [AgentLibrary.FromFile(rid, agent)]);
+        string launcher = LauncherJar.Write(jar, libraries: [AgentLibrary.FromFile(rid, agent)]);
 
-        ProcessResult launched = await _processRunner.RunAsync(
-            [java, "-Xcheck:jni", "-javaagent:" + jar + "=delivery", "-cp", fixture, "BridgeFixture"],
-            Path.Combine(directory, path2: "javaagent.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult launched = await _processRunner
+            .RunAsync(command: [java, "-Xcheck:jni", "-javaagent:" + jar + "=delivery", "-cp", fixture, "BridgeFixture"],
+                Path.Combine(directory, path2: "javaagent.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "MATCHER_PATCH_OK", "MODULE_EXPORT_", "UNLOAD" })
         {
@@ -595,72 +731,73 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (introduced || launched.Output.Contains(value: "NATIVE_ERROR", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "The -javaagent launcher introduced JNI diagnostics.");
 
-        ProcessResult twice = await _processRunner.RunAsync(
-            [java, "-javaagent:" + jar, "-javaagent:" + jar, "-version"],
-            Path.Combine(directory, path2: "javaagent-twice.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult twice = await _processRunner
+            .RunAsync(command: [java, "-javaagent:" + jar, "-javaagent:" + jar, "-version"],
+                Path.Combine(directory, path2: "javaagent-twice.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        bool startedOnce = twice.Output.Contains(value: "is already started in this JVM", StringComparison.Ordinal) && twice.Output.Split(separator: "UNLOAD", StringSplitOptions.None).Length == 2;
+        bool startedOnce = twice.Output.Contains(value: "is already started in this JVM", StringComparison.Ordinal)
+            && twice.Output.Split(separator: "UNLOAD", StringSplitOptions.None).Length == 2;
 
         if (!startedOnce)
             throw new InvalidOperationException(message: "A jar named twice on the command line did not start its agent exactly once.");
 
         string copy = Path.Combine(directory, "HelloAgentCopy" + Path.GetExtension(agent));
+
         File.Copy(agent, copy, overwrite: true);
 
-        ProcessResult copies = await _processRunner.RunAsync(
-            [java, "-agentpath:" + agent, "-agentpath:" + copy, "-version"],
-            Path.Combine(directory, path2: "agent-copies.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult copies = await _processRunner
+            .RunAsync(command: [java, "-agentpath:" + agent, "-agentpath:" + copy, "-version"],
+                Path.Combine(directory, path2: "agent-copies.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         // HotSpot defines the bootstrap helpers directly, so the second copy hits a duplicate definition. OpenJ9 puts them in jars on the bootstrap search path, where two copies do not conflict.
-        bool duplicateReported = implementation != "hotspot" || copies.Output.Contains(value: "LinkageError", StringComparison.Ordinal);
+        bool duplicateReported = implementation != "hotspot"
+            || copies.Output.Contains(value: "LinkageError", StringComparison.Ordinal);
+
         bool bothLoaded = duplicateReported && copies.Output.Split(separator: "UNLOAD", StringSplitOptions.None).Length == 3;
 
         if (!bothLoaded)
             throw new InvalidOperationException(message: "Two copies of one agent did not both load, or the second did not report the duplicate helper definition.");
     }
 
-    private async Task LoadAgentAsync(
-        string java,
+    private async Task LoadAgentAsync(string java,
         string classpath,
         int processId,
         string agent,
         string? options,
         string logPath,
         IReadOnlyDictionary<string, string?> environment,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
-        List<string> command = [java, "-cp", classpath, "AttachFixture", processId.ToString(System.Globalization.CultureInfo.InvariantCulture), agent];
+        List<string> command = [java, "-cp", classpath, "AttachFixture", processId.ToString(CultureInfo.InvariantCulture), agent];
 
         if (options is not null)
             command.Add(options);
 
-        await _processRunner.RunCheckedAsync(command, logPath, environment: environment, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await _processRunner.RunCheckedAsync(command, logPath, environment: environment, cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
     }
 
     // Under the verifier, the helpers link with the packages exported to their modules; without the exports they fail with IllegalAccessError, and a module or package that does not exist is one log line each while the agent starts.
-    private async Task ModuleExportTestAsync(
-        string java,
+    private async Task ModuleExportTestAsync(string java,
         string agent,
         string fixture,
         string directory,
         int major,
         IReadOnlyDictionary<string, string?> environment,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
-        ProcessResult exported = await _processRunner.RunAsync(
-            [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "BridgeFixture", "modules"],
-            Path.Combine(directory, path2: "modules.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult exported = await _processRunner
+            .RunAsync(command: [java, "-Xverify:all", "-agentpath:" + agent, "-cp", fixture, "BridgeFixture", "modules"],
+                Path.Combine(directory, path2: "modules.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (!exported.Output.Contains(major >= 9 ? "MODULE_EXPORT_OK" : "MODULE_EXPORT_NONE", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "The helpers did not run with the packages exported to their modules under -Xverify:all.");
@@ -668,12 +805,12 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         if (major < 9)
             return;
 
-        ProcessResult unexported = await _processRunner.RunAsync(
-            [java, "-Xverify:all", "-agentpath:" + agent + "=no-exports", "-cp", fixture, "BridgeFixture", "unexported"],
-            Path.Combine(directory, path2: "modules-unexported.log"),
-            environment: environment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult unexported = await _processRunner
+            .RunAsync(command: [java, "-Xverify:all", "-agentpath:" + agent + "=no-exports", "-cp", fixture, "BridgeFixture", "unexported"],
+                Path.Combine(directory, path2: "modules-unexported.log"),
+                environment: environment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         string[] expected =
         [
@@ -688,15 +825,13 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
     }
 
     // Standard error redirected to a file, as java ... > app.log 2>&1 does: every line the agent logs must be in the file, as it is on a pipe. Windows writes through the console API.
-    private async Task RedirectedLogTestAsync(
-        string java,
+    private async Task RedirectedLogTestAsync(string java,
         string agent,
         string fixture,
         string directory,
         IReadOnlyDictionary<string, string?> environment,
         string piped,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows())
             return;
@@ -706,25 +841,36 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         // The shell is a system binary, which on Apple silicon is arm64e and cannot take HotSpot's arm64 libjsig, so the shell starts without the inserted library and passes it to java alone.
         Dictionary<string, string?> shellEnvironment = new(environment, StringComparer.Ordinal);
         string inserted = shellEnvironment.GetValueOrDefault(key: "DYLD_INSERT_LIBRARIES") ?? string.Empty;
+
         shellEnvironment[key: "DYLD_INSERT_LIBRARIES"] = null;
 
-        ProcessResult shell = await _processRunner.RunAsync(
-            ["sh", "-c", "[ -z \"$4\" ] || export DYLD_INSERT_LIBRARIES=\"$4\"; \"$0\" -agentpath:\"$1\" -cp \"$2\" BridgeFixture > \"$3\" 2>&1", java, agent, fixture, redirected, inserted],
-            Path.Combine(directory, path2: "startup-redirected-shell.log"),
-            environment: shellEnvironment,
-            cancellationToken: cancellationToken
-        ).ConfigureAwait(continueOnCapturedContext: false);
+        ProcessResult shell = await _processRunner
+            .RunAsync(command:
+        [
+            "sh",
+            "-c",
+            "[ -z \"$4\" ] || export DYLD_INSERT_LIBRARIES=\"$4\"; \"$0\" -agentpath:\"$1\" -cp \"$2\" BridgeFixture > \"$3\" 2>&1",
+            java,
+            agent,
+            fixture,
+            redirected,
+            inserted,
+        ],
+                Path.Combine(directory, path2: "startup-redirected-shell.log"),
+                environment: shellEnvironment,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         const string line = "HelloAgent: patched ";
         int expected = piped.Split(line).Length - 1;
-        int written = (await File.ReadAllTextAsync(redirected, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)).Split(line).Length - 1;
+
+        string redirectedLog = await File.ReadAllTextAsync(redirected, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        int written = redirectedLog.Split(line).Length - 1;
         bool complete = shell.ExitCode == 0 && expected > 0 && written == expected;
 
         if (!complete)
-        {
-            throw new InvalidOperationException(
-                $"With standard error redirected to a file the agent's log has {written} of the {expected} '{line.Trim()}' lines it has on a pipe."
-            );
-        }
+            throw new InvalidOperationException($"With standard error redirected to a file the agent's log has {written} of the {expected} '{line.Trim()}' lines it has on a pipe.");
     }
 }

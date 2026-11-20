@@ -24,12 +24,17 @@ internal sealed unsafe class OfflineJvm : IDisposable
     {
         jvmtiInterface_1_* toolingTable = (jvmtiInterface_1_*)NativeMemory.AllocZeroed((nuint)sizeof(jvmtiInterface_1_));
 
-        Fill((nint*)toolingTable, sizeof(jvmtiInterface_1_) / sizeof(nint), (nint)(delegate* unmanaged<jvmtiError>)&Unavailable);
+        Fill((nint*)toolingTable,
+            sizeof(jvmtiInterface_1_) / sizeof(nint),
+            (nint)(delegate* unmanaged<jvmtiError>)&Unavailable);
 
+        // Every other function reports that it is unavailable; these answer what an agent's Configure asks before it patches.
         toolingTable->GetVersionNumber = &Version;
         toolingTable->GetPotentialCapabilities = &PotentialCapabilities;
         toolingTable->AddCapabilities = &Accept;
         toolingTable->SetEventCallbacks = &AcceptCallbacks;
+
+        // Disposing is accepted too. The environment itself is a pointer to the table, as JVMTI hands one out.
         toolingTable->DisposeEnvironment = &Dispose;
         _tooling = (jvmtiInterface_1_**)NativeMemory.AllocZeroed((nuint)sizeof(nint));
         *_tooling = toolingTable;
@@ -51,6 +56,7 @@ internal sealed unsafe class OfflineJvm : IDisposable
     public void Dispose()
     {
         s_currentTooling = 0;
+
         NativeMemory.Free(*_tooling);
         NativeMemory.Free(_tooling);
         NativeMemory.Free(*_machine);
@@ -101,11 +107,16 @@ internal sealed unsafe class OfflineJvm : IDisposable
     [UnmanagedCallersOnly]
     private static jvmtiError PotentialCapabilities(jvmtiInterface_1_** environment, jvmtiCapabilities* capabilities)
     {
+        // Classes can be changed after they are loaded.
         capabilities->can_retransform_classes = 1;
         capabilities->can_redefine_classes = 1;
+
+        // The events of exceptions and method calls can be subscribed to.
         capabilities->can_generate_exception_events = 1;
         capabilities->can_generate_method_entry_events = 1;
         capabilities->can_generate_method_exit_events = 1;
+
+        // So can those of monitors and garbage collection.
         capabilities->can_generate_monitor_events = 1;
         capabilities->can_generate_garbage_collection_events = 1;
 

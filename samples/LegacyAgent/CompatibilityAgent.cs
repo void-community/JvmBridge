@@ -13,7 +13,6 @@ namespace LegacyAgent;
 internal sealed class CompatibilityAgent : JavaAgent
 {
     private const string Account = "legacy/LegacyFixture$Account";
-
     private const string Fixture = "legacy/LegacyFixture";
 
     private static readonly JavaMethod Deposit = JavaMethod.Virtual(Account, name: "deposit", descriptor: "(I)I");
@@ -25,11 +24,9 @@ internal sealed class CompatibilityAgent : JavaAgent
 
     private static readonly ClassPatch Typed = ClassPatch.For(Fixture)
         .ReplaceConstruction(fromClass: "java/util/ArrayList", toClass: "java/util/concurrent/CopyOnWriteArrayList", storedIn: "SENT")
-        .ReplaceConstruction(
-            fromClass: "java/util/HashSet",
+        .ReplaceConstruction(fromClass: "java/util/HashSet",
             JavaMethod.Static(owner: "legacy/TypedHelpers", name: "newNames", descriptor: "()Ljava/util/Set;"),
-            storedIn: "NAMES"
-        )
+            storedIn: "NAMES")
         .Method(name: "deposited", descriptor: "()I")
         .When(static body => body.Calls(Deposit) && body.Creates(Account))
         .RedirectInvocation(Deposit, JavaMethod.Static(owner: "legacy/TypedHelpers", name: "deposit", descriptor: "(Llegacy/LegacyFixture$Account;I)I"))
@@ -53,13 +50,18 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void Configure(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        // The helpers that the bootstrap loader defines, where every class finds them, and the patch of the fixture.
         context.DefineClass(Interop.Definition, ClassLoaderTarget.Bootstrap);
         context.DefineClass(JavaClasses.Jvmbridge.Legacy.Hooks, ClassLoaderTarget.Bootstrap);
         context.Patch(Patch);
+
+        // A helper that is defined in the loader of each class it is patched into, and the other patches.
         context.DefineClass(JavaClasses.Legacy.TypedHelpers, ClassLoaderTarget.PatchedClassLoader);
         context.Patch(OpenAccount);
         context.Patch(Typed);
         context.Patch(Unmet);
+
         Interop.Subscription = context.Events.Subscribe(JavaEvents.ThreadStart | JavaEvents.ClassLoad).ToString();
     }
 
@@ -67,6 +69,7 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnAttach(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         OnLoad(context);
         context.Log("ATTACH java=" + context.JavaMajor.ToString(CultureInfo.InvariantCulture));
         AttachWorker(context.VirtualMachine);
@@ -82,6 +85,7 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnLoad(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         context.Log(message: "LOAD");
     }
 
@@ -95,6 +99,7 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnUnload(AgentContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         context.Log(message: "UNLOAD");
     }
 
@@ -102,9 +107,9 @@ internal sealed class CompatibilityAgent : JavaAgent
     public override void OnVmInit(AgentContext context, JavaEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(context);
+
         // The JVM sets java.specification.version while it initializes, so the Java version is known from here on, not in OnLoad.
         context.Log("VM_INIT java=" + context.JavaMajor.ToString(CultureInfo.InvariantCulture));
-
         AttachWorker(context.VirtualMachine);
     }
 
@@ -127,7 +132,11 @@ internal sealed class CompatibilityAgent : JavaAgent
     // A thread that the JVM did not start attaches with the JNI version that Java 6 knows, and calls into Java.
     private static void AttachWorker(JavaVirtualMachine machine)
     {
-        Thread worker = new(() => Interop.Attached = Attach(machine)) { IsBackground = true };
+        Thread worker = new(() => Interop.Attached = Attach(machine))
+        {
+            IsBackground = true
+        };
+
         worker.Start();
         worker.Join();
     }
