@@ -6,7 +6,7 @@ using System.CodeDom.Compiler;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-[assembly: GeneratedCode("ClangSharp", "21.1.8.4")]
+[assembly: GeneratedCode("ClangSharp", "23.1.5.0")]
 
 namespace JvmBridge.Native;
 
@@ -18,69 +18,69 @@ public partial struct _jobject
 }
 
 /// <summary>
-/// Provides the pinned OpenJDK native declaration for <c>jvalue</c>.
+/// Provides the pinned OpenJDK native declaration for <c>@jvalue</c>.
 /// </summary>
 [StructLayout(LayoutKind.Explicit)]
-public unsafe partial struct jvalue
+public unsafe partial struct @jvalue
 {
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.z</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.z</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jboolean")]
     public byte z;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.b</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.b</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jbyte")]
     public sbyte b;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.c</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.c</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jchar")]
     public ushort c;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.s</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.s</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jshort")]
     public short s;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.i</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.i</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jint")]
     public int i;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.j</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.j</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jlong")]
     public long j;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.f</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.f</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jfloat")]
     public float f;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.d</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.d</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jdouble")]
     public double d;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native declaration for <c>jvalue.l</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>@jvalue.l</c>.
     /// </summary>
     [FieldOffset(0)]
     [NativeTypeName("jobject")]
@@ -336,7 +336,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.NewObjectA</c>.
     /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> NewObjectA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, _jobject*> NewObjectA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetObjectClass</c>.
@@ -372,7 +372,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallObjectMethodA</c>.
     /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> CallObjectMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, _jobject*> CallObjectMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallBooleanMethod</c>.
@@ -390,7 +390,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallBooleanMethodA</c>.
     /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, byte> CallBooleanMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, byte> CallBooleanMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallByteMethod</c>.
@@ -408,7 +408,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallByteMethodA</c>.
     /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, sbyte> CallByteMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, sbyte> CallByteMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallCharMethod</c>.
@@ -426,7 +426,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallCharMethodA</c>.
     /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, ushort> CallCharMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, ushort> CallCharMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallShortMethod</c>.
@@ -444,7 +444,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallShortMethodA</c>.
     /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, short> CallShortMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, short> CallShortMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallIntMethod</c>.
@@ -462,7 +462,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallIntMethodA</c>.
     /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, int> CallIntMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, int> CallIntMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallLongMethod</c>.
@@ -480,7 +480,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallLongMethodA</c>.
     /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, long> CallLongMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, long> CallLongMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallFloatMethod</c>.
@@ -498,7 +498,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallFloatMethodA</c>.
     /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, float> CallFloatMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, float> CallFloatMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallDoubleMethod</c>.
@@ -516,7 +516,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallDoubleMethodA</c>.
     /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, double> CallDoubleMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, double> CallDoubleMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallVoidMethod</c>.
@@ -534,7 +534,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallVoidMethodA</c>.
     /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, void> CallVoidMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, void> CallVoidMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualObjectMethod</c>.
@@ -552,7 +552,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualObjectMethodA</c>.
     /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, _jobject*> CallNonvirtualObjectMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, _jobject*> CallNonvirtualObjectMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualBooleanMethod</c>.
@@ -570,7 +570,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualBooleanMethodA</c>.
     /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, byte> CallNonvirtualBooleanMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, byte> CallNonvirtualBooleanMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualByteMethod</c>.
@@ -588,7 +588,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualByteMethodA</c>.
     /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, sbyte> CallNonvirtualByteMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, sbyte> CallNonvirtualByteMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualCharMethod</c>.
@@ -606,7 +606,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualCharMethodA</c>.
     /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, ushort> CallNonvirtualCharMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, ushort> CallNonvirtualCharMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualShortMethod</c>.
@@ -624,7 +624,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualShortMethodA</c>.
     /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, short> CallNonvirtualShortMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, short> CallNonvirtualShortMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualIntMethod</c>.
@@ -642,7 +642,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualIntMethodA</c>.
     /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, int> CallNonvirtualIntMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, int> CallNonvirtualIntMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualLongMethod</c>.
@@ -660,7 +660,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualLongMethodA</c>.
     /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, long> CallNonvirtualLongMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, long> CallNonvirtualLongMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualFloatMethod</c>.
@@ -678,7 +678,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualFloatMethodA</c>.
     /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, float> CallNonvirtualFloatMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, float> CallNonvirtualFloatMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualDoubleMethod</c>.
@@ -696,7 +696,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualDoubleMethodA</c>.
     /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, double> CallNonvirtualDoubleMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, double> CallNonvirtualDoubleMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualVoidMethod</c>.
@@ -714,7 +714,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallNonvirtualVoidMethodA</c>.
     /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jobject, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, jvalue*, void> CallNonvirtualVoidMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jobject*, _jmethodID*, @jvalue*, void> CallNonvirtualVoidMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetFieldID</c>.
@@ -852,7 +852,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticObjectMethodA</c>.
     /// </summary>
     [NativeTypeName("jobject (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, _jobject*> CallStaticObjectMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, _jobject*> CallStaticObjectMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticBooleanMethod</c>.
@@ -870,7 +870,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticBooleanMethodA</c>.
     /// </summary>
     [NativeTypeName("jboolean (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, byte> CallStaticBooleanMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, byte> CallStaticBooleanMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticByteMethod</c>.
@@ -888,7 +888,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticByteMethodA</c>.
     /// </summary>
     [NativeTypeName("jbyte (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, sbyte> CallStaticByteMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, sbyte> CallStaticByteMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticCharMethod</c>.
@@ -906,7 +906,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticCharMethodA</c>.
     /// </summary>
     [NativeTypeName("jchar (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, ushort> CallStaticCharMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, ushort> CallStaticCharMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticShortMethod</c>.
@@ -924,7 +924,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticShortMethodA</c>.
     /// </summary>
     [NativeTypeName("jshort (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, short> CallStaticShortMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, short> CallStaticShortMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticIntMethod</c>.
@@ -942,7 +942,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticIntMethodA</c>.
     /// </summary>
     [NativeTypeName("jint (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, int> CallStaticIntMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, int> CallStaticIntMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticLongMethod</c>.
@@ -960,7 +960,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticLongMethodA</c>.
     /// </summary>
     [NativeTypeName("jlong (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, long> CallStaticLongMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, long> CallStaticLongMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticFloatMethod</c>.
@@ -978,7 +978,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticFloatMethodA</c>.
     /// </summary>
     [NativeTypeName("jfloat (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, float> CallStaticFloatMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, float> CallStaticFloatMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticDoubleMethod</c>.
@@ -996,7 +996,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticDoubleMethodA</c>.
     /// </summary>
     [NativeTypeName("jdouble (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, double> CallStaticDoubleMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, double> CallStaticDoubleMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticVoidMethod</c>.
@@ -1014,7 +1014,7 @@ public unsafe partial struct JNINativeInterface_
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.CallStaticVoidMethodA</c>.
     /// </summary>
     [NativeTypeName("void (*)(JNIEnv *, jclass, jmethodID, const jvalue *)")]
-    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, jvalue*, void> CallStaticVoidMethodA;
+    public delegate* unmanaged<JNINativeInterface_**, _jobject*, _jmethodID*, @jvalue*, void> CallStaticVoidMethodA;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>JNINativeInterface_.GetStaticFieldID</c>.
@@ -3073,7 +3073,7 @@ public unsafe partial struct jvmtiHeapCallbacks
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.primitive_field_callback</c>.
     /// </summary>
     [NativeTypeName("jvmtiPrimitiveFieldCallback")]
-    public delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long*, jvalue, jvmtiPrimitiveType, void*, int> primitive_field_callback;
+    public delegate* unmanaged<jvmtiHeapReferenceKind, jvmtiHeapReferenceInfo*, long, long*, @jvalue, jvmtiPrimitiveType, void*, int> primitive_field_callback;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiHeapCallbacks.array_primitive_value_callback</c>.
@@ -4434,7 +4434,7 @@ public unsafe partial struct jvmtiEventCallbacks
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.FieldModification</c>.
     /// </summary>
     [NativeTypeName("jvmtiEventFieldModification")]
-    public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, _jobject*, _jfieldID*, byte, jvalue, void> FieldModification;
+    public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, long, _jobject*, _jobject*, _jfieldID*, byte, @jvalue, void> FieldModification;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MethodEntry</c>.
@@ -4446,7 +4446,7 @@ public unsafe partial struct jvmtiEventCallbacks
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.MethodExit</c>.
     /// </summary>
     [NativeTypeName("jvmtiEventMethodExit")]
-    public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, byte, jvalue, void> MethodExit;
+    public delegate* unmanaged<jvmtiInterface_1_**, JNINativeInterface_**, _jobject*, _jmethodID*, byte, @jvalue, void> MethodExit;
 
     /// <summary>
     /// Provides the pinned OpenJDK native declaration for <c>jvmtiEventCallbacks.NativeMethodBind</c>.
@@ -5536,381 +5536,381 @@ public unsafe partial struct _jvmtiEnv
 public static partial class Methods
 {
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_FALSE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_FALSE</c>.
     /// </summary>
     [NativeTypeName("#define JNI_FALSE 0")]
     public const int JNI_FALSE = 0;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_TRUE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_TRUE</c>.
     /// </summary>
     [NativeTypeName("#define JNI_TRUE 1")]
     public const int JNI_TRUE = 1;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_OK</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_OK</c>.
     /// </summary>
     [NativeTypeName("#define JNI_OK 0")]
     public const int JNI_OK = 0;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_ERR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_ERR</c>.
     /// </summary>
     [NativeTypeName("#define JNI_ERR (-1)")]
     public const int JNI_ERR = (-1);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_EDETACHED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_EDETACHED</c>.
     /// </summary>
     [NativeTypeName("#define JNI_EDETACHED (-2)")]
     public const int JNI_EDETACHED = (-2);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_EVERSION</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_EVERSION</c>.
     /// </summary>
     [NativeTypeName("#define JNI_EVERSION (-3)")]
     public const int JNI_EVERSION = (-3);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_ENOMEM</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_ENOMEM</c>.
     /// </summary>
     [NativeTypeName("#define JNI_ENOMEM (-4)")]
     public const int JNI_ENOMEM = (-4);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_EEXIST</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_EEXIST</c>.
     /// </summary>
     [NativeTypeName("#define JNI_EEXIST (-5)")]
     public const int JNI_EEXIST = (-5);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_EINVAL</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_EINVAL</c>.
     /// </summary>
     [NativeTypeName("#define JNI_EINVAL (-6)")]
     public const int JNI_EINVAL = (-6);
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_COMMIT</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_COMMIT</c>.
     /// </summary>
     [NativeTypeName("#define JNI_COMMIT 1")]
     public const int JNI_COMMIT = 1;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_ABORT</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_ABORT</c>.
     /// </summary>
     [NativeTypeName("#define JNI_ABORT 2")]
     public const int JNI_ABORT = 2;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_1</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_1_1</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_1 0x00010001")]
     public const int JNI_VERSION_1_1 = 0x00010001;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_2</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_1_2</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_2 0x00010002")]
     public const int JNI_VERSION_1_2 = 0x00010002;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_4</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_1_4</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_4 0x00010004")]
     public const int JNI_VERSION_1_4 = 0x00010004;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_6</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_1_6</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_6 0x00010006")]
     public const int JNI_VERSION_1_6 = 0x00010006;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_1_8</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_1_8</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_1_8 0x00010008")]
     public const int JNI_VERSION_1_8 = 0x00010008;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_9</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_9</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_9 0x00090000")]
     public const int JNI_VERSION_9 = 0x00090000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_10</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_10</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_10 0x000a0000")]
     public const int JNI_VERSION_10 = 0x000a0000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_19</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_19</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_19 0x00130000")]
     public const int JNI_VERSION_19 = 0x00130000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_20</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_20</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_20 0x00140000")]
     public const int JNI_VERSION_20 = 0x00140000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_21</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_21</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_21 0x00150000")]
     public const int JNI_VERSION_21 = 0x00150000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JNI_VERSION_24</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JNI_VERSION_24</c>.
     /// </summary>
     [NativeTypeName("#define JNI_VERSION_24 0x00180000")]
     public const int JNI_VERSION_24 = 0x00180000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_1</c>.
     /// </summary>
     public const uint JVMTI_VERSION_1 = 0x30010000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_0</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_1_0</c>.
     /// </summary>
     public const uint JVMTI_VERSION_1_0 = 0x30010000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_1</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_1_1</c>.
     /// </summary>
     public const uint JVMTI_VERSION_1_1 = 0x30010100;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_1_2</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_1_2</c>.
     /// </summary>
     public const uint JVMTI_VERSION_1_2 = 0x30010200;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_9</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_9</c>.
     /// </summary>
     public const uint JVMTI_VERSION_9 = 0x30090000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_11</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_11</c>.
     /// </summary>
     public const uint JVMTI_VERSION_11 = 0x300B0000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_19</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_19</c>.
     /// </summary>
     public const uint JVMTI_VERSION_19 = 0x30130000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_21</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_21</c>.
     /// </summary>
     public const uint JVMTI_VERSION_21 = 0x30150000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION</c>.
     /// </summary>
     public const uint JVMTI_VERSION = 0x30000000 + (26 * 0x10000) + (0 * 0x100) + 0;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_ALIVE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_ALIVE</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_ALIVE = 0x0001;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_TERMINATED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_TERMINATED</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_TERMINATED = 0x0002;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_RUNNABLE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_RUNNABLE</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_RUNNABLE = 0x0004;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER = 0x0400;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_WAITING</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING = 0x0080;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING_INDEFINITELY</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_WAITING_INDEFINITELY</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING_INDEFINITELY = 0x0010;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT = 0x0020;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_SLEEPING</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_SLEEPING</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_SLEEPING = 0x0040;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_IN_OBJECT_WAIT</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_IN_OBJECT_WAIT</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_IN_OBJECT_WAIT = 0x0100;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_PARKED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_PARKED</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_PARKED = 0x0200;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_SUSPENDED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_SUSPENDED</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_SUSPENDED = 0x100000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_INTERRUPTED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_INTERRUPTED</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_INTERRUPTED = 0x200000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_IN_NATIVE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_IN_NATIVE</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_IN_NATIVE = 0x400000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_1</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_VENDOR_1</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_1 = 0x10000000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_2</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_VENDOR_2</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_2 = 0x20000000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_STATE_VENDOR_3</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_STATE_VENDOR_3</c>.
     /// </summary>
     public const uint JVMTI_THREAD_STATE_VENDOR_3 = 0x40000000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_MASK</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_MASK</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_MASK = JVMTI_THREAD_STATE_TERMINATED | JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_RUNNABLE | JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_INDEFINITELY | JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_NEW</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_NEW</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_NEW = 0;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_TERMINATED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_TERMINATED</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_TERMINATED = JVMTI_THREAD_STATE_TERMINATED;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_RUNNABLE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_RUNNABLE</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_RUNNABLE = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_RUNNABLE;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_BLOCKED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_BLOCKED</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_BLOCKED = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_WAITING</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_WAITING</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_WAITING = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_JAVA_LANG_THREAD_STATE_TIMED_WAITING</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_JAVA_LANG_THREAD_STATE_TIMED_WAITING</c>.
     /// </summary>
     public const uint JVMTI_JAVA_LANG_THREAD_STATE_TIMED_WAITING = JVMTI_THREAD_STATE_ALIVE | JVMTI_THREAD_STATE_WAITING | JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_MIN_PRIORITY</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_MIN_PRIORITY</c>.
     /// </summary>
     public const uint JVMTI_THREAD_MIN_PRIORITY = 1;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_NORM_PRIORITY</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_NORM_PRIORITY</c>.
     /// </summary>
     public const uint JVMTI_THREAD_NORM_PRIORITY = 5;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_THREAD_MAX_PRIORITY</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_THREAD_MAX_PRIORITY</c>.
     /// </summary>
     public const uint JVMTI_THREAD_MAX_PRIORITY = 10;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_TAGGED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_HEAP_FILTER_TAGGED</c>.
     /// </summary>
     public const uint JVMTI_HEAP_FILTER_TAGGED = 0x4;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_UNTAGGED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_HEAP_FILTER_UNTAGGED</c>.
     /// </summary>
     public const uint JVMTI_HEAP_FILTER_UNTAGGED = 0x8;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_CLASS_TAGGED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_HEAP_FILTER_CLASS_TAGGED</c>.
     /// </summary>
     public const uint JVMTI_HEAP_FILTER_CLASS_TAGGED = 0x10;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_HEAP_FILTER_CLASS_UNTAGGED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_HEAP_FILTER_CLASS_UNTAGGED</c>.
     /// </summary>
     public const uint JVMTI_HEAP_FILTER_CLASS_UNTAGGED = 0x20;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VISIT_OBJECTS</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VISIT_OBJECTS</c>.
     /// </summary>
     public const uint JVMTI_VISIT_OBJECTS = 0x100;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VISIT_ABORT</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VISIT_ABORT</c>.
     /// </summary>
     public const uint JVMTI_VISIT_ABORT = 0x8000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_VERIFIED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_VERIFIED</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_VERIFIED = 1;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_PREPARED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_PREPARED</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_PREPARED = 2;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_INITIALIZED</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_INITIALIZED</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_INITIALIZED = 4;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_ERROR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_ERROR</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_ERROR = 8;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_ARRAY</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_ARRAY</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_ARRAY = 16;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_CLASS_STATUS_PRIMITIVE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_CLASS_STATUS_PRIMITIVE</c>.
     /// </summary>
     public const uint JVMTI_CLASS_STATUS_PRIMITIVE = 32;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_INTERFACE_JNI</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_INTERFACE_JNI</c>.
     /// </summary>
     public const uint JVMTI_VERSION_INTERFACE_JNI = 0x00000000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_INTERFACE_JVMTI</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_INTERFACE_JVMTI</c>.
     /// </summary>
     public const uint JVMTI_VERSION_INTERFACE_JVMTI = 0x30000000;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_INTERFACE_TYPE</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_MASK_INTERFACE_TYPE</c>.
     /// </summary>
     public const uint JVMTI_VERSION_MASK_INTERFACE_TYPE = 0x70000000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MAJOR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_MASK_MAJOR</c>.
     /// </summary>
     public const uint JVMTI_VERSION_MASK_MAJOR = 0x0FFF0000;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MINOR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_MASK_MINOR</c>.
     /// </summary>
     public const uint JVMTI_VERSION_MASK_MINOR = 0x0000FF00;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_MASK_MICRO</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_MASK_MICRO</c>.
     /// </summary>
     public const uint JVMTI_VERSION_MASK_MICRO = 0x000000FF;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MAJOR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_SHIFT_MAJOR</c>.
     /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MAJOR = 16;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MINOR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_SHIFT_MINOR</c>.
     /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MINOR = 8;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_VERSION_SHIFT_MICRO</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_VERSION_SHIFT_MICRO</c>.
     /// </summary>
     public const uint JVMTI_VERSION_SHIFT_MICRO = 0;
 
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR</c>.
     /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR = 0x0001;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP</c>.
     /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP = 0x0002;
     /// <summary>
-    /// Provides the pinned OpenJDK native constant <c>JVMTI_RESOURCE_EXHAUSTED_THREADS</c>.
+    /// Provides the pinned OpenJDK native declaration for <c>Methods.JVMTI_RESOURCE_EXHAUSTED_THREADS</c>.
     /// </summary>
     public const uint JVMTI_RESOURCE_EXHAUSTED_THREADS = 0x0004;
 }

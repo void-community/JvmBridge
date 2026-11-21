@@ -114,33 +114,6 @@ internal sealed partial class BindingGenerator(RepositoryContext repository, Pro
             if (line == "public static partial class Methods")
                 documented.AddRange(collection: ["/// <summary>", "/// Provides constants copied from the pinned OpenJDK headers.", "/// </summary>"]);
 
-            Match constant = ConstantRegex().Match(line);
-
-            if (constant.Success)
-            {
-                string? attribute = null;
-
-                if (documented.Count > 0 && documented.Last().TrimStart().StartsWith(value: "[NativeTypeName(", StringComparison.Ordinal))
-                {
-                    attribute = documented.Last();
-
-                    documented.RemoveAt(documented.Count - 1);
-                }
-
-                string indentation = GroupValue(constant, name: "indent");
-                string name = WebUtility.HtmlEncode(GroupValue(constant, name: "name"));
-
-                documented.AddRange(collection:
-                [
-                    $"{indentation}/// <summary>",
-                    $"{indentation}/// Provides the pinned OpenJDK native constant <c>{name}</c>.",
-                    $"{indentation}/// </summary>",
-                ]);
-
-                if (attribute is not null)
-                    documented.Add(attribute);
-            }
-
             Match bitfield = BitfieldRegex().Match(line);
 
             if (bitfield.Success)
@@ -164,9 +137,6 @@ internal sealed partial class BindingGenerator(RepositoryContext repository, Pro
 
     [GeneratedRegex("^(?<indent>[ \\t]*)public uint (?<name>_bitfield[0-9]+);$", RegexOptions.CultureInvariant)]
     private static partial Regex BitfieldRegex();
-
-    [GeneratedRegex("^(?<indent>[ \\t]*)public const \\S+ (?<name>[A-Za-z_][A-Za-z0-9_]*) = .+;$", RegexOptions.CultureInvariant)]
-    private static partial Regex ConstantRegex();
 
     [GeneratedRegex("^([ \\t]*)/// <include file='[^']+' path='doc/member\\[@name=\"([^\"]+)\"\\]/\\*' />$",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
