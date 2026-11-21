@@ -11,7 +11,7 @@ JvmBridge is published on [**NuGet**](https://www.nuget.org/packages/JvmBridge),
 
 ## A native agent in a few lines
 
-Create a .NET 10 class library and reference JvmBridge:
+Create a .NET 10 class library and reference JvmBridge. Build it with the .NET 11 SDK: the package's source generator needs that SDK's compiler, and the library itself keeps targeting `net10.0`.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">

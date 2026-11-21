@@ -4,6 +4,7 @@ Build errors carry a `JVMB` code; see the [**diagnostics catalogue**](../diagnos
 
 | Symptom | Cause and fix |
 |---|---|
+| The build reports `CS9057`: `JvmBridge.Generator.dll` cannot be used because it references a newer version of the compiler | The SDK is older than the package supports. Build with the .NET 11 SDK; the project can keep targeting `net10.0`. |
 | `dotnet publish` succeeds but there is no `.so`/`.dll`/`.dylib` | The project does not set `PublishAot` itself. The build fails with JVMB006 when it is missing; set `<PublishAot>true</PublishAot>` next to `JvmBridgeAgent`. |
 | The JVM prints `Could not find agent library` or cannot load it | Use the absolute path of a library published for the **JVM process's** operating system and architecture, not the machine that built it. A 64-bit JVM cannot load a 32-bit library. |
 | `version 'GLIBC_2.32' not found (required by MyAgent.so)` (or another `GLIBC_` version), or `UnsatisfiedLinkError` with it under `-javaagent` | The agent was published on a machine with a newer glibc than the one it runs on. Publish it against .NET's sysroot, which gives glibc 2.17 for linux-x64 and linux-arm64; see [**Publishing for Linux**](publishing.md). |
