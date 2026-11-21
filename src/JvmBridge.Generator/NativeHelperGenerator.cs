@@ -307,7 +307,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         {
             diagnostics.Add(Diagnostic.Create(InvalidMethod,
                 location,
-                $"{method.Name} must be a static, non-generic, non-async method."));
+                messageArgs: [$"{method.Name} must be a static, non-generic, non-async method."]));
 
             return null;
         }
@@ -334,7 +334,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
 
                 diagnostics.Add(Diagnostic.Create(InvalidMethod,
                     parameterLocation,
-                    $"Parameter {parameter.Name} of {method.Name} has an unsupported type {parameter.Type.ToDisplayString()}."));
+                    messageArgs: [$"Parameter {parameter.Name} of {method.Name} has an unsupported type {parameter.Type.ToDisplayString()}."]));
 
                 return null;
             }
@@ -348,7 +348,7 @@ public sealed class NativeHelperGenerator : IIncrementalGenerator
         {
             diagnostics.Add(Diagnostic.Create(InvalidMethod,
                 location,
-                $"{method.Name} returns an unsupported type {method.ReturnType.ToDisplayString()}."));
+                messageArgs: [$"{method.Name} returns an unsupported type {method.ReturnType.ToDisplayString()}."]));
 
             return null;
         }

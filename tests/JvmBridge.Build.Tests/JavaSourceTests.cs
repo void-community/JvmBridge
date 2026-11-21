@@ -200,7 +200,7 @@ public sealed class JavaSourceTests
         File.WriteAllText(Path.Combine(project.Path, path2: "Program.cs"), ProgramSource);
 
         File.WriteAllText(Path.Combine(project.Path, path2: "Consumer.csproj"),
-            $"""
+            contents: $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>

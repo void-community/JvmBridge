@@ -190,7 +190,7 @@ public sealed class ClassFileReaderTests
 
         ClassFormatException failure = Assert.Throws<ClassFormatException>(() => JavaClassFile.Read(bytes));
 
-        Assert.Contains($"offset {entry.Offset}", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: $"offset {entry.Offset}", failure.Message, StringComparison.Ordinal);
     }
 
     /// <summary>A tableswitch whose high bound is below its low bound is rejected.</summary>

@@ -302,7 +302,7 @@ internal static unsafe class MemberInspection
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -357,7 +357,7 @@ internal static unsafe class MemberInspection
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 }

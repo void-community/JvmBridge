@@ -37,7 +37,7 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
                     throw new InvalidOperationException("Native exports were not verified for " + target.Rid);
             }
 
-            ConsoleOutput.WriteLine($"All {expected.Count} available JVM combinations passed real NativeAOT tests.");
+            ConsoleOutput.WriteLine(message: $"All {expected.Count} available JVM combinations passed real NativeAOT tests.");
 
             return;
         }
@@ -64,7 +64,7 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
                 ? "Full agent + host + ABI tests required"
                 : (target.Build ? "Native build required; " : string.Empty) + Require(target.Status, target.Rid + " status") + ": " + Require(target.Reason, target.Rid + " reason");
 
-            text.Write($"| {target.Rid} | {versions.First()} | {versions.ElementAt(index: 1)} | {state} |\n");
+            text.Write(value: $"| {target.Rid} | {versions.First()} | {versions.ElementAt(index: 1)} | {state} |\n");
         }
 
         text.Write(value: "\nJava majors: ");
@@ -75,7 +75,7 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
         {
             string platform = rule.Os is null ? rule.Architecture : rule.Os + " " + rule.Architecture;
 
-            text.Write($"\nJava {rule.Java} {rule.Implementation} {platform} is exercised with `{string.Join(separator: ' ', rule.Options)}`. {rule.Reason}\n");
+            text.Write(value: $"\nJava {rule.Java} {rule.Implementation} {platform} is exercised with `{string.Join(separator: ' ', rule.Options)}`. {rule.Reason}\n");
         }
 
         string path = _repository.PathFromRoot(parts: ["docs", "compatibility.md"]);
@@ -91,12 +91,12 @@ internal sealed class CompatibilityReporter(RepositoryContext repository)
             TextFile.Write(path, report);
         }
 
-        ConsoleOutput.WriteLine($"{expected.Count} available combinations inventoried.");
+        ConsoleOutput.WriteLine(message: $"{expected.Count} available combinations inventoried.");
     }
 
     private static string Require(string? value, string description)
     {
-        return value ?? throw new InvalidOperationException($"Missing {description}.");
+        return value ?? throw new InvalidOperationException(message: $"Missing {description}.");
     }
 
     private List<JsonObject> ReadResults()

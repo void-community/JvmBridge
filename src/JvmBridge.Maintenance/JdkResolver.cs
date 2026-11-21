@@ -62,7 +62,7 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             entries,
             legacy);
 
-        ConsoleOutput.WriteLine($"Pinned {entries.Concat(legacy).Count(entry => entry.Status == "available")} JVM archives; {entries.Count + legacy.Count} cells accounted for.");
+        ConsoleOutput.WriteLine(message: $"Pinned {entries.Concat(legacy).Count(entry => entry.Status == "available")} JVM archives; {entries.Count + legacy.Count} cells accounted for.");
     }
 
     public async Task<JdkArchive?> ResolveSemeruAsync(TargetConfiguration target, int major, CancellationToken cancellationToken)
@@ -72,7 +72,7 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         if (target.Musl || arch is "arm" or "x86")
             return null;
 
-        JsonNode? releaseNode = await _http.GetJsonAsync($"https://api.github.com/repos/ibmruntimes/semeru{major}-binaries/releases/latest", missing: true, cancellationToken)
+        JsonNode? releaseNode = await _http.GetJsonAsync(url: $"https://api.github.com/repos/ibmruntimes/semeru{major}-binaries/releases/latest", missing: true, cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
         if (releaseNode is null)
@@ -95,7 +95,7 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
             if (!name.Contains(marker, StringComparison.Ordinal) || !name.EndsWith(extension, StringComparison.Ordinal))
                 continue;
 
-            JsonObject? checksum = assets.Select((value, index) => value.RequireObject($"Semeru checksum asset {index}"))
+            JsonObject? checksum = assets.Select((value, index) => value.RequireObject(description: $"Semeru checksum asset {index}"))
                 .FirstOrDefault(value => value.Property(propertyName: "name").RequireString(description: "Semeru checksum name") == name + ".sha256.txt")
                 ?? throw new InvalidOperationException("Missing Semeru SHA256: " + name);
 
@@ -125,12 +125,12 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
         string system = target.Musl ? "alpine-linux" : Require(target.Os, target.Rid + " OS");
         string query = Query(values: [("architecture", Require(target.Arch, target.Rid + " architecture")), ("image_type", "jdk"), ("os", system)]);
 
-        JsonNode? assets = await _http.GetJsonAsync($"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?{query}", missing: true, cancellationToken)
+        JsonNode? assets = await _http.GetJsonAsync(url: $"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?{query}", missing: true, cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
         JsonArray entries = assets?.RequireArray(description: "Temurin assets") ?? [];
 
-        JsonObject? selected = entries.Select(static (entry, index) => entry.RequireObject($"Temurin asset {index}"))
+        JsonObject? selected = entries.Select(static (entry, index) => entry.RequireObject(description: $"Temurin asset {index}"))
             .OrderByDescending(static entry => entry.Property(propertyName: "version")
                 .Property(propertyName: "semver")
                 .RequireString(description: "Temurin version"),
@@ -244,12 +244,13 @@ internal sealed class JdkResolver(RepositoryContext repository, HttpService http
 
     private static List<int> ReadVersion(JsonNode? node, string description)
     {
-        return [.. node.RequireArray(description).Select((value, index) => value.RequireInt32($"{description} part {index}"))];
+        return [.. node.RequireArray(description)
+            .Select((value, index) => value.RequireInt32(description: $"{description} part {index}"))];
     }
 
     private static string Require(string? value, string description)
     {
-        return value ?? throw new InvalidOperationException($"Missing {description}.");
+        return value ?? throw new InvalidOperationException(message: $"Missing {description}.");
     }
 
     // A vendor that stops listing an archive must not silently shrink the grid that CI requires.

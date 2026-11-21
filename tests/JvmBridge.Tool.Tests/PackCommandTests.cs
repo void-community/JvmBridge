@@ -158,11 +158,11 @@ public sealed class PackCommandTests
             Assert.Equal(expected: "linux-x64=Agent.so\nwin-x64=Agent.dll\n", Read(archive, name + "/native.properties"));
             Assert.Equal(expected: "windows library", Read(archive, name + "/native/win-x64/Agent.dll"));
 
-            Assert.Contains($"Premain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n",
+            Assert.Contains(expectedSubstring: $"Premain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n",
                 Read(archive, name: "META-INF/MANIFEST.MF"),
                 StringComparison.Ordinal);
 
-            Assert.Contains($"Agent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n",
+            Assert.Contains(expectedSubstring: $"Agent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n",
                 Read(archive, name: "META-INF/MANIFEST.MF"),
                 StringComparison.Ordinal);
         }
@@ -297,7 +297,8 @@ public sealed class PackCommandTests
 
     private static string Read(ZipArchive archive, string name)
     {
-        ZipArchiveEntry entry = archive.GetEntry(name) ?? throw new InvalidOperationException($"The jar has no {name}.");
+        ZipArchiveEntry entry = archive.GetEntry(name)
+            ?? throw new InvalidOperationException(message: $"The jar has no {name}.");
 
         using StreamReader reader = new(entry.Open(), Encoding.UTF8);
 

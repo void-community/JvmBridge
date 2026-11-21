@@ -86,13 +86,13 @@ public sealed class JavaProcess : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw new OperationCanceledException($"The wait for {_name} to end was cancelled. Output so far:{Environment.NewLine}{Output}",
+            throw new OperationCanceledException(message: $"The wait for {_name} to end was cancelled. Output so far:{Environment.NewLine}{Output}",
                 innerException: null,
                 cancellationToken);
         }
 
         return Volatile.Read(ref _timedOut) == 1
-            ? throw new TimeoutException($"{_name} did not finish within {_timeout.TotalSeconds:0.#} seconds. Output so far:{Environment.NewLine}{Output}")
+            ? throw new TimeoutException(message: $"{_name} did not finish within {_timeout.TotalSeconds:0.#} seconds. Output so far:{Environment.NewLine}{Output}")
             : new JavaRun(_process.ExitCode, Output);
     }
 
@@ -137,7 +137,7 @@ public sealed class JavaProcess : IAsyncDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                throw new OperationCanceledException($"The wait for \"{text}\" from {_name} was cancelled. Output so far:{Environment.NewLine}{Output}",
+                throw new OperationCanceledException(message: $"The wait for \"{text}\" from {_name} was cancelled. Output so far:{Environment.NewLine}{Output}",
                     innerException: null,
                     cancellationToken);
             }
@@ -146,9 +146,9 @@ public sealed class JavaProcess : IAsyncDisposable
         string output = string.Join(Environment.NewLine, Volatile.Read(ref _lines));
 
         if (Volatile.Read(ref _timedOut) == 1)
-            throw new TimeoutException($"{_name} did not write \"{text}\" within {_timeout.TotalSeconds:0.#} seconds. Output so far:{Environment.NewLine}{output}");
+            throw new TimeoutException(message: $"{_name} did not write \"{text}\" within {_timeout.TotalSeconds:0.#} seconds. Output so far:{Environment.NewLine}{output}");
 
-        throw new InvalidOperationException($"{_name} ended without writing \"{text}\". Output:{Environment.NewLine}{output}");
+        throw new InvalidOperationException(message: $"{_name} ended without writing \"{text}\". Output:{Environment.NewLine}{output}");
     }
 
     /// <summary>Writes a line to the program's standard input, as a person types a command into a server's console.</summary>
@@ -170,7 +170,7 @@ public sealed class JavaProcess : IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or ObjectDisposedException)
         {
-            throw new InvalidOperationException($"{_name} no longer reads its input: {exception.Message}. Output so far:{Environment.NewLine}{Output}", exception);
+            throw new InvalidOperationException(message: $"{_name} no longer reads its input: {exception.Message}. Output so far:{Environment.NewLine}{Output}", exception);
         }
     }
 
@@ -182,7 +182,7 @@ public sealed class JavaProcess : IAsyncDisposable
         TimeSpan timeout)
     {
         if (workingDirectory is not null && !Directory.Exists(workingDirectory))
-            throw new DirectoryNotFoundException($"The working directory {workingDirectory} does not exist.");
+            throw new DirectoryNotFoundException(message: $"The working directory {workingDirectory} does not exist.");
 
         ProcessStartInfo start = new()
         {

@@ -22,7 +22,7 @@ public static class ClassFileAssert
         MemberReference[] calls = CallsIn(classBytes, method);
 
         if (!calls.Any(call => Matches(call, owner, name, descriptor)))
-            Assert.Fail($"{method} does not call {owner}.{name}{descriptor}. It calls: {Describe(calls)}.");
+            Assert.Fail(message: $"{method} does not call {owner}.{name}{descriptor}. It calls: {Describe(calls)}.");
     }
 
     /// <summary>Asserts that a method does not contain a call of another method.</summary>
@@ -34,7 +34,7 @@ public static class ClassFileAssert
     public static void DoesNotCall(byte[] classBytes, string method, string owner, string name, string? descriptor = null)
     {
         if (CallsIn(classBytes, method).Any(call => Matches(call, owner, name, descriptor)))
-            Assert.Fail($"{method} still calls {owner}.{name}{descriptor}.");
+            Assert.Fail(message: $"{method} still calls {owner}.{name}{descriptor}.");
     }
 
     /// <summary>
@@ -133,9 +133,9 @@ public static class ClassFileAssert
         JavaClassFile file = JavaClassFile.Read(classBytes);
 
         ClassMember member = file.FindMethod(method)
-            ?? throw new XunitException($"The class {file.Name} has no method {method}.");
+            ?? throw new XunitException(userMessage: $"The class {file.Name} has no method {method}.");
 
-        CodeAttribute code = member.Code ?? throw new XunitException($"{method} has no code.");
+        CodeAttribute code = member.Code ?? throw new XunitException(userMessage: $"{method} has no code.");
 
         return
         [

@@ -136,10 +136,10 @@ public sealed class ClassPatchTests
         Assert.Null(applied.SkippedReason);
 
         // The detail and the line an agent logs both name the method and the call.
-        Assert.Equal($"sortOnce{SortDescriptor}: 1 invocation of java/util/Collections.sort redirected",
+        Assert.Equal(expected: $"sortOnce{SortDescriptor}: 1 invocation of java/util/Collections.sort redirected",
             Assert.Single(applied.Details));
 
-        Assert.Equal($"patched fixture/Sample (sortOnce{SortDescriptor}: 1 invocation of java/util/Collections.sort redirected)",
+        Assert.Equal(expected: $"patched fixture/Sample (sortOnce{SortDescriptor}: 1 invocation of java/util/Collections.sort redirected)",
             applied.ToString());
 
         JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? []);

@@ -12,8 +12,11 @@ public sealed class MethodAdviceTests
 {
     private const string Self = "Ljava/lang/Object;";
 
-    private static JavaMethod After => JavaMethod.Static(owner: "pkg/Hooks", name: "after", $"({Self}I)I");
-    private static JavaMethod Before => JavaMethod.Static(owner: "pkg/Hooks", name: "before", $"({Self}Ljava/lang/String;)V");
+    private static JavaMethod After => JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: $"({Self}I)I");
+
+    private static JavaMethod Before => JavaMethod.Static(owner: "pkg/Hooks",
+        name: "before",
+        descriptor: $"({Self}Ljava/lang/String;)V");
 
     /// <summary>The method keeps its descriptor and flags, its code moves unchanged into a private synthetic static method, and the stub calls the before hook, the body and the after hook in that order.</summary>
     [Fact]
@@ -84,7 +87,7 @@ public sealed class MethodAdviceTests
         byte[] bytes = new ClassFileWriter(name: "pkg/Subject").AddMethod(name: "wide", descriptor: "(JI)J", maxStack: 2, maxLocals: 4, code: [0x1e, 0xad], accessFlags: 0x0001)
             .ToArray();
 
-        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "after", $"({Self}JIJ)J");
+        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "after", descriptor: $"({Self}JIJ)J");
 
         ClassPatchResult advised = ClassPatch.For(className: "pkg/Subject")
             .Method(name: "wide", descriptor: "(JI)J")
@@ -168,7 +171,7 @@ public sealed class MethodAdviceTests
         byte[] bytes = new ClassFileWriter(name: "pkg/Subject").AddMethod(name: "many", descriptor, maxStack: 0, maxLocals: 260, code: [0xb1])
             .ToArray();
 
-        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "before", $"({Self}{parameters})V");
+        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "before", descriptor: $"({Self}{parameters})V");
 
         Assert.Equal(PatchSkipCategory.TooManySlots, Refuse(bytes, className: "pkg/Subject", name: "many", descriptor, hook));
     }
@@ -186,7 +189,7 @@ public sealed class MethodAdviceTests
         byte[] contract = new ClassFileWriter(name: "pkg/Contract", accessFlags: 0x0601).AddMethod(name: "make", descriptor: "()V", maxStack: 0, maxLocals: 0, code: [0xb1])
             .ToArray();
 
-        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "before", $"({Self})V");
+        JavaMethod hook = JavaMethod.Static(owner: "pkg/Hooks", name: "before", descriptor: $"({Self})V");
 
         // A method that is not there, or that is not ordinary code of the class, cannot be advised.
         Assert.Equal(PatchSkipCategory.MethodNotFound,
@@ -218,7 +221,7 @@ public sealed class MethodAdviceTests
                 className: "pkg/Subject",
                 name: "run",
                 descriptor: "()V",
-                JavaMethod.Virtual(owner: "pkg/Hooks", name: "before", $"({Self})V")));
+                JavaMethod.Virtual(owner: "pkg/Hooks", name: "before", descriptor: $"({Self})V")));
     }
 
     private static string Normalize(string disassembly)

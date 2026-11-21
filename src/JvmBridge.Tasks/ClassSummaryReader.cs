@@ -99,7 +99,7 @@ internal static class ClassSummaryReader
     {
         return index > 0 && index < utf8.Length && utf8[index] is { } value
             ? value
-            : throw new InvalidDataException($"Constant {index.ToString(CultureInfo.InvariantCulture)} is not a Utf8 string.");
+            : throw new InvalidDataException(message: $"Constant {index.ToString(CultureInfo.InvariantCulture)} is not a Utf8 string.");
     }
 
     private static int PayloadLength(int tag)
@@ -110,7 +110,7 @@ internal static class ClassSummaryReader
             5 or 6 => 8,
             7 or 8 or 16 or 19 or 20 => 2,
             15 => 3,
-            _ => throw new InvalidDataException($"Unknown constant pool tag {tag.ToString(CultureInfo.InvariantCulture)}.")
+            _ => throw new InvalidDataException(message: $"Unknown constant pool tag {tag.ToString(CultureInfo.InvariantCulture)}.")
         };
     }
 

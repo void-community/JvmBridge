@@ -56,7 +56,7 @@ public sealed class ProvisionJdk : BuildTask, ICancelableTask, IDisposable
             string reason = entry?.Reason is { } detail ? " (" + detail + ")" : string.Empty;
 
             LogFailure(code: "JVMB007",
-                $"No pinned Java {Major} {Implementation} JDK exists for {runtimeIdentifier}{reason}. Set JvmBridgeJdkHome, or JAVA_HOME, to a JDK instead.");
+                message: $"No pinned Java {Major} {Implementation} JDK exists for {runtimeIdentifier}{reason}. Set JvmBridgeJdkHome, or JAVA_HOME, to a JDK instead.");
 
             return false;
         }
@@ -64,7 +64,7 @@ public sealed class ProvisionJdk : BuildTask, ICancelableTask, IDisposable
         try
         {
             Log.LogMessage(MessageImportance.High,
-                $"JvmBridge: providing the pinned Java {Major} {Implementation} JDK ({entry.Distribution} {entry.Version}) for {runtimeIdentifier}.");
+                message: $"JvmBridge: providing the pinned Java {Major} {Implementation} JDK ({entry.Distribution} {entry.Version}) for {runtimeIdentifier}.");
 
             // ITask.Execute is synchronous; this is the sole boundary into the asynchronous download.
             JdkHome = AsyncContext.Run(() => PinnedJdk.UnpackAsync(entry, _cancellation.Token));
@@ -74,7 +74,7 @@ public sealed class ProvisionJdk : BuildTask, ICancelableTask, IDisposable
         catch (Exception failure) when (IsExpected(failure))
         {
             LogFailure(code: "JVMB008",
-                $"Could not provide the pinned JDK {entry.Url}: {failure.Message} Set JvmBridgeJdkHome, or JAVA_HOME, to an installed JDK to avoid the download.");
+                message: $"Could not provide the pinned JDK {entry.Url}: {failure.Message} Set JvmBridgeJdkHome, or JAVA_HOME, to an installed JDK to avoid the download.");
 
             return false;
         }

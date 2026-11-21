@@ -28,7 +28,7 @@ public class PinnedArtifact
         ArgumentException.ThrowIfNullOrEmpty(sha256);
 
         if (!url.IsAbsoluteUri || (url.Scheme != Uri.UriSchemeHttps && url.Scheme != Uri.UriSchemeHttp))
-            throw new ArgumentException($"'{url}' is not an absolute HTTP or HTTPS address.", nameof(url));
+            throw new ArgumentException(message: $"'{url}' is not an absolute HTTP or HTTPS address.", nameof(url));
 
         if (sha256.Length != 64 || !sha256.All(Uri.IsHexDigit))
             throw new ArgumentException(message: "The checksum must be 64 hexadecimal digits of SHA-256.", nameof(sha256));
@@ -39,7 +39,7 @@ public class PinnedArtifact
             name = "artifact";
 
         if (name is "." or ".." || name.IndexOfAny(anyOf: [.. Path.GetInvalidFileNameChars(), '/', '\\']) >= 0)
-            throw new ArgumentException($"'{name}' is not a file name.", nameof(fileName));
+            throw new ArgumentException(message: $"'{name}' is not a file name.", nameof(fileName));
 
         Url = url;
         Sha256 = sha256.ToUpperInvariant();
@@ -110,7 +110,7 @@ public class PinnedArtifact
         {
             File.Delete(staging);
 
-            throw new InvalidOperationException($"{Url} has the SHA-256 {actual}, not the pinned {Sha256}.");
+            throw new InvalidOperationException(message: $"{Url} has the SHA-256 {actual}, not the pinned {Sha256}.");
         }
 
         File.Move(staging, path, overwrite: true);

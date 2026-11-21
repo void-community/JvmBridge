@@ -47,7 +47,7 @@ internal static class LauncherJar
         foreach (AgentLibrary library in libraries)
         {
             if (!KnownRids.Contains(library.Rid))
-                throw new ArgumentException($"{library.Rid} is not a runtime identifier that the launcher detects. Known: {string.Join(separator: ", ", KnownRids)}.", nameof(libraries));
+                throw new ArgumentException(message: $"{library.Rid} is not a runtime identifier that the launcher detects. Known: {string.Join(separator: ", ", KnownRids)}.", nameof(libraries));
 
             AgentLibrary? existing = combined.FirstOrDefault(candidate => candidate.Rid == library.Rid);
 
@@ -61,7 +61,7 @@ internal static class LauncherJar
             bool same = existing.FileName == library.FileName && existing.Bytes.AsSpan().SequenceEqual(library.Bytes);
 
             if (!same)
-                throw new InvalidDataException($"{library.Rid} is given more than once, with different libraries.");
+                throw new InvalidDataException(message: $"{library.Rid} is given more than once, with different libraries.");
         }
 
         return combined.Count == 0 ? throw new InvalidDataException(message: "There is no agent library to pack.") : combined;
@@ -76,18 +76,18 @@ internal static class LauncherJar
         using ZipArchive archive = ZipFile.OpenRead(jar);
 
         string manifest = ReadText(archive, name: "META-INF/MANIFEST.MF")
-            ?? throw new InvalidDataException($"{jar} has no manifest, so it is not a jar from jvmbridge pack.");
+            ?? throw new InvalidDataException(message: $"{jar} has no manifest, so it is not a jar from jvmbridge pack.");
 
         string prefix = "Premain-Class: ";
         string? launcher = manifest.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r')).FirstOrDefault(line => line.StartsWith(prefix, StringComparison.Ordinal))?[prefix.Length..];
 
         if (launcher is null || !launcher.StartsWith(value: "jvmbridge.L", StringComparison.Ordinal))
-            throw new InvalidDataException($"{jar} has no JvmBridge launcher, so it is not a jar from jvmbridge pack.");
+            throw new InvalidDataException(message: $"{jar} has no JvmBridge launcher, so it is not a jar from jvmbridge pack.");
 
         string directory = launcher.Replace(oldChar: '.', newChar: '/') + "/";
 
         string index = ReadText(archive, directory + "native.properties")
-            ?? throw new InvalidDataException($"{jar} has no {directory}native.properties.");
+            ?? throw new InvalidDataException(message: $"{jar} has no {directory}native.properties.");
 
         List<AgentLibrary> libraries = [];
 
@@ -96,13 +96,13 @@ internal static class LauncherJar
             int separator = line.IndexOf(value: '=', StringComparison.Ordinal);
 
             if (separator <= 0)
-                throw new InvalidDataException($"{jar} has a malformed index line '{line}'.");
+                throw new InvalidDataException(message: $"{jar} has a malformed index line '{line}'.");
 
             string rid = line[..separator];
             string fileName = line[(separator + 1)..];
 
-            ZipArchiveEntry entry = archive.GetEntry($"{directory}native/{rid}/{fileName}")
-                ?? throw new InvalidDataException($"{jar} lists {fileName} for {rid} but does not hold it.");
+            ZipArchiveEntry entry = archive.GetEntry(entryName: $"{directory}native/{rid}/{fileName}")
+                ?? throw new InvalidDataException(message: $"{jar} lists {fileName} for {rid} but does not hold it.");
 
             using MemoryStream bytes = new();
 
@@ -139,7 +139,7 @@ internal static class LauncherJar
         byte[] replacement = Encoding.ASCII.GetBytes(name);
 
         if (replacement.Length != old.Length)
-            throw new ArgumentException($"The name must be {old.Length} characters long.", nameof(name));
+            throw new ArgumentException(message: $"The name must be {old.Length} characters long.", nameof(name));
 
         // A Utf8 constant is the tag 1, a two-byte length and the characters; this one holds the name of the class.
         byte[] constant = [1, 0, byte.CreateTruncating(old.Length), .. old];
@@ -177,7 +177,7 @@ internal static class LauncherJar
         Add(archive,
             name: "META-INF/MANIFEST.MF",
             Encoding.ASCII
-                .GetBytes($"Manifest-Version: 1.0\r\nPremain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\nAgent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n\r\n"));
+                .GetBytes(s: $"Manifest-Version: 1.0\r\nPremain-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\nAgent-Class: {name.Replace(oldChar: '/', newChar: '.')}\r\n\r\n"));
 
         Add(archive, name + ".class", Rename(ReadLauncher(), name));
 
@@ -185,8 +185,8 @@ internal static class LauncherJar
 
         foreach (AgentLibrary library in ordered)
         {
-            index.Add($"{library.Rid}={library.FileName}\n");
-            Add(archive, $"{resources}native/{library.Rid}/{library.FileName}", library.Bytes);
+            index.Add(item: $"{library.Rid}={library.FileName}\n");
+            Add(archive, name: $"{resources}native/{library.Rid}/{library.FileName}", library.Bytes);
         }
 
         Add(archive, resources + "native.properties", Encoding.UTF8.GetBytes(string.Concat(index)));

@@ -55,14 +55,14 @@ internal static class PackCommand
 
             if (!LauncherJar.KnownRids.Contains(rid))
             {
-                error.WriteLine($"jvmbridge: '{agent}' is not <rid>=<path> with a known runtime identifier. Known: {string.Join(separator: ", ", LauncherJar.KnownRids)}.");
+                error.WriteLine(value: $"jvmbridge: '{agent}' is not <rid>=<path> with a known runtime identifier. Known: {string.Join(separator: ", ", LauncherJar.KnownRids)}.");
 
                 return 1;
             }
 
             if (!File.Exists(path))
             {
-                error.WriteLine($"jvmbridge: the agent library for {rid} does not exist: {path}");
+                error.WriteLine(value: $"jvmbridge: the agent library for {rid} does not exist: {path}");
 
                 return 1;
             }
@@ -74,7 +74,7 @@ internal static class PackCommand
         {
             if (!File.Exists(jar))
             {
-                error.WriteLine($"jvmbridge: the jar does not exist: {jar}");
+                error.WriteLine(value: $"jvmbridge: the jar does not exist: {jar}");
 
                 return 1;
             }
@@ -85,7 +85,7 @@ internal static class PackCommand
             }
             catch (InvalidDataException failure)
             {
-                error.WriteLine($"jvmbridge: {failure.Message}");
+                error.WriteLine(value: $"jvmbridge: {failure.Message}");
 
                 return 1;
             }
@@ -106,7 +106,7 @@ internal static class PackCommand
         }
         catch (InvalidDataException failure)
         {
-            error.WriteLine($"jvmbridge: {failure.Message}");
+            error.WriteLine(value: $"jvmbridge: {failure.Message}");
 
             return 1;
         }
@@ -116,7 +116,7 @@ internal static class PackCommand
         string platforms = string.Join(separator: ", ",
             combined.Select(static library => library.Rid).Order(StringComparer.Ordinal));
 
-        writer.WriteLine($"Wrote {output} (launcher {launcher}) with {platforms}. Start it with: java -javaagent:{output}=<options> -jar app.jar");
+        writer.WriteLine(value: $"Wrote {output} (launcher {launcher}) with {platforms}. Start it with: java -javaagent:{output}=<options> -jar app.jar");
 
         return 0;
     }

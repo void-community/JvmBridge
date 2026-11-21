@@ -19,7 +19,7 @@ internal static class CoverageValidator
             bool passed = results.Any(cell => Matches(entry, cell) && Value(cell, name: "status") == "passed");
 
             if (!passed)
-                throw new InvalidOperationException($"Unverified pinned JVM cell: {entry.Rid}, Java {entry.Java}, {entry.Implementation}, {entry.Version}.");
+                throw new InvalidOperationException(message: $"Unverified pinned JVM cell: {entry.Rid}, Java {entry.Java}, {entry.Implementation}, {entry.Version}.");
         }
     }
 

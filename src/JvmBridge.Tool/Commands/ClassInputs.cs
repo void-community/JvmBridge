@@ -37,7 +37,7 @@ internal static class ClassInputs
 
             if (!File.Exists(path))
             {
-                error.WriteLine($"jvmbridge: {path} does not exist.");
+                error.WriteLine(value: $"jvmbridge: {path} does not exist.");
 
                 return false;
             }
@@ -66,7 +66,7 @@ internal static class ClassInputs
         }
         catch (Exception failure) when (failure is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            error.WriteLine($"jvmbridge: could not read {path}: {failure.Message}");
+            error.WriteLine(value: $"jvmbridge: could not read {path}: {failure.Message}");
 
             return false;
         }

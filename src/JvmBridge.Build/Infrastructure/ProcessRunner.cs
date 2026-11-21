@@ -122,7 +122,7 @@ internal sealed class ProcessRunner(RepositoryContext repository)
 
             WriteLog(logPath, timedOutput);
 
-            throw new TimeoutException($"Timed out after {effectiveTimeout.TotalSeconds:0.###}s: {logPath ?? executable}");
+            throw new TimeoutException(message: $"Timed out after {effectiveTimeout.TotalSeconds:0.###}s: {logPath ?? executable}");
         }
         catch (OperationCanceledException)
         {
@@ -148,7 +148,7 @@ internal sealed class ProcessRunner(RepositoryContext repository)
                 ? resultOutput
                 : resultOutput.Substring(resultOutput.Length - 3000, length: 3000);
 
-            throw new InvalidOperationException($"Exit {process.ExitCode}: {logPath ?? executable}\n{tail}");
+            throw new InvalidOperationException(message: $"Exit {process.ExitCode}: {logPath ?? executable}\n{tail}");
         }
 
         return new ProcessResult(process.ExitCode, resultOutput);

@@ -42,9 +42,9 @@ try
 
         using JavaLocalReference value = environment.CallObject(system.Handle, method, arguments, isStatic: true);
 
-        Console.WriteLine($"Java version: {environment.GetString(value.Handle)}");
-        Console.WriteLine($"ABI JNI={sizeof(JNINativeInterface_)} JVMTI={sizeof(jvmtiInterface_1_)} capabilities={sizeof(jvmtiCapabilities)} value={sizeof(jvalue)}");
-        Console.WriteLine($"SLOTS GetArrayLength={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt64() / IntPtr.Size} GetJavaVM={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetJavaVM)).ToInt64() / IntPtr.Size}");
+        Console.WriteLine(value: $"Java version: {environment.GetString(value.Handle)}");
+        Console.WriteLine(value: $"ABI JNI={sizeof(JNINativeInterface_)} JVMTI={sizeof(jvmtiInterface_1_)} capabilities={sizeof(jvmtiCapabilities)} value={sizeof(jvalue)}");
+        Console.WriteLine(value: $"SLOTS GetArrayLength={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetArrayLength)).ToInt64() / IntPtr.Size} GetJavaVM={Marshal.OffsetOf<JNINativeInterface_>(nameof(JNINativeInterface_.GetJavaVM)).ToInt64() / IntPtr.Size}");
     }
 
     foreach (string text in new[] { "A\0B", "\uD83D\uDE00", "\uD800", "" })
@@ -99,7 +99,7 @@ finally
 if (destroyResult != expectedDestroyResult)
     throw new InvalidOperationException(message: "Managed JVM shutdown differed from the native C baseline.");
 
-Console.WriteLine($"DESTROY_RESULT={destroyResult}");
+Console.WriteLine(value: $"DESTROY_RESULT={destroyResult}");
 
 if (destroyResult != 0)
     WriteStatus(message: "The native C baseline returned the same shutdown error; this JVM does not demonstrate successful embedded shutdown.");

@@ -163,7 +163,9 @@ public sealed class TemplateTests
         int passed = majors.Count(major => PinnedJdks.Jdks
             .Any(entry => entry.Rid == rid && entry.Java == major && entry.Implementation == "hotspot" && entry.Status == "available"));
 
-        Assert.Contains($"Passed: {passed,5}, Skipped: {majors.Length - passed,5}", test.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: $"Passed: {passed,5}, Skipped: {majors.Length - passed,5}",
+            test.Output,
+            StringComparison.Ordinal);
     }
 
     private static string PackedVersion(RepositoryContext repository)

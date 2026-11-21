@@ -52,6 +52,6 @@ internal sealed class JdkUpdater(RepositoryContext repository, HttpService http,
                 overwrite: true);
         }
 
-        ConsoleOutput.WriteLine($"Copied the OpenJDK headers of {archive.Distribution} {archive.Version} from {archive.Url}.");
+        ConsoleOutput.WriteLine(message: $"Copied the OpenJDK headers of {archive.Distribution} {archive.Version} from {archive.Url}.");
     }
 }

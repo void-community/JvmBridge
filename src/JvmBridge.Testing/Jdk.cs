@@ -205,12 +205,12 @@ public sealed class Jdk
         string advice = $"Point {variable} at a {this} JDK, or unset it to use the pinned one.";
 
         if (!Directory.Exists(home))
-            throw new InvalidOperationException($"{variable} names {home}, which does not exist. {advice}");
+            throw new InvalidOperationException(message: $"{variable} names {home}, which does not exist. {advice}");
 
         string java = Path.Combine(home, path2: "bin", OperatingSystem.IsWindows() ? "java.exe" : "java");
 
         if (!File.Exists(java))
-            throw new InvalidOperationException($"{variable} names {home}, which has no bin/{Path.GetFileName(java)}, so it is not a JDK. {advice}");
+            throw new InvalidOperationException(message: $"{variable} names {home}, which has no bin/{Path.GetFileName(java)}, so it is not a JDK. {advice}");
 
         JavaRun probe = await ProcessExecution
             .RunAsync(java,
@@ -221,7 +221,7 @@ public sealed class Jdk
             .ConfigureAwait(continueOnCapturedContext: false);
 
         InstalledJdk found = InstalledJdk.Parse(probe.Output)
-            ?? throw new InvalidOperationException($"{variable} names {home}, whose java did not report its version (exit code {probe.ExitCode.ToString(CultureInfo.InvariantCulture)}). {advice}");
+            ?? throw new InvalidOperationException(message: $"{variable} names {home}, whose java did not report its version (exit code {probe.ExitCode.ToString(CultureInfo.InvariantCulture)}). {advice}");
 
         if (found.Major == Major && found.Implementation == Implementation)
             return;
@@ -232,7 +232,7 @@ public sealed class Jdk
             ? $" For a {found} JDK beside it, set {specific} for this one."
             : string.Empty;
 
-        throw new InvalidOperationException($"{variable} names {home}, which is {found}, but this test needs {this}. {advice}{alternative}");
+        throw new InvalidOperationException(message: $"{variable} names {home}, which is {found}, but this test needs {this}. {advice}{alternative}");
     }
 
     private async Task<string> ResolveHomeAsync()

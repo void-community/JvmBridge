@@ -210,7 +210,7 @@ public sealed class JavaReferenceTests
         File.WriteAllText(Path.Combine(directory, path2: "Program.cs"), program);
 
         File.WriteAllText(Path.Combine(directory, path2: "Consumer.csproj"),
-            $"""
+            contents: $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>

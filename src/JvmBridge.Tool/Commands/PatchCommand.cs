@@ -88,7 +88,7 @@ internal static class PatchCommand
 
         if (agents.Length != 1)
         {
-            error.WriteLine($"jvmbridge: {assembly.GetName().Name} must contain exactly one concrete JavaAgent, found {agents.Length}.");
+            error.WriteLine(value: $"jvmbridge: {assembly.GetName().Name} must contain exactly one concrete JavaAgent, found {agents.Length}.");
 
             return 1;
         }
@@ -112,7 +112,7 @@ internal static class PatchCommand
         int status = Configure(context, output);
         IReadOnlyList<ClassPatch> patches = context.RegisteredPatches;
 
-        output.WriteLine($"{patches.Count} patch(es) registered by Configure; {classes.Count} class(es) examined.");
+        output.WriteLine(value: $"{patches.Count} patch(es) registered by Configure; {classes.Count} class(es) examined.");
 
         if (patches.Count == 0)
         {
@@ -136,7 +136,7 @@ internal static class PatchCommand
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
-            output.WriteLine($"Configure threw {failure.GetType().Name}: {failure.Message}. The patches registered before it threw are listed.");
+            output.WriteLine(value: $"Configure threw {failure.GetType().Name}: {failure.Message}. The patches registered before it threw are listed.");
 
             return 1;
         }
@@ -145,7 +145,7 @@ internal static class PatchCommand
     private static JavaAgent CreateAgent(Type type)
     {
         ConstructorInfo constructor = type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, Type.EmptyTypes)
-            ?? throw new InvalidOperationException($"{type.FullName} needs a parameterless constructor.");
+            ?? throw new InvalidOperationException(message: $"{type.FullName} needs a parameterless constructor.");
 
         return Expression.Lambda<Func<JavaAgent>>(Expression.New(constructor)).Compile()();
     }
@@ -163,7 +163,7 @@ internal static class PatchCommand
             foreach (Exception loader in failure.LoaderExceptions
                 .OfType<Exception>()
                 .DistinctBy(static candidate => candidate.Message))
-                error.WriteLine($"jvmbridge: {loader.Message}");
+                error.WriteLine(value: $"jvmbridge: {loader.Message}");
 
             types = [.. failure.Types.OfType<Type>()];
         }
@@ -177,7 +177,7 @@ internal static class PatchCommand
 
         if (!File.Exists(full))
         {
-            Console.Error.WriteLine($"jvmbridge: {full} does not exist.");
+            Console.Error.WriteLine(value: $"jvmbridge: {full} does not exist.");
 
             return null;
         }
@@ -219,7 +219,7 @@ internal static class PatchCommand
             {
                 ClassPatchResult applied = patch.Apply(current);
 
-                output.WriteLine($"{input.Name} <- {patch.ClassName}: {applied}");
+                output.WriteLine(value: $"{input.Name} <- {patch.ClassName}: {applied}");
 
                 if (applied.Bytes is { } bytes)
                 {
@@ -237,6 +237,6 @@ internal static class PatchCommand
                 output.Write(ClassFileDisassembler.Disassemble(current));
         }
 
-        output.WriteLine($"{changed} class(es) would change.");
+        output.WriteLine(value: $"{changed} class(es) would change.");
     }
 }

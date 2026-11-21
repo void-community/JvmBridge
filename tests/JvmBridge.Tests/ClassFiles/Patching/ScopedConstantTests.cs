@@ -108,7 +108,7 @@ public sealed class ScopedConstantTests
     private static string[] LoadedValues(JavaClassFile file, string descriptor, string name = "initWindow")
     {
         CodeAttribute code = file.FindMethod(name, descriptor)?.Code
-            ?? throw new InvalidOperationException($"{name}{descriptor} has no code.");
+            ?? throw new InvalidOperationException(message: $"{name}{descriptor} has no code.");
 
         return [.. code.Instructions
             .Where(static instruction => instruction.Opcode is Opcodes.Ldc or Opcodes.LdcW or Opcodes.Ldc2W)

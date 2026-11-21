@@ -98,7 +98,7 @@ public sealed class AgentProjectTests
         File.WriteAllText(Path.Combine(project.Path, path2: "Agent.cs"), AgentSource);
 
         File.WriteAllText(Path.Combine(project.Path, path2: "Consumer.csproj"),
-            $"""
+            contents: $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Library</OutputType>

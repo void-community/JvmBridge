@@ -34,7 +34,7 @@ internal static class NativeToolchain
         // An x86 target is compiled by the x64 compiler, as the runner is an x64 machine.
         string architecture = TestTarget.Rid switch { "win-x86" => "x64_x86", "win-arm64" => "arm64", _ => "x64" };
 
-        foreach (string line in Run(fileName: "cmd.exe", $"/c \"\"{script}\" {architecture} && set\"").Split(separator: '\n'))
+        foreach (string line in Run(fileName: "cmd.exe", arguments: $"/c \"\"{script}\" {architecture} && set\"").Split(separator: '\n'))
         {
             int separator = line.IndexOf(value: '=', StringComparison.Ordinal);
 
@@ -60,6 +60,6 @@ internal static class NativeToolchain
 
         return process.ExitCode == 0
             ? output
-            : throw new InvalidOperationException($"{fileName} {arguments} exited with {process.ExitCode}:\n{output}");
+            : throw new InvalidOperationException(message: $"{fileName} {arguments} exited with {process.ExitCode}:\n{output}");
     }
 }

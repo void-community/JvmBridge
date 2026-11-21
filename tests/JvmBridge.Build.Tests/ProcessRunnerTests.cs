@@ -90,14 +90,15 @@ public sealed class ProcessRunnerTests
         Assert.Contains(expectedSubstring: "Timed out", failure.Message, StringComparison.Ordinal);
 
         Assert.True(elapsed.Elapsed < DescendantTimeout + TimeSpan.FromSeconds(seconds: 20),
-            $"Process termination took {elapsed.Elapsed}.");
+            userMessage: $"Process termination took {elapsed.Elapsed}.");
 
         string evidence = await File.ReadAllTextAsync(log, CancellationToken.None);
 
         string identifierText = evidence.Split(separator: '\n', StringSplitOptions.RemoveEmptyEntries).First();
         int identifier = int.Parse(identifierText, CultureInfo.InvariantCulture);
 
-        Assert.True(await HasExitedAsync(identifier), $"Descendant process {identifier} survived its parent timeout.");
+        Assert.True(await HasExitedAsync(identifier),
+            userMessage: $"Descendant process {identifier} survived its parent timeout.");
     }
 
     private static IReadOnlyList<string> DescendantCommand()

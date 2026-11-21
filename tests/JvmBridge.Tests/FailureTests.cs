@@ -114,7 +114,7 @@ public sealed unsafe class FailureTests
         {
             int unexpectedResult = environment.CallInt(receiver: 123, method: 0, arguments: []);
 
-            throw new InvalidOperationException($"Expected a null method identifier to fail, but JNI returned {unexpectedResult}.");
+            throw new InvalidOperationException(message: $"Expected a null method identifier to fail, but JNI returned {unexpectedResult}.");
         }
 
         ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(Invocation);

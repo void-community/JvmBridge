@@ -266,7 +266,7 @@ public sealed class JdkTests
 
             InvalidOperationException notJdk = await Assert.ThrowsAsync<InvalidOperationException>(() => new Jdk(major: 8).VerifyInstalledAsync(variable: "JVMBRIDGE_JDK_8", empty));
 
-            Assert.Equal($"JVMBRIDGE_JDK_8 names {home}, which is Java 17 (hotspot), but this test needs Java 8 (hotspot). Point JVMBRIDGE_JDK_8 at a Java 8 (hotspot) JDK, or unset it to use the pinned one.", major.Message);
+            Assert.Equal(expected: $"JVMBRIDGE_JDK_8 names {home}, which is Java 17 (hotspot), but this test needs Java 8 (hotspot). Point JVMBRIDGE_JDK_8 at a Java 8 (hotspot) JDK, or unset it to use the pinned one.", major.Message);
 
             Assert.Contains(expectedSubstring: "which is Java 17 (hotspot), but this test needs Java 17 (openj9)",
                 implementation.Message,

@@ -55,7 +55,9 @@ public sealed class LegacyJavaTests
         Version newest = GlibcFloorTests.RequiredGlibc(symbols.Output).Max() ?? new Version(major: 0, minor: 0);
 
         Assert.Empty(GlibcFloorTests.UnboundSymbols(dynamic.Output));
-        Assert.True(newest <= new Version(major: 2, minor: 12), $"LegacyAgent.so needs glibc {newest}, newer than 2.12.");
+
+        Assert.True(newest <= new Version(major: 2, minor: 12),
+            userMessage: $"LegacyAgent.so needs glibc {newest}, newer than 2.12.");
     }
 
     /// <summary>The agent runs the fixture, compiled for Java 6, on each Java through both routes, with every class verified on the -agentpath route; on Java 6 and 7 it also runs in the old-glibc image.</summary>
@@ -191,7 +193,10 @@ public sealed class LegacyJavaTests
             "EVENTS_OK",
             "UNLOAD"
         })
-            Assert.True(output.Contains(marker, StringComparison.Ordinal), $"Missing {marker} with {route}:\n{output}");
+        {
+            Assert.True(output.Contains(marker, StringComparison.Ordinal),
+                userMessage: $"Missing {marker} with {route}:\n{output}");
+        }
     }
 
     // The fixture is compiled for Java 6 once, with the pinned Java 8, whose javac still targets it.

@@ -85,7 +85,7 @@ internal sealed class HttpService : IDisposable
         if (payload is null)
             return null;
 
-        JsonNode value = JsonNode.Parse(payload) ?? throw new InvalidOperationException($"Empty JSON response: {url}");
+        JsonNode value = JsonNode.Parse(payload) ?? throw new InvalidOperationException(message: $"Empty JSON response: {url}");
 
         _cache[url] = value;
 
@@ -133,7 +133,7 @@ internal sealed class HttpService : IDisposable
     {
         return response.IsSuccessStatusCode
             ? response
-            : throw new InvalidOperationException($"Download failed HTTP {(int)response.StatusCode}: {url}");
+            : throw new InvalidOperationException(message: $"Download failed HTTP {(int)response.StatusCode}: {url}");
     }
 
     // A failure without an answer, a transient status, a connection reset while the content is read and a request that outlasts its time are asked again; the caller's cancellation is not.
@@ -164,7 +164,7 @@ internal sealed class HttpService : IDisposable
                 HttpStatusCode status = response.StatusCode;
 
                 if (status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests || (int)status >= 500)
-                    throw new HttpRequestException($"The server answered HTTP {(int)status}.", inner: null, status);
+                    throw new HttpRequestException(message: $"The server answered HTTP {(int)status}.", inner: null, status);
 
                 await read(response, limit.Token).ConfigureAwait(continueOnCapturedContext: false);
 
@@ -176,6 +176,6 @@ internal sealed class HttpService : IDisposable
             }
         }
 
-        throw new InvalidOperationException($"Could not download {url} in {Attempts} attempts: {failure?.Message}", failure);
+        throw new InvalidOperationException(message: $"Could not download {url} in {Attempts} attempts: {failure?.Message}", failure);
     }
 }

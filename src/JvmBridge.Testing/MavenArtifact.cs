@@ -42,7 +42,7 @@ public sealed class MavenArtifact(string repository, string coordinates, string 
         string[] parts = location.Split(separator: ':');
 
         if (parts.Length is < 3 or > 4 || parts.Any(static part => part.Length == 0) || extension.Length == 0)
-            throw new ArgumentException($"'{coordinates}' is not group:artifact:version[:classifier][@extension].", nameof(coordinates));
+            throw new ArgumentException(message: $"'{coordinates}' is not group:artifact:version[:classifier][@extension].", nameof(coordinates));
 
         fileName = parts[1] + "-" + parts[2] + (parts.Length == 4 ? "-" + parts[3] : string.Empty) + "." + extension;
 

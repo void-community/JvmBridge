@@ -258,7 +258,7 @@ public sealed class LambdaTests
             IEnumerable<string> described = Enumerable.Range(start: 0, arguments)
                 .Select(argument => Describe(file, BinaryPrimitives.ReadUInt16BigEndian(data.Span[(at + 4 + (2 * argument))..])));
 
-            methods.Add($"{Describe(file, BinaryPrimitives.ReadUInt16BigEndian(entry))} {string.Join(separator: " | ", described)}");
+            methods.Add(item: $"{Describe(file, BinaryPrimitives.ReadUInt16BigEndian(entry))} {string.Join(separator: " | ", described)}");
 
             at += 4 + (2 * arguments);
         }

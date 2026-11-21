@@ -32,7 +32,7 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
                 {
                     string managedText = found ? managedValue.ToString(CultureInfo.InvariantCulture) : "missing";
 
-                    failures.Add($"{key}: native {value.ToString(CultureInfo.InvariantCulture)} exceeds managed {managedText}");
+                    failures.Add(item: $"{key}: native {value.ToString(CultureInfo.InvariantCulture)} exceeds managed {managedText}");
                 }
             }
             else
@@ -43,7 +43,7 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
                 {
                     string managedText = found ? managedValue.ToString(CultureInfo.InvariantCulture) : "missing";
 
-                    failures.Add($"{key}: native={value.ToString(CultureInfo.InvariantCulture)}, managed={managedText}");
+                    failures.Add(item: $"{key}: native={value.ToString(CultureInfo.InvariantCulture)}, managed={managedText}");
                 }
             }
         }
@@ -105,7 +105,7 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
                 ? "struct " + nativeName
                 : nativeName;
 
-            lines.Add($"printf(\",\\\"size.{name}\\\":%llu\", (unsigned long long)sizeof({ctype}));");
+            lines.Add(item: $"printf(\",\\\"size.{name}\\\":%llu\", (unsigned long long)sizeof({ctype}));");
         }
 
         foreach ((string name, string header) in new[] { ("JNINativeInterface_", jni), ("JNIInvokeInterface_", jni), ("jvmtiInterface_1_", tooling) })
@@ -127,7 +127,7 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
                 if (field.StartsWith(value: "reserved", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                lines.Add($"printf(\",\\\"offset.{name}.{field}\\\":%llu\", (unsigned long long)offsetof(struct {nativeName},{field}));");
+                lines.Add(item: $"printf(\",\\\"offset.{name}.{field}\\\":%llu\", (unsigned long long)offsetof(struct {nativeName},{field}));");
             }
         }
 
@@ -136,15 +136,15 @@ internal sealed partial class NativeAbiVerifier(RepositoryContext repository)
             foreach (string field in Fields(records[name]))
             {
                 if (Regex.IsMatch(tooling, "\\b" + Regex.Escape(field) + "\\s*;", RegexOptions.CultureInvariant))
-                    lines.Add($"printf(\",\\\"offset.{name}.{field}\\\":%llu\", (unsigned long long)offsetof({name},{field}));");
+                    lines.Add(item: $"printf(\",\\\"offset.{name}.{field}\\\":%llu\", (unsigned long long)offsetof({name},{field}));");
             }
         }
 
         foreach (string name in Capabilities)
         {
-            lines.Add($"jvmtiCapabilities {name} = {{0}}; {name}.{name} = 1;");
-            lines.Add($"unsigned long long bits_{name} = 0; memcpy(&bits_{name}, &{name}, 8);");
-            lines.Add($"printf(\",\\\"capability.{name}\\\":%llu\", bits_{name});");
+            lines.Add(item: $"jvmtiCapabilities {name} = {{0}}; {name}.{name} = 1;");
+            lines.Add(item: $"unsigned long long bits_{name} = 0; memcpy(&bits_{name}, &{name}, 8);");
+            lines.Add(item: $"printf(\",\\\"capability.{name}\\\":%llu\", bits_{name});");
         }
 
         lines.Add(item: "puts(\"}\");");

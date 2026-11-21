@@ -148,7 +148,7 @@ public sealed unsafe class RuntimeTests
         {
             nint unexpectedHandle = environment.Handle;
 
-            throw new InvalidOperationException($"Expected disposed access to fail, but received handle {unexpectedHandle}.");
+            throw new InvalidOperationException(message: $"Expected disposed access to fail, but received handle {unexpectedHandle}.");
         }
 
         ObjectDisposedException exception = Assert.Throws<ObjectDisposedException>(AccessEnvironment);

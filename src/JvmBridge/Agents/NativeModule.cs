@@ -18,7 +18,7 @@ internal static unsafe partial class NativeModule
         {
             // FROM_ADDRESS | PIN: the NativeAOT runtime cannot be unloaded.
             if (!GetModuleHandleEx(flags: 5, entryPoint, out moduleHandle))
-                throw new InvalidOperationException($"Unable to pin agent module: {Marshal.GetLastPInvokeError()}.");
+                throw new InvalidOperationException(message: $"Unable to pin agent module: {Marshal.GetLastPInvokeError()}.");
         }
         else
         {

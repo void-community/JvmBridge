@@ -162,7 +162,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
             {
                 ProcessResult repeated = await _processRunner
                     .RunAsync(command: [host, jvm, destroy.ToString(CultureInfo.InvariantCulture)],
-                        Path.Combine(directory, $"host-repeat-{attempt}.log"),
+                        Path.Combine(directory, path2: $"host-repeat-{attempt}.log"),
                         environment: environment,
                         cancellationToken: cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false);
@@ -173,7 +173,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
                     && repeated.Output.Contains(destroyMarker, StringComparison.Ordinal);
 
                 if (!repeatedJvmMatchesBaseline)
-                    throw new InvalidOperationException($"Embedded JVM regression failed on attempt {attempt}.");
+                    throw new InvalidOperationException(message: $"Embedded JVM regression failed on attempt {attempt}.");
             }
         }
 
@@ -723,7 +723,7 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "MATCHER_PATCH_OK", "MODULE_EXPORT_", "UNLOAD" })
         {
             if (!launched.Output.Contains(marker, StringComparison.Ordinal))
-                throw new InvalidOperationException($"Missing {marker} when {launcher} started the agent with -javaagent.");
+                throw new InvalidOperationException(message: $"Missing {marker} when {launcher} started the agent with -javaagent.");
         }
 
         bool introduced = Warnings(launched.Output).Any(warning => warning.Value > plainWarnings.GetValueOrDefault(warning.Key));
@@ -871,6 +871,6 @@ internal sealed class JvmScenario(RepositoryContext repository, ProcessRunner pr
         bool complete = shell.ExitCode == 0 && expected > 0 && written == expected;
 
         if (!complete)
-            throw new InvalidOperationException($"With standard error redirected to a file the agent's log has {written} of the {expected} '{line.Trim()}' lines it has on a pipe.");
+            throw new InvalidOperationException(message: $"With standard error redirected to a file the agent's log has {written} of the {expected} '{line.Trim()}' lines it has on a pipe.");
     }
 }

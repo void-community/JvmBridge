@@ -138,6 +138,6 @@ public sealed class MemberAdditionTests
         Assert.True(result.Changed, result.SkippedReason);
 
         return JavaClassFile.Read(result.Bytes ?? []).FindMethod(name, descriptor)
-            ?? throw new InvalidOperationException($"{name}{descriptor} was not added.");
+            ?? throw new InvalidOperationException(message: $"{name}{descriptor} was not added.");
     }
 }

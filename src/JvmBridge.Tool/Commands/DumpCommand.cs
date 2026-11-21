@@ -46,7 +46,7 @@ internal static class DumpCommand
     {
         if (!File.Exists(path))
         {
-            error.WriteLine($"jvmbridge: {path} does not exist.");
+            error.WriteLine(value: $"jvmbridge: {path} does not exist.");
 
             return 1;
         }
@@ -75,7 +75,7 @@ internal static class DumpCommand
 
         if (found is null)
         {
-            error.WriteLine($"jvmbridge: {path} has no class {className}. Run 'jvmbridge dump {path}' to list its classes.");
+            error.WriteLine(value: $"jvmbridge: {path} has no class {className}. Run 'jvmbridge dump {path}' to list its classes.");
 
             return 1;
         }

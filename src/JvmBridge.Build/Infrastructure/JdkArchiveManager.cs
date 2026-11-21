@@ -23,7 +23,7 @@ internal sealed class JdkArchiveManager(HttpService http)
             await _http.DownloadFileAsync(archive.Url, archivePath, cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
 
-            TextFile.Write(downloadLog, $"Downloaded {archive.Url}\n");
+            TextFile.Write(downloadLog, value: $"Downloaded {archive.Url}\n");
         }
         catch (Exception failure)
         {

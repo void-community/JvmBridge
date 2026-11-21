@@ -152,11 +152,11 @@ public sealed class GenerateJavaProxies : BuildTask
         if (patterns.Length == 0)
         {
             return Fail(code: "JVMB011",
-                $"The JavaReference {item} needs Types metadata that lists the classes to wrap, for example Types=\"com/acme/Service;com/acme/model/*\".");
+                message: $"The JavaReference {item} needs Types metadata that lists the classes to wrap, for example Types=\"com/acme/Service;com/acme/model/*\".");
         }
 
         if (!File.Exists(path))
-            return Fail(code: "JVMB013", $"The JavaReference {item} does not exist: {path}");
+            return Fail(code: "JVMB013", message: $"The JavaReference {item} does not exist: {path}");
 
         bool[] used = new bool[patterns.Length];
 
@@ -182,7 +182,7 @@ public sealed class GenerateJavaProxies : BuildTask
         }
         catch (Exception failure) when (failure is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            return Fail(code: "JVMB013", $"Could not read the JavaReference {item}: {failure.Message}");
+            return Fail(code: "JVMB013", message: $"Could not read the JavaReference {item}: {failure.Message}");
         }
 
         for (int index = 0; index < patterns.Length; index++)
@@ -190,7 +190,7 @@ public sealed class GenerateJavaProxies : BuildTask
             if (!used[index])
             {
                 return Fail(code: "JVMB012",
-                    $"The Types entry '{patterns[index]}' of the JavaReference {item} matches no class in the jar.");
+                    message: $"The Types entry '{patterns[index]}' of the JavaReference {item} matches no class in the jar.");
             }
         }
 

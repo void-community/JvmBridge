@@ -103,7 +103,7 @@ public sealed class JavaCompileReferenceTests
 
         Write(project.Path,
             path: "Consumer.csproj",
-            $"""
+            text: $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>

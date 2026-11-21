@@ -60,7 +60,7 @@ public sealed class GlibcFloorTests
         Assert.NotEmpty(versions);
 
         Assert.True(newest <= Floor,
-            $"HelloAgent.so needs glibc {newest}, newer than the floor {Floor}. Publish it with the properties of the glibc-sysroot action.");
+            userMessage: $"HelloAgent.so needs glibc {newest}, newer than the floor {Floor}. Publish it with the properties of the glibc-sysroot action.");
     }
 
     /// <summary>The agent runs the fixture on the old glibc through -agentpath, and through its jar with -javaagent.</summary>
@@ -140,13 +140,13 @@ public sealed class GlibcFloorTests
         foreach (string marker in new[] { "AGENT_OK", "PATCH_OK", "MATCHER_PATCH_OK", "JAVA_BASE_PATCH_OK", "ADVICE_OK", "EVENTS_OK", "INTEROP_OK", "UNLOAD" })
         {
             Assert.True(library.Output.Contains(marker, StringComparison.Ordinal),
-                $"Missing {marker} with -agentpath in {image}:\n{library.Output}");
+                userMessage: $"Missing {marker} with -agentpath in {image}:\n{library.Output}");
         }
 
         foreach (string marker in new[] { "AGENT_OK", "ATTACH", "PATCH_OK", "ADVICE_OK", "UNLOAD" })
         {
             Assert.True(launched.Output.Contains(marker, StringComparison.Ordinal),
-                $"Missing {marker} with -javaagent ({launcher}) in {image}:\n{launched.Output}");
+                userMessage: $"Missing {marker} with -javaagent ({launcher}) in {image}:\n{launched.Output}");
         }
     }
 

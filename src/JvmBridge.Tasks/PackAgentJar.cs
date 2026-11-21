@@ -39,7 +39,7 @@ public sealed class PackAgentJar : BuildTask
                 string rid = fields.Length > 1 ? fields[1] : string.Empty;
 
                 if (!File.Exists(path))
-                    return Fail($"The agent library for {rid} does not exist: {path}");
+                    return Fail(message: $"The agent library for {rid} does not exist: {path}");
 
                 libraries.Add(AgentLibrary.FromFile(rid, path));
             }
@@ -47,7 +47,7 @@ public sealed class PackAgentJar : BuildTask
             foreach (string path in Lines(Jars))
             {
                 if (!File.Exists(path))
-                    return Fail($"The jar does not exist: {path}");
+                    return Fail(message: $"The jar does not exist: {path}");
 
                 libraries.AddRange(LauncherJar.Read(path));
             }
@@ -56,7 +56,7 @@ public sealed class PackAgentJar : BuildTask
             string launcher = LauncherJar.Write(OutputFile, combined);
 
             Log.LogMessage(MessageImportance.High,
-                $"JvmBridge: {OutputFile} (launcher {launcher}) holds the agent for {string.Join(separator: ", ", combined.Select(static library => library.Rid).Order(StringComparer.Ordinal))}.");
+                message: $"JvmBridge: {OutputFile} (launcher {launcher}) holds the agent for {string.Join(separator: ", ", combined.Select(static library => library.Rid).Order(StringComparer.Ordinal))}.");
 
             return true;
         }

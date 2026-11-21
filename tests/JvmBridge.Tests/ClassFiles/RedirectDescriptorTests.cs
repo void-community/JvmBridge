@@ -25,7 +25,7 @@ public sealed class RedirectDescriptorTests
         ClassPatchResult exact = Sample.RedirectInvocation(StringLength, JavaMethod.Static(owner: "pkg/Helpers", name: "measure", descriptor: "(Ljava/lang/String;)I"))
             .Apply(ClassFileFixtures.Sample);
 
-        ClassPatchResult receiver = Sample.RedirectInvocation(ListSize, JavaMethod.Static(owner: "pkg/Helpers", name: "count", $"({Self})I"))
+        ClassPatchResult receiver = Sample.RedirectInvocation(ListSize, JavaMethod.Static(owner: "pkg/Helpers", name: "count", descriptor: $"({Self})I"))
             .Apply(ClassFileFixtures.Sample);
 
         Assert.True(exact.Changed, exact.SkippedReason);
@@ -41,7 +41,7 @@ public sealed class RedirectDescriptorTests
     public void RedirectsToAHelperThatTakesObject()
     {
         ClassPatchResult redirected = Sample.Method(name: "length", descriptor: "(Ljava/lang/String;)I")
-            .RedirectInvocation(StringLength, JavaMethod.Static(owner: "pkg/Helpers", name: "measure", $"({Self})I"))
+            .RedirectInvocation(StringLength, JavaMethod.Static(owner: "pkg/Helpers", name: "measure", descriptor: $"({Self})I"))
             .Apply(ClassFileFixtures.Sample);
 
         Assert.True(redirected.Changed, redirected.SkippedReason);
@@ -71,16 +71,16 @@ public sealed class RedirectDescriptorTests
             JavaMethod.Static(owner: "pkg/Helpers", name: "measure", descriptor: "()I")));
 
         ArgumentException returnType = Assert.Throws<ArgumentException>(() => Sample.RedirectInvocation(StringLength,
-            JavaMethod.Static(owner: "pkg/Helpers", name: "measure", $"({Self})J")));
+            JavaMethod.Static(owner: "pkg/Helpers", name: "measure", descriptor: $"({Self})J")));
 
         ArgumentException other = Assert.Throws<ArgumentException>(() => Sample.RedirectInvocation(StringLength,
             JavaMethod.Static(owner: "pkg/Helpers", name: "measure", descriptor: "(Ljava/lang/CharSequence;)I")));
 
         ArgumentException primitive = Assert.Throws<ArgumentException>(() => Sample.RedirectInvocation(sort,
-            JavaMethod.Static(owner: "pkg/Helpers", name: "sort", $"({Self}I)V")));
+            JavaMethod.Static(owner: "pkg/Helpers", name: "sort", descriptor: $"({Self}I)V")));
 
         ArgumentException kind = Assert.Throws<ArgumentException>(() => Sample.RedirectInvocation(StringLength,
-            JavaMethod.Virtual(owner: "pkg/Helpers", name: "measure", $"({Self})I")));
+            JavaMethod.Virtual(owner: "pkg/Helpers", name: "measure", descriptor: $"({Self})I")));
 
         // A target that takes a different number of operands, or returns another type, is refused with both shapes.
         Assert.Contains(expectedSubstring: "passes 1 operand ((Ljava/lang/String;)I), the target takes 0",

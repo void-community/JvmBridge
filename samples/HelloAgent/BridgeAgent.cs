@@ -114,7 +114,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
 
         foreach (PatchReport report in reports)
         {
-            Log($"COMMAND {command}: {report}");
+            Log(message: $"COMMAND {command}: {report}");
 
             if (report.NotRetransformedReason is not null || report.Failed > 0)
                 throw new InvalidOperationException("The command " + command + " did not retransform every class: " + report);
@@ -139,7 +139,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         if (context.Options.Contains(value: "fail-start", StringComparison.Ordinal))
             throw new InvalidOperationException(message: "Intentional initialization failure.");
 
-        Log($"LOAD retransform={context.CanRetransform}");
+        Log(message: $"LOAD retransform={context.CanRetransform}");
     }
 
     /// <inheritdoc/>
@@ -339,7 +339,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
     {
         try
         {
-            Console.Error.WriteLine($"JvmBridge sample: {message}");
+            Console.Error.WriteLine(value: $"JvmBridge sample: {message}");
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
@@ -365,7 +365,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -443,7 +443,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -507,7 +507,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
             if (exception.Message == "Intentional helper callback failure.")
                 Log(message: "HELPER_CALLBACK_CONTAINED");
             else
-                Log($"NATIVE_ERROR {exception.Message}");
+                Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -577,7 +577,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -602,7 +602,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
         }
     }
 
@@ -620,7 +620,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
 
             return 0;
         }
@@ -670,7 +670,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
 
             return null;
         }
@@ -695,7 +695,7 @@ internal sealed unsafe class BridgeAgent : JavaAgent
         }
         catch (Exception exception) when (ContainLoggingFailure(exception))
         {
-            Log($"NATIVE_ERROR {exception.Message}");
+            Log(message: $"NATIVE_ERROR {exception.Message}");
 
             return 0;
         }

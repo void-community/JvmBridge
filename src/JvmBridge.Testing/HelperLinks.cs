@@ -176,11 +176,11 @@ internal static class HelperLinks
             if (resolution.Member is { } declared && resolution.Declarer is { } declarer)
             {
                 if (Inaccessible(declared, declarer, use.From) is { } reason)
-                    problems.Add($"{use.From} uses {member}, which is {reason}");
+                    problems.Add(item: $"{use.From} uses {member}, which is {reason}");
             }
             else if (resolution.Outside.Count == 0)
             {
-                problems.Add($"{use.From} uses {member}, which {reference.Owner} and its supertypes on the class path do not declare");
+                problems.Add(item: $"{use.From} uses {member}, which {reference.Owner} and its supertypes on the class path do not declare");
             }
             else
             {
@@ -196,7 +196,7 @@ internal static class HelperLinks
                 lookups.Add(new Lookup(missing, noClass));
 
                 questions.AddRange(resolution.Outside
-                    .Select(type => new Question($"{kind} {type} {reference.Name} {reference.Descriptor}", lookups.Count - 1)));
+                    .Select(type => new Question(Query: $"{kind} {type} {reference.Name} {reference.Descriptor}", lookups.Count - 1)));
             }
         }
 
@@ -215,11 +215,11 @@ internal static class HelperLinks
 
                 jdkUses.Add(use);
                 lookups.Add(new Lookup(absent, absent));
-                questions.Add(new Question($"C {use.Type}", lookups.Count - 1));
+                questions.Add(new Question(Query: $"C {use.Type}", lookups.Count - 1));
             }
             else if ((file.AccessFlags & PublicFlag) == 0 && Package(use.Type) != Package(use.From))
             {
-                problems.Add($"{use.From} uses the class {use.Type}, which is not public and in another package");
+                problems.Add(item: $"{use.From} uses the class {use.Type}, which is not public and in another package");
             }
         }
 
@@ -258,7 +258,7 @@ internal static class HelperLinks
         foreach (ClassUse use in jdkUses.Distinct())
         {
             if (modules.TryGetValue(use.Type, out string? module) && !exported.Contains(module + "/" + Package(use.Type)))
-                problems.Add($"{use.From} uses {use.Type}, but {module} does not export {Package(use.Type)}: export it to the helper with ExportPackage(module: \"{module}\", package: \"{Package(use.Type)}\", ...) and pass {module}/{Package(use.Type)} as an exported package here");
+                problems.Add(item: $"{use.From} uses {use.Type}, but {module} does not export {Package(use.Type)}: export it to the helper with ExportPackage(module: \"{module}\", package: \"{Package(use.Type)}\", ...) and pass {module}/{Package(use.Type)} as an exported package here");
         }
 
         return problems;
@@ -379,7 +379,7 @@ internal static class HelperLinks
         int slash = entry.IndexOf(value: '/', StringComparison.Ordinal);
 
         return slash <= 0 || slash == entry.Length - 1
-            ? throw new ArgumentException($"{entry} is not module/package, such as java.base/sun/nio/ch.", nameof(entry))
+            ? throw new ArgumentException(message: $"{entry} is not module/package, such as java.base/sun/nio/ch.", nameof(entry))
             : entry[..slash] + "/" + entry[(slash + 1)..].Replace(oldChar: '.', newChar: '/');
     }
 
